@@ -232,8 +232,18 @@ class UsfxParser extends BaseParser {
           } else {
             final trimmedText = event.value.trim();
             if (trimmedText.isNotEmpty) {
-              // Append text to current verse
-              final newText = [currentVerse.text, trimmedText].join(' ');
+              String newText;
+              if (currentVerse.text.isEmpty) {
+                newText = trimmedText;
+              } else if (trimmedText.startsWith(RegExp(r'[.,;:!?)]'))) {
+                newText = currentVerse.text + trimmedText;
+              } else {
+                newText = currentVerse.text + ' ' + trimmedText;
+              }
+              // Remove any space before punctuation
+              newText = newText.replaceAll(RegExp(r'\s+([.,;:!?])'), r'\1');
+              // Remove any space after an opening parenthesis
+              newText = newText.replaceAll(RegExp(r'\(\s+'), '(');
               currentVerse = Verse(
                 num: currentVerse.num,
                 chapterNum: currentVerse.chapterNum,
@@ -257,83 +267,94 @@ class UsfxParser extends BaseParser {
     String? currentBookId;
     int? currentChapterNum;
     Verse? currentVerse;
+    bool insideFTag = false;
+    bool insideXTag = false;
 
-    // Parse XML using events for memory efficiency
     try {
       final events = await parseEvents(content).toList();
 
       for (final event in events) {
         if (event is XmlStartElementEvent) {
           if (event.name == 'book') {
-            // Find book ID from attributes
             String bookId = '';
-
             for (var attr in event.attributes) {
               if (attr.name == 'id') {
                 bookId = attr.value.toLowerCase();
                 break;
               }
             }
-
             if (bookId.isEmpty) continue;
             currentBookId = bookId;
           } else if (event.name == 'c' && currentBookId != null) {
-            // Find chapter number from attributes
             String chapterNumStr = '1';
-
             for (var attr in event.attributes) {
               if (attr.name == 'id') {
                 chapterNumStr = attr.value;
                 break;
               }
             }
-
             currentChapterNum = int.tryParse(chapterNumStr) ?? 1;
           } else if (event.name == 'v' &&
-              currentBookId != null &&
-              currentChapterNum != null) {
-            // Find verse number from attributes
+            currentBookId != null &&
+            currentChapterNum != null) {
             String verseNumStr = '1';
-
-            for (var attr in event.attributes) {
-              if (attr.name == 'id') {
-                verseNumStr = attr.value;
-                break;
-              }
+          for (var attr in event.attributes) {
+            if (attr.name == 'id') {
+              verseNumStr = attr.value;
+              break;
             }
-
-            final verseNum = int.tryParse(verseNumStr) ?? 1;
-
-            currentVerse = Verse(
-              num: verseNum,
-              chapterNum: currentChapterNum,
-              text: '',
-              bookId: currentBookId,
-            );
-          } // Closing verses. Some versions use <ve/> instead of </v>
-          else if (event.isSelfClosing &&
+          }
+          final verseNum = int.tryParse(verseNumStr) ?? 1;
+          currentVerse = Verse(
+            num: verseNum,
+            chapterNum: currentChapterNum,
+            text: '',
+            bookId: currentBookId,
+          );
+            } else if (event.isSelfClosing &&
               event.name == 've' &&
               currentVerse != null) {
-            yield currentVerse;
+              yield currentVerse;
             currentVerse = null;
-          }
+              } else if (event.name == 'f' && currentVerse != null) {
+                insideFTag = true;
+              } else if (event.name == 'x' && currentVerse != null) {
+                insideXTag = true;
+              }
         } else if (event is XmlEndElementEvent) {
           if (event.name == 'v' && currentVerse != null) {
             yield currentVerse;
-
             currentVerse = null;
+          } else if (event.name == 'f') {
+            insideFTag = false;
+          } else if (event.name == 'x') {
+            insideXTag = false;
           }
         } else if (event is XmlTextEvent && currentVerse != null) {
-          final trimmedText = event.value.trim();
-          if (trimmedText.isNotEmpty) {
-            // Append text to current verse
-            final newText = [currentVerse.text, trimmedText].join(' ');
-            currentVerse = Verse(
-              num: currentVerse.num,
-              chapterNum: currentVerse.chapterNum,
-              text: newText,
-              bookId: currentVerse.bookId,
-            );
+          if (insideFTag || insideXTag) {
+            continue;
+          } else {
+            final trimmedText = event.value.trim();
+            if (trimmedText.isNotEmpty) {
+              String newText;
+              if (currentVerse.text.isEmpty) {
+                newText = trimmedText;
+              } else if (trimmedText.startsWith(RegExp(r'[.,;:!?)]'))) {
+                newText = currentVerse.text + trimmedText;
+              } else {
+                newText = currentVerse.text + ' ' + trimmedText;
+              }
+              // Remove any space before punctuation
+              newText = newText.replaceAll(RegExp(r'\s+([.,;:!?])'), r'\1');
+              // Remove any space after an opening parenthesis
+              newText = newText.replaceAll(RegExp(r'\(\s+'), '(');
+              currentVerse = Verse(
+                num: currentVerse.num,
+                chapterNum: currentVerse.chapterNum,
+                text: newText,
+                bookId: currentVerse.bookId,
+              );
+            }
           }
         }
       }
