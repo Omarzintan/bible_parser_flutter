@@ -175,6 +175,8 @@ class BibleRepository {
           chapter_num INTEGER,
           verse_num INTEGER,
           text TEXT,
+          notes TEXT,
+          references TEXT,
           FOREIGN KEY (book_id) REFERENCES books (id)
         )
       ''');

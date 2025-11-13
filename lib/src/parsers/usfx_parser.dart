@@ -86,71 +86,52 @@ class UsfxParser extends BaseParser {
   bool checkFormat(String content) {
     // Check for USFX format markers
     return content.contains('<usfx') || content.contains('<USFX');
-  }
+    }
 
   @override
   Stream<Book> parseBooks() async* {
     final content = await getContent();
 
-    // Current parsing state
     Book? currentBook;
     Chapter? currentChapter;
     Verse? currentVerse;
-    // True when we are inside a <f> tag. These tags are used for
-    // footnotes. We skip them for now.
-    bool insideFTag = false;
-    // True when we are inside a <x> tag. These tags are used for
-    // cross-references. We skip them for now.
-    bool insideXTag = false;
+    String currentNote = '';
+  bool insideFTag = false;
+  bool insideXTag = false;
+  // Accumulate reference text while inside an <x> tag
+  String currentReference = '';
 
-    // Parse XML using events for memory efficiency
     try {
       final events = await parseEvents(content).toList();
 
       for (final event in events) {
         if (event is XmlStartElementEvent) {
           if (event.name == 'book') {
-            // Find book ID from attributes
-            String bookId = '';
+            String bookId = event.attributes
+        .firstWhere((attr) => attr.name == 'id',
+          orElse: () => XmlEventAttribute('', '', XmlAttributeType.DOUBLE_QUOTE))
+                .value
+                .toLowerCase();
 
-            for (var attr in event.attributes) {
-              if (attr.name == 'id') {
-                bookId = attr.value.toLowerCase();
-                break;
-              }
-            }
-
-            // Skip if no book ID found
             if (bookId.isEmpty) continue;
 
             final bookNum = _getBookNum(bookId);
             final bookName = _getBookName(bookId.toUpperCase());
 
-            currentBook = Book(
-              id: bookId,
-              num: bookNum,
-              title: bookName,
-            );
+            currentBook = Book(id: bookId, num: bookNum, title: bookName);
           } else if (event.name == 'c' && currentBook != null) {
-            // Find chapter number from attributes
-            String chapterNumStr = '1';
-
-            for (var attr in event.attributes) {
-              if (attr.name == 'id') {
-                chapterNumStr = attr.value;
-                break;
-              }
-            }
+            String chapterNumStr = event.attributes
+        .firstWhere((attr) => attr.name == 'id',
+          orElse: () => XmlEventAttribute('', '1', XmlAttributeType.DOUBLE_QUOTE))
+                .value;
 
             final chapterNum = int.tryParse(chapterNumStr) ?? 1;
 
-            // End of Chapter. Note: If chapter number is different from current
-            // chapter number, that older chapter has ended. Add current chapter
-            // to book
             if (currentChapter != null && chapterNum != currentChapter.num) {
               currentBook.addChapter(currentChapter);
               currentChapter = null;
             }
+
             currentChapter = Chapter(
               num: chapterNum,
               bookId: currentBook.id,
@@ -158,29 +139,20 @@ class UsfxParser extends BaseParser {
           } else if (event.name == 'v' &&
               currentBook != null &&
               currentChapter != null) {
-            // Find verse number from attributes
-            String verseNumStr = '1';
-
-            for (var attr in event.attributes) {
-              if (attr.name == 'id') {
-                verseNumStr = attr.value;
-                break;
-              }
-            }
+            String verseNumStr = event.attributes
+        .firstWhere((attr) => attr.name == 'id',
+          orElse: () => XmlEventAttribute('', '1', XmlAttributeType.DOUBLE_QUOTE))
+                .value;
 
             final verseNum = int.tryParse(verseNumStr) ?? 1;
 
-            // Verse text will be collected in the character events
-            // This is just setting up the verse
             currentVerse = Verse(
               num: verseNum,
               chapterNum: currentChapter.num,
               text: '',
               bookId: currentBook.id,
             );
-          }
-          // Closing verses. Some versions use <ve/> instead of </v>
-          else if (event.isSelfClosing &&
+          } else if (event.isSelfClosing &&
               event.name == 've' &&
               currentBook != null &&
               currentChapter != null &&
@@ -190,21 +162,16 @@ class UsfxParser extends BaseParser {
           } else if (event.name == 'f' &&
               currentBook != null &&
               currentVerse != null) {
-            // We are inside a footnote tag.
             insideFTag = true;
           } else if (event.name == 'x' &&
               currentBook != null &&
               currentVerse != null) {
-            // We are inside a cross-reference tag.
             insideXTag = true;
+            currentReference = '';
           }
         } else if (event is XmlEndElementEvent) {
           if (event.name == 'book' && currentBook != null) {
-            // Add the last chapter if it exists. Since we don't have end tags for chapters
-            // we need to add the last chapter manually
-            if (currentChapter != null) {
-              currentBook.addChapter(currentChapter);
-            }
+            if (currentChapter != null) currentBook.addChapter(currentChapter);
             yield currentBook;
             currentBook = null;
             currentChapter = null;
@@ -220,16 +187,26 @@ class UsfxParser extends BaseParser {
             currentChapter.addVerse(currentVerse);
             currentVerse = null;
           } else if (event.name == 'f') {
-            // End of footnote tag
+            if (currentVerse != null && currentNote.isNotEmpty) {
+              currentVerse.notes.add(currentNote);
+              currentNote = '';
+            }
             insideFTag = false;
           } else if (event.name == 'x') {
-            // End of cross-reference tag
+            // End of reference tag – store accumulated reference
+            if (currentVerse != null && currentReference.isNotEmpty) {
+              currentVerse.references.add(currentReference);
+            }
             insideXTag = false;
+            currentReference = '';
           }
-        } else if (event is XmlTextEvent && currentVerse != null) {
-          if (insideFTag || insideXTag) {
-            continue;
-          } else {
+          } else if (event is XmlTextEvent && currentVerse != null) {
+            if (insideFTag) {
+              currentNote += event.value;
+            } else if (insideXTag) {
+              // Accumulate reference text
+              currentReference += event.value;
+            } else {
             final trimmedText = event.value.trim();
             if (trimmedText.isNotEmpty) {
               String newText;
@@ -238,17 +215,19 @@ class UsfxParser extends BaseParser {
               } else if (trimmedText.startsWith(RegExp(r'[.,;:!?)]'))) {
                 newText = currentVerse.text + trimmedText;
               } else {
-                newText = currentVerse.text + ' ' + trimmedText;
+                newText = '${currentVerse.text} $trimmedText';
               }
-              // Remove any space before punctuation
-              newText = newText.replaceAll(RegExp(r'\s+([.,;:!?])'), r'\1');
-              // Remove any space after an opening parenthesis
-              newText = newText.replaceAll(RegExp(r'\(\s+'), '(');
+
+              newText = newText
+                  .replaceAll(RegExp(r'\s+([.,;:!?])'), r'\1')
+                  .replaceAll(RegExp(r'\(\s+'), '(');
+
               currentVerse = Verse(
                 num: currentVerse.num,
                 chapterNum: currentVerse.chapterNum,
                 text: newText,
                 bookId: currentVerse.bookId,
+                notes: currentVerse.notes,
               );
             }
           }
@@ -263,10 +242,10 @@ class UsfxParser extends BaseParser {
   Stream<Verse> parseVerses() async* {
     final content = await getContent();
 
-    // Current parsing state
     String? currentBookId;
     int? currentChapterNum;
     Verse? currentVerse;
+    String currentNote = '';
     bool insideFTag = false;
     bool insideXTag = false;
 
@@ -276,62 +255,63 @@ class UsfxParser extends BaseParser {
       for (final event in events) {
         if (event is XmlStartElementEvent) {
           if (event.name == 'book') {
-            String bookId = '';
-            for (var attr in event.attributes) {
-              if (attr.name == 'id') {
-                bookId = attr.value.toLowerCase();
-                break;
-              }
-            }
+            String bookId = event.attributes
+        .firstWhere((attr) => attr.name == 'id',
+          orElse: () => XmlEventAttribute('', '', XmlAttributeType.DOUBLE_QUOTE))
+                .value
+                .toLowerCase();
+
             if (bookId.isEmpty) continue;
             currentBookId = bookId;
           } else if (event.name == 'c' && currentBookId != null) {
-            String chapterNumStr = '1';
-            for (var attr in event.attributes) {
-              if (attr.name == 'id') {
-                chapterNumStr = attr.value;
-                break;
-              }
-            }
+            String chapterNumStr = event.attributes
+        .firstWhere((attr) => attr.name == 'id',
+          orElse: () => XmlEventAttribute('', '1', XmlAttributeType.DOUBLE_QUOTE))
+                .value;
+
             currentChapterNum = int.tryParse(chapterNumStr) ?? 1;
           } else if (event.name == 'v' &&
-            currentBookId != null &&
-            currentChapterNum != null) {
-            String verseNumStr = '1';
-          for (var attr in event.attributes) {
-            if (attr.name == 'id') {
-              verseNumStr = attr.value;
-              break;
-            }
-          }
-          final verseNum = int.tryParse(verseNumStr) ?? 1;
-          currentVerse = Verse(
-            num: verseNum,
-            chapterNum: currentChapterNum,
-            text: '',
-            bookId: currentBookId,
-          );
-            } else if (event.isSelfClosing &&
+              currentBookId != null &&
+              currentChapterNum != null) {
+            String verseNumStr = event.attributes
+        .firstWhere((attr) => attr.name == 'id',
+          orElse: () => XmlEventAttribute('', '1', XmlAttributeType.DOUBLE_QUOTE))
+                .value;
+
+            final verseNum = int.tryParse(verseNumStr) ?? 1;
+            currentVerse = Verse(
+              num: verseNum,
+              chapterNum: currentChapterNum,
+              text: '',
+              bookId: currentBookId,
+            );
+          } else if (event.isSelfClosing &&
               event.name == 've' &&
               currentVerse != null) {
-              yield currentVerse;
+            yield currentVerse;
             currentVerse = null;
-              } else if (event.name == 'f' && currentVerse != null) {
-                insideFTag = true;
-              } else if (event.name == 'x' && currentVerse != null) {
-                insideXTag = true;
-              }
+          } else if (event.name == 'f' && currentVerse != null) {
+            insideFTag = true;
+          } else if (event.name == 'x' && currentVerse != null) {
+            insideXTag = true;
+          }
         } else if (event is XmlEndElementEvent) {
           if (event.name == 'v' && currentVerse != null) {
             yield currentVerse;
             currentVerse = null;
           } else if (event.name == 'f') {
+            if (currentVerse != null && currentNote.isNotEmpty) {
+              currentVerse.notes.add(currentNote);
+              currentNote = '';
+            }
             insideFTag = false;
           } else if (event.name == 'x') {
             insideXTag = false;
           }
         } else if (event is XmlTextEvent && currentVerse != null) {
-          if (insideFTag || insideXTag) {
+          if (insideFTag) {
+            currentNote += event.value;
+          } else if (insideXTag) {
             continue;
           } else {
             final trimmedText = event.value.trim();
@@ -342,17 +322,19 @@ class UsfxParser extends BaseParser {
               } else if (trimmedText.startsWith(RegExp(r'[.,;:!?)]'))) {
                 newText = currentVerse.text + trimmedText;
               } else {
-                newText = currentVerse.text + ' ' + trimmedText;
+                newText = '${currentVerse.text} $trimmedText';
               }
-              // Remove any space before punctuation
-              newText = newText.replaceAll(RegExp(r'\s+([.,;:!?])'), r'\1');
-              // Remove any space after an opening parenthesis
-              newText = newText.replaceAll(RegExp(r'\(\s+'), '(');
+
+              newText = newText
+                  .replaceAll(RegExp(r'\s+([.,;:!?])'), r'\1')
+                  .replaceAll(RegExp(r'\(\s+'), '(');
+
               currentVerse = Verse(
                 num: currentVerse.num,
                 chapterNum: currentVerse.chapterNum,
                 text: newText,
                 bookId: currentVerse.bookId,
+                notes: currentVerse.notes,
               );
             }
           }
@@ -363,7 +345,6 @@ class UsfxParser extends BaseParser {
     }
   }
 
-  /// Gets the book number based on its ID.
   int _getBookNum(String bookId) {
     final upperBookId = bookId.toUpperCase();
     final keys = _bookNames.keys.toList();
@@ -371,18 +352,15 @@ class UsfxParser extends BaseParser {
     return index >= 0 ? index + 1 : 0;
   }
 
-  /// Gets the book name based on its ID.
   String _getBookName(String bookId) {
     return _bookNames[bookId] ?? 'Unknown';
   }
 
-  /// Parses XML events from the content string.
   Stream<XmlEvent> parseEvents(String content) {
     try {
       final events = XmlEventDecoder().convert(content);
       return Stream.fromIterable(events);
     } catch (e) {
-      // Handle XML parsing errors
       throw ParseError('Failed to parse XML content: $e');
     }
   }

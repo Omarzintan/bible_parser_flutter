@@ -419,13 +419,27 @@ class OsisParser extends BaseParser {
   }
 
   /// Gets the book name based on its ID.
+  // String _getBookName(String bookId) {
+
+    
+  //   for (final entry in _bookNames.entries) {
+  //     if (bookId.toLowerCase().startsWith(entry.key.toLowerCase())) {
+  //       return entry.value;
+  //     }
+  //   }
+    
+  //   return "Unknown";
+  // }
   String _getBookName(String bookId) {
+
+    
     for (final entry in _bookNames.entries) {
       if (bookId.toLowerCase().startsWith(entry.key.toLowerCase())) {
         return entry.value;
       }
     }
-    return 'Unknown';
+    
+    return bookId.toUpperCase();
   }
 
   /// Parses XML events from the content string.

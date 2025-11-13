@@ -13,11 +13,19 @@ project_type: app
 migration:
   platforms:
     - platform: root
+<<<<<<< Updated upstream
       create_revision: 4a8e2f983fcabe30f85e02c576431eed1e2ba0b4
       base_revision: 4a8e2f983fcabe30f85e02c576431eed1e2ba0b4
     - platform: ios
       create_revision: 4a8e2f983fcabe30f85e02c576431eed1e2ba0b4
       base_revision: 4a8e2f983fcabe30f85e02c576431eed1e2ba0b4
+=======
+      create_revision: a402d9a4376add5bc2d6b1e33e53edaae58c07f8
+      base_revision: a402d9a4376add5bc2d6b1e33e53edaae58c07f8
+    - platform: linux
+      create_revision: a402d9a4376add5bc2d6b1e33e53edaae58c07f8
+      base_revision: a402d9a4376add5bc2d6b1e33e53edaae58c07f8
+>>>>>>> Stashed changes
 
   # User provided section
 
