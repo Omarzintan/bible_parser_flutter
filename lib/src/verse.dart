@@ -24,9 +24,10 @@ class Verse {
       required this.chapterNum,
       required this.text,
       required this.bookId,
-      this.notes = const [],
-      this.references = const [],
-   });
+      List<String>? notes,
+      List<String>? references,
+   })  : notes = notes ?? [],
+        references = references ?? [];
 
    /// Creates a verse from a map, typically from database results.
    factory Verse.fromMap(Map<String, dynamic> map) {
