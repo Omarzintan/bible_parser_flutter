@@ -1,8 +1,9 @@
 import 'dart:async';
 import 'dart:io';
 
-import 'package:sqflite/sqflite.dart';
+// import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart';
+import 'sqflite_factory.dart';
 
 import 'bible_parser.dart';
 import 'book.dart';
@@ -71,7 +72,7 @@ class BibleRepository {
   Future<bool> _isDatabaseInitialized(String databaseName) async {
     final dbPath = await _getDatabasePath(databaseName);
 
-    final dbExists = await databaseFactory.databaseExists(dbPath);
+    final dbExists = await databaseFactoryPlatform.databaseExists(dbPath);
     if (!dbExists) {
       return false;
     }
@@ -92,7 +93,7 @@ class BibleRepository {
     }
 
     // Create database schema
-    final db = await _openDatabase(databaseName);
+  final db = await _openDatabase(databaseName);
     _database = db; // Set the database instance
 
     try {
@@ -146,19 +147,19 @@ class BibleRepository {
       throw Exception('Failed to create Bible database: $e, $stackTrace');
     }
 
-    // Set database version
-    await db.setVersion(1);
-    await db.close();
+  // Database versioning is handled by openDatabase. Just close.
+  // Keep the database open for repository use
   }
 
   /// Opens the database.
   Future<Database> _openDatabase(String databaseName) async {
     final dbPath = await _getDatabasePath(databaseName);
     
-    return openDatabase(
+    return databaseFactoryPlatform.openDatabase(
       dbPath,
-      version: 1,
-      onCreate: (db, version) async {
+      options: OpenDatabaseOptions(
+        version: 1,
+        onCreate: (db, version) async {
         // Create tables
         await db.execute('''
         CREATE TABLE IF NOT EXISTS books (
@@ -183,13 +184,18 @@ class BibleRepository {
         await db.execute(
             'CREATE INDEX IF NOT EXISTS idx_verses_lookup ON verses (book_id, chapter_num, verse_num)');
         await db.execute('CREATE INDEX IF NOT EXISTS idx_verses_search ON verses (text)');
-      },
+        },
+      ),
     );
   }
 
   /// Gets the path to the database file.
   Future<String> _getDatabasePath(String databaseName) async {
-    return join(await getDatabasesPath(), databaseName);
+    final base = await getDatabasesPathPlatform();
+    if (base.isEmpty) {
+      return databaseName;
+    }
+    return join(base, databaseName);
   }
 
   /// Ensures database is initialized before use
