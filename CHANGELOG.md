@@ -1,3 +1,10 @@
+## 0.2.0+1 - Example App Update
+
+### Changed
+* Updated example app to demonstrate red-letter Bible feature
+* Added toggle switch to enable/disable red-letter display
+* Jesus' words are now visually indicated with `[JESUS: ...]` markers
+
 ## 0.2.0 - Red-Letter Bible Support
 
 ### Added
