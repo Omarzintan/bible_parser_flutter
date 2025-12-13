@@ -5,9 +5,12 @@ import 'dart:io';
 import 'package:path/path.dart';
 import 'sqflite_factory.dart';
 
+import 'dart:convert';
+
 import 'bible_parser.dart';
 import 'book.dart';
 import 'verse.dart';
+import 'text_segment.dart';
 
 /// Repository for accessing Bible data with database caching.
 class BibleRepository {
@@ -50,7 +53,7 @@ class BibleRepository {
       } catch (e) {
         // Ignore errors when closing
       }
-      
+
       // Check if database exists and is current version
       final dbInitialized = await _isDatabaseInitialized(databaseName);
 
@@ -77,7 +80,6 @@ class BibleRepository {
       return false;
     }
     return true;
-
   }
 
   /// Creates the database from the XML file or string.
@@ -93,7 +95,7 @@ class BibleRepository {
     }
 
     // Create database schema
-  final db = await _openDatabase(databaseName);
+    final db = await _openDatabase(databaseName);
     _database = db; // Set the database instance
 
     try {
@@ -102,39 +104,59 @@ class BibleRepository {
         try {
           // Process books
           final books = <Map<String, dynamic>>[];
-          final verses = <Map<String, dynamic>>[];
-          
+          final versesData = <Verse>[];
+
           // First collect all data
           await for (final book in parser.books) {
             books.add(book.toMap());
             if (book.verses.isNotEmpty) {
-              for (final verse in book.verses) {
-                verses.add(verse.toMap());
-              }
+              versesData.addAll(book.verses);
             }
           }
-          
+
           // Then batch insert books
           for (final book in books) {
             try {
               await txn.insert(
-                'books', 
+                'books',
                 book,
-                conflictAlgorithm: ConflictAlgorithm.ignore, // Skip if already exists
+                conflictAlgorithm:
+                    ConflictAlgorithm.ignore, // Skip if already exists
               );
             } catch (e) {
               // Continue with next book
             }
           }
-          
-          // Then batch insert verses
-          for (final verse in verses) {
+
+          // Then batch insert verses and their segments
+          for (final verse in versesData) {
             try {
-              await txn.insert(
-                'verses', 
-                verse,
-                conflictAlgorithm: ConflictAlgorithm.ignore, // Skip if already exists
+              // Insert verse and get its ID
+              final verseId = await txn.insert(
+                'verses',
+                verse.toMap(),
+                conflictAlgorithm:
+                    ConflictAlgorithm.ignore, // Skip if already exists
               );
+
+              // Insert segments if present
+              if (verse.segments != null && verse.segments!.isNotEmpty) {
+                for (int i = 0; i < verse.segments!.length; i++) {
+                  final segment = verse.segments![i];
+                  await txn.insert(
+                    'verse_segments',
+                    {
+                      'verse_id': verseId,
+                      'segment_order': i,
+                      'text': segment.text,
+                      'attributes': segment.attributes != null
+                          ? jsonEncode(segment.attributes)
+                          : null,
+                    },
+                    conflictAlgorithm: ConflictAlgorithm.ignore,
+                  );
+                }
+              }
             } catch (e) {
               // Continue with next verse
             }
@@ -147,21 +169,21 @@ class BibleRepository {
       throw Exception('Failed to create Bible database: $e, $stackTrace');
     }
 
-  // Database versioning is handled by openDatabase. Just close.
-  // Keep the database open for repository use
+    // Set database version (version is already set in onCreate, so this is redundant)
+    // Keep database open for use
   }
 
   /// Opens the database.
   Future<Database> _openDatabase(String databaseName) async {
     final dbPath = await _getDatabasePath(databaseName);
-    
+
     return databaseFactoryPlatform.openDatabase(
       dbPath,
       options: OpenDatabaseOptions(
-        version: 1,
+        version: 2, // Incremented for segments support
         onCreate: (db, version) async {
-        // Create tables
-        await db.execute('''
+          // Create tables
+          await db.execute('''
         CREATE TABLE IF NOT EXISTS books (
           id TEXT PRIMARY KEY,
           num INTEGER,
@@ -169,7 +191,7 @@ class BibleRepository {
         )
       ''');
 
-        await db.execute('''
+          await db.execute('''
         CREATE TABLE IF NOT EXISTS verses (
           id INTEGER PRIMARY KEY AUTOINCREMENT,
           book_id TEXT,
@@ -180,10 +202,42 @@ class BibleRepository {
         )
       ''');
 
-        // Create indexes for fast lookup
-        await db.execute(
-            'CREATE INDEX IF NOT EXISTS idx_verses_lookup ON verses (book_id, chapter_num, verse_num)');
-        await db.execute('CREATE INDEX IF NOT EXISTS idx_verses_search ON verses (text)');
+          // Create segments table for red-letter Bible support
+          await db.execute('''
+        CREATE TABLE IF NOT EXISTS verse_segments (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          verse_id INTEGER NOT NULL,
+          segment_order INTEGER NOT NULL,
+          text TEXT NOT NULL,
+          attributes TEXT,
+          FOREIGN KEY (verse_id) REFERENCES verses (id) ON DELETE CASCADE
+        )
+      ''');
+
+          // Create indexes for fast lookup
+          await db.execute(
+              'CREATE INDEX IF NOT EXISTS idx_verses_lookup ON verses (book_id, chapter_num, verse_num)');
+          await db.execute(
+              'CREATE INDEX IF NOT EXISTS idx_verses_search ON verses (text)');
+          await db.execute(
+              'CREATE INDEX IF NOT EXISTS idx_segments_verse ON verse_segments (verse_id)');
+        },
+        onUpgrade: (db, oldVersion, newVersion) async {
+          // Handle migration from version 1 to 2
+          if (oldVersion < 2) {
+            await db.execute('''
+            CREATE TABLE IF NOT EXISTS verse_segments (
+              id INTEGER PRIMARY KEY AUTOINCREMENT,
+              verse_id INTEGER NOT NULL,
+              segment_order INTEGER NOT NULL,
+              text TEXT NOT NULL,
+              attributes TEXT,
+              FOREIGN KEY (verse_id) REFERENCES verses (id) ON DELETE CASCADE
+            )
+          ''');
+            await db.execute(
+                'CREATE INDEX IF NOT EXISTS idx_segments_verse ON verse_segments (verse_id)');
+          }
         },
       ),
     );
@@ -221,6 +275,39 @@ class BibleRepository {
     return result.first['count'] as int;
   }
 
+  /// Loads segments for a verse from the database.
+  Future<List<TextSegment>?> _loadSegments(int verseId) async {
+    final segmentMaps = await _database!.query(
+      'verse_segments',
+      where: 'verse_id = ?',
+      whereArgs: [verseId],
+      orderBy: 'segment_order',
+    );
+
+    if (segmentMaps.isEmpty) {
+      return null;
+    }
+
+    return segmentMaps.map((map) {
+      Map<String, String>? attributes;
+      if (map['attributes'] != null && map['attributes'] is String) {
+        try {
+          final decoded = jsonDecode(map['attributes'] as String);
+          if (decoded is Map) {
+            attributes = Map<String, String>.from(decoded);
+          }
+        } catch (e) {
+          // If JSON parsing fails, ignore attributes
+        }
+      }
+
+      return TextSegment(
+        text: map['text'] as String,
+        attributes: attributes,
+      );
+    }).toList();
+  }
+
   /// Gets all verses in a chapter.
   Future<List<Verse>> getVerses(String bookId, int chapterNum) async {
     _ensureDatabaseInitialized();
@@ -228,7 +315,23 @@ class BibleRepository {
         where: 'book_id = ? AND chapter_num = ?',
         whereArgs: [bookId, chapterNum],
         orderBy: 'verse_num');
-    return maps.map((map) => Verse.fromMap(map)).toList();
+
+    // Load verses with their segments
+    final verses = <Verse>[];
+    for (final map in maps) {
+      final verseId = map['id'] as int;
+      final segments = await _loadSegments(verseId);
+
+      verses.add(Verse(
+        num: map['verse_num'] as int,
+        chapterNum: map['chapter_num'] as int,
+        text: map['text'] as String,
+        bookId: map['book_id'] as String,
+        segments: segments,
+      ));
+    }
+
+    return verses;
   }
 
   /// Searches for verses containing the given query.
@@ -236,7 +339,23 @@ class BibleRepository {
     _ensureDatabaseInitialized();
     final maps = await _database!.query('verses',
         where: 'text LIKE ?', whereArgs: ['%$query%'], limit: 100);
-    return maps.map((map) => Verse.fromMap(map)).toList();
+
+    // Load verses with their segments
+    final verses = <Verse>[];
+    for (final map in maps) {
+      final verseId = map['id'] as int;
+      final segments = await _loadSegments(verseId);
+
+      verses.add(Verse(
+        num: map['verse_num'] as int,
+        chapterNum: map['chapter_num'] as int,
+        text: map['text'] as String,
+        bookId: map['book_id'] as String,
+        segments: segments,
+      ));
+    }
+
+    return verses;
   }
 
   /// Gets a specific verse.
@@ -251,7 +370,17 @@ class BibleRepository {
       return null;
     }
 
-    return Verse.fromMap(maps.first);
+    final map = maps.first;
+    final verseId = map['id'] as int;
+    final segments = await _loadSegments(verseId);
+
+    return Verse(
+      num: map['verse_num'] as int,
+      chapterNum: map['chapter_num'] as int,
+      text: map['text'] as String,
+      bookId: map['book_id'] as String,
+      segments: segments,
+    );
   }
 
   /// Closes the database connection.

@@ -6,14 +6,25 @@
   * `segments` field in `Verse` class for tracking speaker information and other attributes
   * Support for `<q who="Jesus">` tags in OSIS XML to identify Jesus' words
   * `hasJesusWords` convenience getter on `Verse` class
+* **Database persistence for segments**
+  * New `verse_segments` table for storing text segments
+  * Automatic segment loading when retrieving verses from database
+  * Database version upgraded to 2 with migration support
 * Extensible design allows future support for other XML styling tags (italics, notes, poetry, etc.)
 
 ### Changed
 * OSIS parser now tracks quote tags and speaker attributes
 * `Verse` class is backward compatible - existing code continues to work
+* `BibleRepository` now persists and retrieves segments automatically
+* Database schema updated with proper foreign key constraints and indexes
 
 ### Documentation
 * Added comprehensive design document at `/docs/red-letter-bible-support.md`
+
+### Testing
+* Added 5 new tests for red-letter parsing
+* Added 5 new tests for database segment persistence
+* All 30 tests passing
 
 ## 0.1.0+4 - Bug Fixes in USFX parser
 
