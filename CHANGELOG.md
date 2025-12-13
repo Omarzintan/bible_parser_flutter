@@ -1,3 +1,12 @@
+## 0.2.1 - iOS Compatibility Fix
+
+### Fixed
+* **Critical iOS/Android compatibility issue** - Fixed SQLite error 14 (SQLITE_CANTOPEN) on iOS devices
+* Platform detection now correctly uses native `sqflite` for iOS and Android instead of FFI
+* Desktop platforms (Windows, Linux, macOS) continue to use `sqflite_common_ffi`
+
+Fixes [#4](https://github.com/Omarzintan/bible_parser_flutter/issues/4)
+
 ## 0.2.0+1 - Example App Update
 
 ### Changed
