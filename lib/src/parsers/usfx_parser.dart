@@ -5,6 +5,7 @@ import 'base_parser.dart';
 import '../book.dart';
 import '../chapter.dart';
 import '../verse.dart';
+import '../text_segment.dart';
 import '../errors.dart';
 
 /// Parser for the USFX Bible format.
@@ -103,6 +104,13 @@ class UsfxParser extends BaseParser {
     // cross-references. We skip them for now.
     bool insideXTag = false;
 
+    // Segment tracking for red-letter support
+    List<TextSegment> currentSegments = [];
+    StringBuffer currentSegmentText = StringBuffer();
+    Map<String, String>? currentAttributes;
+    bool hasQuoteTags =
+        false; // Track if we've seen any <wj> tags in this verse
+
     // Parse XML using events for memory efficiency
     try {
       final events = await parseEvents(content).toList();
@@ -170,6 +178,12 @@ class UsfxParser extends BaseParser {
 
             final verseNum = int.tryParse(verseNumStr) ?? 1;
 
+            // Reset segment tracking for new verse
+            currentSegments = [];
+            currentSegmentText = StringBuffer();
+            currentAttributes = null;
+            hasQuoteTags = false;
+
             // Verse text will be collected in the character events
             // This is just setting up the verse
             currentVerse = Verse(
@@ -185,8 +199,29 @@ class UsfxParser extends BaseParser {
               currentBook != null &&
               currentChapter != null &&
               currentVerse != null) {
-            currentChapter.addVerse(currentVerse);
+            // Save any remaining segment text
+            if (hasQuoteTags && currentSegmentText.isNotEmpty) {
+              currentSegments.add(TextSegment(
+                text: currentSegmentText.toString().trim(),
+                attributes: currentAttributes,
+              ));
+            }
+
+            // Create final verse with segments if any were collected
+            final finalVerse = Verse(
+              num: currentVerse.num,
+              chapterNum: currentVerse.chapterNum,
+              text: currentVerse.text,
+              bookId: currentVerse.bookId,
+              segments: hasQuoteTags && currentSegments.isNotEmpty
+                  ? currentSegments
+                  : null,
+            );
+
+            currentChapter.addVerse(finalVerse);
             currentVerse = null;
+            currentSegments = [];
+            hasQuoteTags = false;
           } else if (event.name == 'f' &&
               currentBook != null &&
               currentVerse != null) {
@@ -197,6 +232,17 @@ class UsfxParser extends BaseParser {
               currentVerse != null) {
             // We are inside a cross-reference tag.
             insideXTag = true;
+          } else if (event.name == 'wj' && currentVerse != null) {
+            // Words of Jesus tag - save current segment and start new one
+            if (currentSegmentText.isNotEmpty) {
+              currentSegments.add(TextSegment(
+                text: currentSegmentText.toString().trim(),
+                attributes: currentAttributes,
+              ));
+              currentSegmentText = StringBuffer();
+            }
+            hasQuoteTags = true;
+            currentAttributes = {'speaker': 'Jesus'};
           }
         } else if (event is XmlEndElementEvent) {
           if (event.name == 'book' && currentBook != null) {
@@ -217,14 +263,45 @@ class UsfxParser extends BaseParser {
               currentBook != null &&
               currentChapter != null &&
               currentVerse != null) {
-            currentChapter.addVerse(currentVerse);
+            // Save any remaining segment text
+            if (hasQuoteTags && currentSegmentText.isNotEmpty) {
+              currentSegments.add(TextSegment(
+                text: currentSegmentText.toString().trim(),
+                attributes: currentAttributes,
+              ));
+            }
+
+            // Create final verse with segments if any were collected
+            final finalVerse = Verse(
+              num: currentVerse.num,
+              chapterNum: currentVerse.chapterNum,
+              text: currentVerse.text,
+              bookId: currentVerse.bookId,
+              segments: hasQuoteTags && currentSegments.isNotEmpty
+                  ? currentSegments
+                  : null,
+            );
+
+            currentChapter.addVerse(finalVerse);
             currentVerse = null;
+            currentSegments = [];
+            hasQuoteTags = false;
           } else if (event.name == 'f') {
             // End of footnote tag
             insideFTag = false;
           } else if (event.name == 'x') {
             // End of cross-reference tag
             insideXTag = false;
+          } else if (event.name == 'wj' && currentVerse != null) {
+            // End of Words of Jesus tag - save current segment
+            if (currentSegmentText.isNotEmpty) {
+              currentSegments.add(TextSegment(
+                text: currentSegmentText.toString().trim(),
+                attributes: currentAttributes,
+              ));
+              currentSegmentText = StringBuffer();
+            }
+            currentAttributes = null;
           }
         } else if (event is XmlTextEvent && currentVerse != null) {
           if (insideFTag || insideXTag) {
@@ -232,6 +309,13 @@ class UsfxParser extends BaseParser {
           } else {
             final trimmedText = event.value.trim();
             if (trimmedText.isNotEmpty) {
+              // Add to segment text
+              if (currentSegmentText.isNotEmpty) {
+                currentSegmentText.write(' ');
+              }
+              currentSegmentText.write(trimmedText);
+
+              // Also build full verse text
               String newText;
               if (currentVerse.text.isEmpty) {
                 newText = trimmedText;
@@ -270,6 +354,12 @@ class UsfxParser extends BaseParser {
     bool insideFTag = false;
     bool insideXTag = false;
 
+    // Segment tracking for red-letter support
+    List<TextSegment> currentSegments = [];
+    StringBuffer currentSegmentText = StringBuffer();
+    Map<String, String>? currentAttributes;
+    bool hasQuoteTags = false;
+
     try {
       final events = await parseEvents(content).toList();
 
@@ -295,40 +385,110 @@ class UsfxParser extends BaseParser {
             }
             currentChapterNum = int.tryParse(chapterNumStr) ?? 1;
           } else if (event.name == 'v' &&
-            currentBookId != null &&
-            currentChapterNum != null) {
+              currentBookId != null &&
+              currentChapterNum != null) {
             String verseNumStr = '1';
-          for (var attr in event.attributes) {
-            if (attr.name == 'id') {
-              verseNumStr = attr.value;
-              break;
+            for (var attr in event.attributes) {
+              if (attr.name == 'id') {
+                verseNumStr = attr.value;
+                break;
+              }
             }
-          }
-          final verseNum = int.tryParse(verseNumStr) ?? 1;
-          currentVerse = Verse(
-            num: verseNum,
-            chapterNum: currentChapterNum,
-            text: '',
-            bookId: currentBookId,
-          );
-            } else if (event.isSelfClosing &&
+            final verseNum = int.tryParse(verseNumStr) ?? 1;
+
+            // Reset segment tracking for new verse
+            currentSegments = [];
+            currentSegmentText = StringBuffer();
+            currentAttributes = null;
+            hasQuoteTags = false;
+
+            currentVerse = Verse(
+              num: verseNum,
+              chapterNum: currentChapterNum,
+              text: '',
+              bookId: currentBookId,
+            );
+          } else if (event.isSelfClosing &&
               event.name == 've' &&
               currentVerse != null) {
-              yield currentVerse;
+            // Save any remaining segment text
+            if (hasQuoteTags && currentSegmentText.isNotEmpty) {
+              currentSegments.add(TextSegment(
+                text: currentSegmentText.toString().trim(),
+                attributes: currentAttributes,
+              ));
+            }
+
+            // Create final verse with segments
+            final finalVerse = Verse(
+              num: currentVerse.num,
+              chapterNum: currentVerse.chapterNum,
+              text: currentVerse.text,
+              bookId: currentVerse.bookId,
+              segments: hasQuoteTags && currentSegments.isNotEmpty
+                  ? currentSegments
+                  : null,
+            );
+
+            yield finalVerse;
             currentVerse = null;
-              } else if (event.name == 'f' && currentVerse != null) {
-                insideFTag = true;
-              } else if (event.name == 'x' && currentVerse != null) {
-                insideXTag = true;
-              }
+            currentSegments = [];
+            hasQuoteTags = false;
+          } else if (event.name == 'f' && currentVerse != null) {
+            insideFTag = true;
+          } else if (event.name == 'x' && currentVerse != null) {
+            insideXTag = true;
+          } else if (event.name == 'wj' && currentVerse != null) {
+            // Words of Jesus tag
+            if (currentSegmentText.isNotEmpty) {
+              currentSegments.add(TextSegment(
+                text: currentSegmentText.toString().trim(),
+                attributes: currentAttributes,
+              ));
+              currentSegmentText = StringBuffer();
+            }
+            hasQuoteTags = true;
+            currentAttributes = {'speaker': 'Jesus'};
+          }
         } else if (event is XmlEndElementEvent) {
           if (event.name == 'v' && currentVerse != null) {
-            yield currentVerse;
+            // Save any remaining segment text
+            if (hasQuoteTags && currentSegmentText.isNotEmpty) {
+              currentSegments.add(TextSegment(
+                text: currentSegmentText.toString().trim(),
+                attributes: currentAttributes,
+              ));
+            }
+
+            // Create final verse with segments
+            final finalVerse = Verse(
+              num: currentVerse.num,
+              chapterNum: currentVerse.chapterNum,
+              text: currentVerse.text,
+              bookId: currentVerse.bookId,
+              segments: hasQuoteTags && currentSegments.isNotEmpty
+                  ? currentSegments
+                  : null,
+            );
+
+            yield finalVerse;
             currentVerse = null;
+            currentSegments = [];
+            hasQuoteTags = false;
           } else if (event.name == 'f') {
             insideFTag = false;
           } else if (event.name == 'x') {
             insideXTag = false;
+          } else if (event.name == 'wj' && currentVerse != null) {
+            // End of Words of Jesus tag
+            if (currentSegmentText.isNotEmpty) {
+              currentSegments.add(TextSegment(
+                text: currentSegmentText.toString().trim(),
+                attributes: currentAttributes,
+              ));
+              currentSegmentText = StringBuffer();
+            }
+            currentAttributes = null;
           }
         } else if (event is XmlTextEvent && currentVerse != null) {
           if (insideFTag || insideXTag) {
@@ -336,6 +496,13 @@ class UsfxParser extends BaseParser {
           } else {
             final trimmedText = event.value.trim();
             if (trimmedText.isNotEmpty) {
+              // Add to segment text
+              if (currentSegmentText.isNotEmpty) {
+                currentSegmentText.write(' ');
+              }
+              currentSegmentText.write(trimmedText);
+
+              // Also build full verse text
               String newText;
               if (currentVerse.text.isEmpty) {
                 newText = trimmedText;
