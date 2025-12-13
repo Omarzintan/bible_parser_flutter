@@ -4,13 +4,15 @@ A Flutter package for parsing Bible texts in various XML formats (USFX, OSIS, ZE
 
 ## Features
 
+- **🆕 Red-Letter Bible Support** - Identify and style Jesus' words in OSIS and USFX formats
 - Parse Bible texts in multiple formats (USFX, OSIS, ZEFANIA)
 - Automatic format detection
 - Memory-efficient SAX-style XML parsing using proper async streams
 - **Note:** This package has only been tested to work with the XML files under example/assets/open-bibles. Users are welcome to try the parser with other XML files and create a GitHub issue if they encounter any errors.
-- Database caching for improved performance
+- Database caching with automatic segment persistence
 - Search functionality for verses
 - Retrieve verses by book and chapter
+- Cross-platform support (iOS, Android, Web, Windows, Linux, macOS)
 
 ## Getting Started
 
@@ -20,7 +22,7 @@ Add this to your package's `pubspec.yaml` file:
 
 ```yaml
 dependencies:
-  bible_parser_flutter: ^0.1.0
+  bible_parser_flutter: ^0.2.0
 ```
 
 Then run:
@@ -110,6 +112,44 @@ Future<void> useBibleRepository() async {
   await repository.close();
 }
 ```
+
+### Red-Letter Bible Support (New in v0.2.0)
+
+Access Jesus' words with text segments:
+
+```dart
+// Parse a Bible with red-letter support
+final parser = BibleParser.fromString(xmlString, format: 'OSIS');
+
+await for (final verse in parser.verses) {
+  // Check if verse contains Jesus' words
+  if (verse.hasJesusWords) {
+    print('Verse ${verse.chapterNum}:${verse.num} has Jesus speaking!');
+    
+    // Access individual segments
+    for (final segment in verse.segments!) {
+      if (segment.isJesus) {
+        // Display in red or special styling
+        print('Jesus said: "${segment.text}"');
+      } else {
+        // Display normally
+        print('Narrator: "${segment.text}"');
+      }
+    }
+  }
+  
+  // Or just use the full text (backward compatible)
+  print(verse.text);
+}
+```
+
+**Supported formats:**
+- OSIS: `<q who="Jesus">` tags
+- USFX: `<wj>` (Words of Jesus) tags
+
+**Database persistence:** Segments are automatically saved and loaded from the database when using `BibleRepository`.
+
+For more details, see the [Red-Letter Bible Support documentation](/doc/red-letter-bible-support.md).
 
 ## Performance Considerations
 
