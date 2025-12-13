@@ -15,8 +15,8 @@ dependencies:
   xml: ^6.3.0
   sqflite: ^2.3.0
   path: ^1.8.3
-  sqflite_common_ffi: ^2.3.6
-  sqflite_common_ffi_web: ^1.0.1+2
+  sqflite_common_ffi: ^2.3.0
+  sqflite_common_ffi_web: ^0.4.5+4
 
 dev_dependencies:
   flutter_test:
