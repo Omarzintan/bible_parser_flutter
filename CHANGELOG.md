@@ -22,7 +22,7 @@
 * Database schema updated with proper foreign key constraints and indexes
 
 ### Documentation
-* Added comprehensive design document at `/docs/red-letter-bible-support.md`
+* Added comprehensive design document at `/doc/red-letter-bible-support.md`
 
 ### Testing
 * Added 5 tests for OSIS red-letter parsing
