@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 /// Represents a segment of text within a verse with optional styling attributes.
 ///
 /// This class is used to support features like red-letter Bibles (marking Jesus' words)
@@ -40,8 +42,18 @@ class TextSegment {
     // Parse attributes from JSON string if present
     Map<String, String>? attrs;
     if (map['attributes'] != null && map['attributes'] is String) {
-      // Will be implemented when database support is added
-      attrs = null; // TODO: Parse JSON string
+      try {
+        final decoded = jsonDecode(map['attributes'] as String);
+        if (decoded is Map) {
+          attrs = Map<String, String>.from(decoded);
+        }
+      } catch (e) {
+        // If JSON parsing fails, ignore attributes
+        attrs = null;
+      }
+    } else if (map['attributes'] is Map) {
+      // Handle case where attributes are already a map
+      attrs = Map<String, String>.from(map['attributes'] as Map);
     }
 
     return TextSegment(
@@ -54,7 +66,7 @@ class TextSegment {
   Map<String, dynamic> toMap() {
     return {
       'text': text,
-      'attributes': attributes?.toString(), // TODO: Convert to JSON string
+      'attributes': attributes != null ? jsonEncode(attributes) : null,
     };
   }
 
@@ -75,7 +87,17 @@ class TextSegment {
   }
 
   @override
-  int get hashCode => Object.hash(text, attributes);
+  int get hashCode {
+    if (attributes == null) {
+      return text.hashCode;
+    }
+    // Compute stable hashCode based on map contents
+    int hash = text.hashCode;
+    for (final entry in attributes!.entries) {
+      hash = Object.hash(hash, entry.key, entry.value);
+    }
+    return hash;
+  }
 
   /// Helper method to compare maps for equality.
   bool _mapsEqual(Map<String, String>? a, Map<String, String>? b) {
