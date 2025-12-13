@@ -51,6 +51,9 @@ class _BibleParserExampleScreenState extends State<BibleParserExampleScreen> {
   int? selectedChapter;
   List<int> availableChapters = [];
 
+  // Red-letter display toggle
+  bool showRedLetter = true;
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -92,6 +95,25 @@ class _BibleParserExampleScreenState extends State<BibleParserExampleScreen> {
                   },
                 ),
                 const Text('USFX'),
+              ],
+            ),
+            const SizedBox(height: 10),
+            // Red-letter toggle
+            Row(
+              children: [
+                Switch(
+                  value: showRedLetter,
+                  onChanged: (value) {
+                    setState(() {
+                      showRedLetter = value;
+                    });
+                  },
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  'Show Red-Letter (Jesus\' words)',
+                  style: Theme.of(context).textTheme.bodyMedium,
+                ),
               ],
             ),
             const SizedBox(height: 20),
@@ -264,9 +286,32 @@ class _BibleParserExampleScreenState extends State<BibleParserExampleScreen> {
             isLoading = false;
           });
         } else {
+          // Build result with red-letter support
+          final buffer = StringBuffer();
+          buffer.writeln('Parser Results (${verses.length} verses):');
+          buffer.writeln();
+
+          for (final v in verses) {
+            buffer.write('${v.bookId} ${v.chapterNum}:${v.num} - ');
+            if (showRedLetter && v.segments != null && v.segments!.isNotEmpty) {
+              // Has segments - show with red-letter indicator
+              for (final segment in v.segments!) {
+                if (segment.isJesus) {
+                  buffer.write('[JESUS: ${segment.text}] ');
+                } else {
+                  buffer.write('${segment.text} ');
+                }
+              }
+            } else {
+              // No segments or toggle off - show plain text
+              buffer.write(v.text);
+            }
+            buffer.writeln();
+            buffer.writeln();
+          }
+
           setState(() {
-            result = 'Parser Results (${verses.length} verses):\n\n'
-                '${verses.map((v) => '${v.bookId} ${v.chapterNum}:${v.num} - ${v.text}').join('\n\n')}';
+            result = buffer.toString();
             isLoading = false;
           });
         }
@@ -508,10 +553,36 @@ class _BibleParserExampleScreenState extends State<BibleParserExampleScreen> {
           await repository!.getVerses(selectedBook!.id, selectedChapter!);
       stopwatch.stop();
 
+      // Build rich text with red-letter support
+      final buffer = StringBuffer();
+      buffer.writeln('${selectedBook!.title} Chapter $selectedChapter');
+      buffer.writeln(
+          'Loaded ${verses.length} verses in ${stopwatch.elapsedMilliseconds}ms');
+      buffer.writeln();
+
+      for (final verse in verses) {
+        buffer.write('Verse ${verse.num}: ');
+        if (showRedLetter &&
+            verse.segments != null &&
+            verse.segments!.isNotEmpty) {
+          // Has segments - show with red-letter indicator
+          for (final segment in verse.segments!) {
+            if (segment.isJesus) {
+              buffer.write('[JESUS: ${segment.text}] ');
+            } else {
+              buffer.write('${segment.text} ');
+            }
+          }
+        } else {
+          // No segments or toggle off - show plain text
+          buffer.write(verse.text);
+        }
+        buffer.writeln();
+        buffer.writeln();
+      }
+
       setState(() {
-        result = '${selectedBook!.title} Chapter $selectedChapter\n'
-            'Loaded ${verses.length} verses in ${stopwatch.elapsedMilliseconds}ms\n\n'
-            '${verses.map((v) => 'Verse ${v.num}: ${v.text}').join('\n\n')}';
+        result = buffer.toString();
       });
     } catch (e) {
       setState(() {
