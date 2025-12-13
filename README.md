@@ -5,6 +5,7 @@ A Flutter package for parsing Bible texts in various XML formats (USFX, OSIS, ZE
 ## Features
 
 - **🆕 Red-Letter Bible Support** - Identify and style Jesus' words in OSIS and USFX formats
+- **🆕 Added Text Support** - Track translator additions (italicized text) in OSIS format
 - Parse Bible texts in multiple formats (USFX, OSIS, ZEFANIA)
 - Automatic format detection
 - Memory-efficient SAX-style XML parsing using proper async streams
@@ -150,6 +151,36 @@ await for (final verse in parser.verses) {
 **Database persistence:** Segments are automatically saved and loaded from the database when using `BibleRepository`.
 
 For more details, see the [Red-Letter Bible Support documentation](/doc/red-letter-bible-support.md).
+
+### Added/Italicized Text Support
+
+The parser also tracks text marked as translator additions (typically italicized in printed Bibles):
+
+```dart
+// Get a verse with added text
+final verse = await repository.getVerse('Matt', 27, 65);
+
+if (verse.segments != null) {
+  for (final segment in verse.segments!) {
+    if (segment.isAdded) {
+      // Display in italics (translator addition)
+      print('Italic: "${segment.text}"');
+    } else if (segment.isJesus) {
+      // Display in red (Jesus' words)
+      print('Red: "${segment.text}"');
+    } else {
+      // Display normally
+      print('Normal: "${segment.text}"');
+    }
+  }
+}
+```
+
+**Supported formats:**
+- OSIS: `<transChange type="added">` tags
+
+**Example:** In Matthew 27:65 KJV, the word "it" is marked as added text:
+> Pilate said unto them, Ye have a watch: go your way, make _it_ as sure as ye can.
 
 ## Performance Considerations
 

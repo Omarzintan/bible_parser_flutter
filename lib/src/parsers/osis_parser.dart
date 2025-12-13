@@ -267,6 +267,30 @@ class OsisParser extends BaseParser {
             }
             currentAttributes = null;
           }
+          // Handle transChange tags for added/italicized text
+          else if (event.name == 'transChange' && currentVerse != null) {
+            hasQuoteTags = true; // Use the same flag to enable segment tracking
+
+            // Start of transChange - save current segment if any
+            if (currentSegmentText.isNotEmpty) {
+              currentSegments.add(TextSegment(
+                text: currentSegmentText.toString().trim(),
+                attributes: currentAttributes,
+              ));
+              currentSegmentText = StringBuffer();
+            }
+
+            // Extract type attribute from <transChange> tag
+            Map<String, String> attrs = currentAttributes != null
+                ? Map<String, String>.from(currentAttributes)
+                : {};
+            for (var attr in event.attributes) {
+              if (attr.name == 'type') {
+                attrs['transChange'] = attr.value;
+              }
+            }
+            currentAttributes = attrs.isNotEmpty ? attrs : null;
+          }
           // Some osis xml version use <verse eID=""/> as end tags for verses. This catches such cases.
           else if (event.name == 'verse' &&
               currentBook != null &&
@@ -313,6 +337,21 @@ class OsisParser extends BaseParser {
             // End of chapter - add to current book
             currentBook.addChapter(currentChapter);
             currentChapter = null;
+          } else if (event.name == 'transChange' && currentVerse != null) {
+            // End of transChange - save current segment and reset transChange attribute
+            if (currentSegmentText.isNotEmpty) {
+              currentSegments.add(TextSegment(
+                text: currentSegmentText.toString().trim(),
+                attributes: currentAttributes,
+              ));
+              currentSegmentText = StringBuffer();
+            }
+            // Remove transChange attribute but keep other attributes (like speaker)
+            if (currentAttributes?.containsKey('transChange') ?? false) {
+              final attrs = Map<String, String>.from(currentAttributes ?? {});
+              attrs.remove('transChange');
+              currentAttributes = attrs.isNotEmpty ? attrs : null;
+            }
           } else if (event.name == 'verse' &&
               currentBook != null &&
               currentChapter != null &&
@@ -526,6 +565,30 @@ class OsisParser extends BaseParser {
             }
             currentAttributes = null;
           }
+          // Handle transChange tags for added/italicized text
+          else if (event.name == 'transChange' && currentVerse != null) {
+            hasQuoteTags = true; // Use the same flag to enable segment tracking
+
+            // Start of transChange - save current segment if any
+            if (currentSegmentText.isNotEmpty) {
+              currentSegments.add(TextSegment(
+                text: currentSegmentText.toString().trim(),
+                attributes: currentAttributes,
+              ));
+              currentSegmentText = StringBuffer();
+            }
+
+            // Extract type attribute from <transChange> tag
+            Map<String, String> attrs = currentAttributes != null
+                ? Map<String, String>.from(currentAttributes)
+                : {};
+            for (var attr in event.attributes) {
+              if (attr.name == 'type') {
+                attrs['transChange'] = attr.value;
+              }
+            }
+            currentAttributes = attrs.isNotEmpty ? attrs : null;
+          }
           // Some osis xml version use <verse eID=""/> as end tags for verses. This catches such cases.
           else if (event.name == 'verse' &&
               currentVerse != null &&
@@ -556,7 +619,22 @@ class OsisParser extends BaseParser {
             hasQuoteTags = false;
           }
         } else if (event is XmlEndElementEvent) {
-          if (event.name == 'verse' && currentVerse != null) {
+          if (event.name == 'transChange' && currentVerse != null) {
+            // End of transChange - save current segment and reset transChange attribute
+            if (currentSegmentText.isNotEmpty) {
+              currentSegments.add(TextSegment(
+                text: currentSegmentText.toString().trim(),
+                attributes: currentAttributes,
+              ));
+              currentSegmentText = StringBuffer();
+            }
+            // Remove transChange attribute but keep other attributes (like speaker)
+            if (currentAttributes?.containsKey('transChange') ?? false) {
+              final attrs = Map<String, String>.from(currentAttributes ?? {});
+              attrs.remove('transChange');
+              currentAttributes = attrs.isNotEmpty ? attrs : null;
+            }
+          } else if (event.name == 'verse' && currentVerse != null) {
             // Save any remaining segment text (only if we have quote tags)
             if (hasQuoteTags && currentSegmentText.isNotEmpty) {
               currentSegments.add(TextSegment(

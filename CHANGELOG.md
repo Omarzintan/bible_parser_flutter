@@ -1,3 +1,27 @@
+## 0.2.2 - TransChange Support for Added Text
+
+### Added
+* **TransChange support** for OSIS format to track added/italicized text
+  * Parser now recognizes `<transChange type="added">` tags in OSIS XML
+  * New `transChange` getter on `TextSegment` class
+  * New `isAdded` convenience getter to identify added text segments
+  * Apps can now italicize or style text marked as translator additions
+* Added comprehensive tests for transChange functionality
+* Updated example app to demonstrate italicized text support with toggle switch
+
+### Example Usage
+```dart
+// Check if a segment is added text (typically italicized)
+for (final segment in verse.segments ?? []) {
+  if (segment.isAdded) {
+    // Render in italics
+    print('Italic: ${segment.text}');
+  } else {
+    print('Normal: ${segment.text}');
+  }
+}
+```
+
 ## 0.2.1 - iOS Compatibility Fix
 
 ### Fixed

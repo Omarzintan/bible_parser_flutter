@@ -54,6 +54,9 @@ class _BibleParserExampleScreenState extends State<BibleParserExampleScreen> {
   // Red-letter display toggle
   bool showRedLetter = true;
 
+  // Italicized text display toggle
+  bool showItalics = true;
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -110,9 +113,31 @@ class _BibleParserExampleScreenState extends State<BibleParserExampleScreen> {
                   },
                 ),
                 const SizedBox(width: 8),
-                Text(
-                  'Show Red-Letter (Jesus\' words)',
-                  style: Theme.of(context).textTheme.bodyMedium,
+                Expanded(
+                  child: Text(
+                    'Show Red-Letter (Jesus\' words)',
+                    style: Theme.of(context).textTheme.bodyMedium,
+                  ),
+                ),
+              ],
+            ),
+            // Italics toggle
+            Row(
+              children: [
+                Switch(
+                  value: showItalics,
+                  onChanged: (value) {
+                    setState(() {
+                      showItalics = value;
+                    });
+                  },
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'Show Italics (added text)',
+                    style: Theme.of(context).textTheme.bodyMedium,
+                  ),
                 ),
               ],
             ),
@@ -293,17 +318,26 @@ class _BibleParserExampleScreenState extends State<BibleParserExampleScreen> {
 
           for (final v in verses) {
             buffer.write('${v.bookId} ${v.chapterNum}:${v.num} - ');
-            if (showRedLetter && v.segments != null && v.segments!.isNotEmpty) {
-              // Has segments - show with red-letter indicator
+            if ((showRedLetter || showItalics) &&
+                v.segments != null &&
+                v.segments!.isNotEmpty) {
+              // Has segments - show with styling indicators
               for (final segment in v.segments!) {
-                if (segment.isJesus) {
+                if (showRedLetter &&
+                    segment.isJesus &&
+                    showItalics &&
+                    segment.isAdded) {
+                  buffer.write('[JESUS+ITALIC: ${segment.text}] ');
+                } else if (showRedLetter && segment.isJesus) {
                   buffer.write('[JESUS: ${segment.text}] ');
+                } else if (showItalics && segment.isAdded) {
+                  buffer.write('[ITALIC: ${segment.text}] ');
                 } else {
                   buffer.write('${segment.text} ');
                 }
               }
             } else {
-              // No segments or toggle off - show plain text
+              // No segments or toggles off - show plain text
               buffer.write(v.text);
             }
             buffer.writeln();
@@ -562,19 +596,26 @@ class _BibleParserExampleScreenState extends State<BibleParserExampleScreen> {
 
       for (final verse in verses) {
         buffer.write('Verse ${verse.num}: ');
-        if (showRedLetter &&
+        if ((showRedLetter || showItalics) &&
             verse.segments != null &&
             verse.segments!.isNotEmpty) {
-          // Has segments - show with red-letter indicator
+          // Has segments - show with styling indicators
           for (final segment in verse.segments!) {
-            if (segment.isJesus) {
+            if (showRedLetter &&
+                segment.isJesus &&
+                showItalics &&
+                segment.isAdded) {
+              buffer.write('[JESUS+ITALIC: ${segment.text}] ');
+            } else if (showRedLetter && segment.isJesus) {
               buffer.write('[JESUS: ${segment.text}] ');
+            } else if (showItalics && segment.isAdded) {
+              buffer.write('[ITALIC: ${segment.text}] ');
             } else {
               buffer.write('${segment.text} ');
             }
           }
         } else {
-          // No segments or toggle off - show plain text
+          // No segments or toggles off - show plain text
           buffer.write(verse.text);
         }
         buffer.writeln();

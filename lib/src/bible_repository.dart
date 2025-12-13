@@ -54,7 +54,7 @@ class BibleRepository {
         // Ignore errors when closing
       }
 
-      // Check if database exists and is current version
+      // Check if database is already initialized
       final dbInitialized = await _isDatabaseInitialized(databaseName);
 
       if (!dbInitialized) {
@@ -63,6 +63,14 @@ class BibleRepository {
       } else {
         // Open database connection
         _database = await _openDatabase(databaseName);
+
+        // Check if database is empty (after migration)
+        final result = await _database!.rawQuery('SELECT COUNT(*) FROM books');
+        final bookCount = result.first.values.first as int;
+        if (bookCount == 0) {
+          // Database was cleared during migration, reparse
+          await _createDatabaseFromXml(databaseName);
+        }
       }
 
       return true;
@@ -180,7 +188,7 @@ class BibleRepository {
     return databaseFactoryPlatform.openDatabase(
       dbPath,
       options: OpenDatabaseOptions(
-        version: 2, // Incremented for segments support
+        version: 3, // Incremented for transChange support
         onCreate: (db, version) async {
           // Create tables
           await db.execute('''
@@ -237,6 +245,16 @@ class BibleRepository {
           ''');
             await db.execute(
                 'CREATE INDEX IF NOT EXISTS idx_segments_verse ON verse_segments (verse_id)');
+          }
+
+          // Handle migration from version 2 to 3 (transChange support)
+          // The schema is the same, but we need to reparse to capture transChange attributes
+          if (oldVersion < 3) {
+            // Delete all data to force a complete reparse with transChange support
+            await db.execute('DELETE FROM verse_segments');
+            await db.execute('DELETE FROM verses');
+            await db.execute('DELETE FROM books');
+            // The data will be reparsed during initialization
           }
         },
       ),

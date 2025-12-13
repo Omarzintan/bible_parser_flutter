@@ -37,6 +37,12 @@ class TextSegment {
   /// Returns true if this segment is poetry.
   bool get isPoetry => attributes?['poetry'] == 'true';
 
+  /// Gets the transChange attribute if present.
+  String? get transChange => attributes?['transChange'];
+
+  /// Returns true if this segment is added text (typically italicized in Bibles).
+  bool get isAdded => transChange?.toLowerCase() == 'added';
+
   /// Creates a text segment from a map, typically from database results.
   factory TextSegment.fromMap(Map<String, dynamic> map) {
     // Parse attributes from JSON string if present
