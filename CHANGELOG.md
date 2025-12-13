@@ -1,3 +1,20 @@
+## 0.2.0 - Red-Letter Bible Support
+
+### Added
+* **Red-letter Bible support** for OSIS format
+  * New `TextSegment` class for styled text segments with attributes
+  * `segments` field in `Verse` class for tracking speaker information and other attributes
+  * Support for `<q who="Jesus">` tags in OSIS XML to identify Jesus' words
+  * `hasJesusWords` convenience getter on `Verse` class
+* Extensible design allows future support for other XML styling tags (italics, notes, poetry, etc.)
+
+### Changed
+* OSIS parser now tracks quote tags and speaker attributes
+* `Verse` class is backward compatible - existing code continues to work
+
+### Documentation
+* Added comprehensive design document at `/docs/red-letter-bible-support.md`
+
 ## 0.1.0+4 - Bug Fixes in USFX parser
 
 ### Bug Fixes

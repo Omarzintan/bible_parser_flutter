@@ -5,6 +5,7 @@ import 'base_parser.dart';
 import '../book.dart';
 import '../chapter.dart';
 import '../verse.dart';
+import '../text_segment.dart';
 import '../errors.dart';
 
 /// Parser for the OSIS Bible format.
@@ -96,6 +97,12 @@ class OsisParser extends BaseParser {
     Book? currentBook;
     Chapter? currentChapter;
     Verse? currentVerse;
+
+    // Segment tracking for red-letter support
+    List<TextSegment> currentSegments = [];
+    StringBuffer currentSegmentText = StringBuffer();
+    Map<String, String>? currentAttributes;
+    bool hasQuoteTags = false; // Track if we've seen any <q> tags in this verse
 
     // Parse XML using events for memory efficiency
     try {
@@ -208,6 +215,11 @@ class OsisParser extends BaseParser {
               text: '',
               bookId: currentBook.id,
             );
+            // Reset segment tracking for new verse
+            currentSegments = [];
+            currentSegmentText = StringBuffer();
+            currentAttributes = null;
+            hasQuoteTags = false;
             // Some osis xml version use <chapter eID=""/> as end tags for chapters. This catches such cases..
           } else if (event.name == 'chapter' &&
               currentBook != null &&
@@ -217,15 +229,75 @@ class OsisParser extends BaseParser {
             currentBook.addChapter(currentChapter);
             currentChapter = null;
           }
+          // Handle quote tags for red-letter support
+          else if (event.name == 'q' &&
+              currentVerse != null &&
+              !event.attributes.any((attr) => attr.name == 'eID')) {
+            hasQuoteTags = true; // Mark that we've seen a quote tag
+
+            // Start of quote - save current segment if any
+            if (currentSegmentText.isNotEmpty) {
+              currentSegments.add(TextSegment(
+                text: currentSegmentText.toString().trim(),
+                attributes: currentAttributes,
+              ));
+              currentSegmentText = StringBuffer();
+            }
+
+            // Extract attributes from <q> tag
+            Map<String, String> attrs = {};
+            for (var attr in event.attributes) {
+              if (attr.name == 'who') {
+                attrs['speaker'] = attr.value;
+              }
+            }
+            currentAttributes = attrs.isNotEmpty ? attrs : null;
+          }
+          // End of quote tag
+          else if (event.name == 'q' &&
+              currentVerse != null &&
+              event.attributes.any((attr) => attr.name == 'eID')) {
+            // Save current segment and reset attributes
+            if (currentSegmentText.isNotEmpty) {
+              currentSegments.add(TextSegment(
+                text: currentSegmentText.toString().trim(),
+                attributes: currentAttributes,
+              ));
+              currentSegmentText = StringBuffer();
+            }
+            currentAttributes = null;
+          }
           // Some osis xml version use <verse eID=""/> as end tags for verses. This catches such cases.
           else if (event.name == 'verse' &&
               currentBook != null &&
               currentChapter != null &&
               currentVerse != null &&
               event.attributes.any((attr) => attr.name == 'eID')) {
+            // Save any remaining segment text (only if we have quote tags)
+            if (hasQuoteTags && currentSegmentText.isNotEmpty) {
+              currentSegments.add(TextSegment(
+                text: currentSegmentText.toString().trim(),
+                attributes: currentAttributes,
+              ));
+              currentSegmentText = StringBuffer();
+            }
+
+            // Create final verse with segments (only if quote tags were present)
+            final finalVerse = Verse(
+              num: currentVerse.num,
+              chapterNum: currentVerse.chapterNum,
+              text: currentVerse.text,
+              bookId: currentVerse.bookId,
+              segments: hasQuoteTags && currentSegments.isNotEmpty
+                  ? currentSegments
+                  : null,
+            );
+
             // End of verse - add to current chapter
-            currentChapter.addVerse(currentVerse);
+            currentChapter.addVerse(finalVerse);
             currentVerse = null;
+            currentSegments = [];
+            hasQuoteTags = false;
           }
         } else if (event is XmlEndElementEvent) {
           if (event.name == 'div' && currentBook != null) {
@@ -245,15 +317,45 @@ class OsisParser extends BaseParser {
               currentBook != null &&
               currentChapter != null &&
               currentVerse != null) {
+            // Save any remaining segment text (only if we have quote tags)
+            if (hasQuoteTags && currentSegmentText.isNotEmpty) {
+              currentSegments.add(TextSegment(
+                text: currentSegmentText.toString().trim(),
+                attributes: currentAttributes,
+              ));
+              currentSegmentText = StringBuffer();
+            }
+
+            // Create final verse with segments (only if quote tags were present)
+            final finalVerse = Verse(
+              num: currentVerse.num,
+              chapterNum: currentVerse.chapterNum,
+              text: currentVerse.text,
+              bookId: currentVerse.bookId,
+              segments: hasQuoteTags && currentSegments.isNotEmpty
+                  ? currentSegments
+                  : null,
+            );
+
             // End of verse - add to current chapter
-            currentChapter.addVerse(currentVerse);
+            currentChapter.addVerse(finalVerse);
             currentVerse = null;
+            currentSegments = [];
+            hasQuoteTags = false;
           }
         } else if (event is XmlTextEvent && currentVerse != null) {
           final trimmedText = event.value.trim();
           if (trimmedText.isNotEmpty) {
-            // Append text to current verse
-            final newText = [currentVerse.text, trimmedText].join(' ');
+            // Append text to current segment
+            if (currentSegmentText.isNotEmpty) {
+              currentSegmentText.write(' ');
+            }
+            currentSegmentText.write(trimmedText);
+
+            // Also append to full verse text
+            final newText = currentVerse.text.isEmpty
+                ? trimmedText
+                : '${currentVerse.text} $trimmedText';
             currentVerse = Verse(
               num: currentVerse.num,
               chapterNum: currentVerse.chapterNum,
@@ -276,6 +378,12 @@ class OsisParser extends BaseParser {
     String? currentBookId;
     int? currentChapterNum;
     Verse? currentVerse;
+
+    // Segment tracking for red-letter support
+    List<TextSegment> currentSegments = [];
+    StringBuffer currentSegmentText = StringBuffer();
+    Map<String, String>? currentAttributes;
+    bool hasQuoteTags = false; // Track if we've seen any <q> tags in this verse
 
     try {
       // Parse XML using events for memory efficiency
@@ -373,26 +481,120 @@ class OsisParser extends BaseParser {
               text: '',
               bookId: currentBookId,
             );
+            // Reset segment tracking for new verse
+            currentSegments = [];
+            currentSegmentText = StringBuffer();
+            currentAttributes = null;
+            hasQuoteTags = false;
+          }
+          // Handle quote tags for red-letter support
+          else if (event.name == 'q' &&
+              currentVerse != null &&
+              !event.attributes.any((attr) => attr.name == 'eID')) {
+            hasQuoteTags = true; // Mark that we've seen a quote tag
+
+            // Start of quote - save current segment if any
+            if (currentSegmentText.isNotEmpty) {
+              currentSegments.add(TextSegment(
+                text: currentSegmentText.toString().trim(),
+                attributes: currentAttributes,
+              ));
+              currentSegmentText = StringBuffer();
+            }
+
+            // Extract attributes from <q> tag
+            Map<String, String> attrs = {};
+            for (var attr in event.attributes) {
+              if (attr.name == 'who') {
+                attrs['speaker'] = attr.value;
+              }
+              // Can add more attributes as needed
+            }
+            currentAttributes = attrs.isNotEmpty ? attrs : null;
+          }
+          // End of quote tag
+          else if (event.name == 'q' &&
+              currentVerse != null &&
+              event.attributes.any((attr) => attr.name == 'eID')) {
+            // Save current segment and reset attributes
+            if (currentSegmentText.isNotEmpty) {
+              currentSegments.add(TextSegment(
+                text: currentSegmentText.toString().trim(),
+                attributes: currentAttributes,
+              ));
+              currentSegmentText = StringBuffer();
+            }
+            currentAttributes = null;
           }
           // Some osis xml version use <verse eID=""/> as end tags for verses. This catches such cases.
           else if (event.name == 'verse' &&
               currentVerse != null &&
               event.attributes.any((attr) => attr.name == 'eID')) {
-            // End of verse - add to current chapter
-            yield currentVerse;
+            // Save any remaining segment text (only if we have quote tags)
+            if (hasQuoteTags && currentSegmentText.isNotEmpty) {
+              currentSegments.add(TextSegment(
+                text: currentSegmentText.toString().trim(),
+                attributes: currentAttributes,
+              ));
+              currentSegmentText = StringBuffer();
+            }
+
+            // Create final verse with segments (only if quote tags were present)
+            final finalVerse = Verse(
+              num: currentVerse.num,
+              chapterNum: currentVerse.chapterNum,
+              text: currentVerse.text,
+              bookId: currentVerse.bookId,
+              segments: hasQuoteTags && currentSegments.isNotEmpty
+                  ? currentSegments
+                  : null,
+            );
+
+            yield finalVerse;
             currentVerse = null;
+            currentSegments = [];
+            hasQuoteTags = false;
           }
         } else if (event is XmlEndElementEvent) {
           if (event.name == 'verse' && currentVerse != null) {
-            // Directly yield the verse instead of using a stream controller
-            yield currentVerse;
+            // Save any remaining segment text (only if we have quote tags)
+            if (hasQuoteTags && currentSegmentText.isNotEmpty) {
+              currentSegments.add(TextSegment(
+                text: currentSegmentText.toString().trim(),
+                attributes: currentAttributes,
+              ));
+              currentSegmentText = StringBuffer();
+            }
+
+            // Create final verse with segments (only if quote tags were present)
+            final finalVerse = Verse(
+              num: currentVerse.num,
+              chapterNum: currentVerse.chapterNum,
+              text: currentVerse.text,
+              bookId: currentVerse.bookId,
+              segments: hasQuoteTags && currentSegments.isNotEmpty
+                  ? currentSegments
+                  : null,
+            );
+
+            yield finalVerse;
             currentVerse = null;
+            currentSegments = [];
+            hasQuoteTags = false;
           }
         } else if (event is XmlTextEvent && currentVerse != null) {
           final trimmedText = event.value.trim();
           if (trimmedText.isNotEmpty) {
-            // Append text to current verse
-            final newText = [currentVerse.text, trimmedText].join(' ');
+            // Append text to current segment
+            if (currentSegmentText.isNotEmpty) {
+              currentSegmentText.write(' ');
+            }
+            currentSegmentText.write(trimmedText);
+
+            // Also append to full verse text
+            final newText = currentVerse.text.isEmpty
+                ? trimmedText
+                : '${currentVerse.text} $trimmedText';
             currentVerse = Verse(
               num: currentVerse.num,
               chapterNum: currentVerse.chapterNum,
