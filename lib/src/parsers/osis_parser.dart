@@ -103,6 +103,7 @@ class OsisParser extends BaseParser {
     StringBuffer currentSegmentText = StringBuffer();
     Map<String, String>? currentAttributes;
     bool hasQuoteTags = false; // Track if we've seen any <q> tags in this verse
+    bool verseEndedWithEID = false; // Track if verse was finalized with eID tag
 
     // Parse XML using events for memory efficiency
     try {
@@ -220,6 +221,7 @@ class OsisParser extends BaseParser {
             currentSegmentText = StringBuffer();
             currentAttributes = null;
             hasQuoteTags = false;
+            verseEndedWithEID = false;
             // Some osis xml version use <chapter eID=""/> as end tags for chapters. This catches such cases..
           } else if (event.name == 'chapter' &&
               currentBook != null &&
@@ -322,6 +324,8 @@ class OsisParser extends BaseParser {
             currentVerse = null;
             currentSegments = [];
             hasQuoteTags = false;
+            verseEndedWithEID =
+                true; // Mark that this verse was finalized with eID
           }
         } else if (event is XmlEndElementEvent) {
           if (event.name == 'div' && currentBook != null) {
@@ -356,6 +360,13 @@ class OsisParser extends BaseParser {
               currentBook != null &&
               currentChapter != null &&
               currentVerse != null) {
+            // Skip if verse was already finalized with eID tag
+            // This prevents duplicate verses when using <verse eID=""/> format
+            if (verseEndedWithEID) {
+              verseEndedWithEID = false;
+              continue;
+            }
+
             // Save any remaining segment text (only if we have quote tags)
             if (hasQuoteTags && currentSegmentText.isNotEmpty) {
               currentSegments.add(TextSegment(
@@ -423,6 +434,7 @@ class OsisParser extends BaseParser {
     StringBuffer currentSegmentText = StringBuffer();
     Map<String, String>? currentAttributes;
     bool hasQuoteTags = false; // Track if we've seen any <q> tags in this verse
+    bool verseEndedWithEID = false; // Track if verse was finalized with eID tag
 
     try {
       // Parse XML using events for memory efficiency
@@ -525,6 +537,7 @@ class OsisParser extends BaseParser {
             currentSegmentText = StringBuffer();
             currentAttributes = null;
             hasQuoteTags = false;
+            verseEndedWithEID = false;
           }
           // Handle quote tags for red-letter support
           else if (event.name == 'q' &&
@@ -617,6 +630,8 @@ class OsisParser extends BaseParser {
             currentVerse = null;
             currentSegments = [];
             hasQuoteTags = false;
+            verseEndedWithEID =
+                true; // Mark that this verse was finalized with eID
           }
         } else if (event is XmlEndElementEvent) {
           if (event.name == 'transChange' && currentVerse != null) {
@@ -635,6 +650,13 @@ class OsisParser extends BaseParser {
               currentAttributes = attrs.isNotEmpty ? attrs : null;
             }
           } else if (event.name == 'verse' && currentVerse != null) {
+            // Skip if verse was already finalized with eID tag
+            // This prevents duplicate verses when using <verse eID=""/> format
+            if (verseEndedWithEID) {
+              verseEndedWithEID = false;
+              continue;
+            }
+
             // Save any remaining segment text (only if we have quote tags)
             if (hasQuoteTags && currentSegmentText.isNotEmpty) {
               currentSegments.add(TextSegment(

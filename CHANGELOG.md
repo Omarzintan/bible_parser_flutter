@@ -1,3 +1,24 @@
+## 0.2.3 - Critical Bug Fix for Duplicate Verses
+
+### Fixed
+* **Critical bug fix** - Fixed duplicate verses affecting all Bible versions
+  * **OSIS parser fix**: Added `verseEndedWithEID` flag to prevent duplicate verse insertion when processing `<verse eID=""/>` format (affects KJV and similar OSIS files)
+  * **Database schema fix**: Added UNIQUE constraint on `(book_id, chapter_num, verse_num)` in verses table to prevent duplicates at database level
+  * Database version bumped to 4 with automatic migration that recreates tables and reparses data
+  * Both `parseBooks()` and `parseVerses()` methods now handle eID format correctly
+* All 69 tests passing
+
+### Root Cause
+The duplicate verses issue had two contributing factors:
+1. OSIS parser was adding verses twice when encountering `<verse eID=""/>` tags
+2. Database lacked UNIQUE constraint, allowing duplicate rows even with `ConflictAlgorithm.ignore`
+
+### Impact
+* **Automatic fix**: Existing databases will automatically upgrade to version 4 and reparse data without duplicates
+* **No manual intervention needed**: Users don't need to manually delete database files
+* **Affects all versions**: KJV, ASV, WEB, and any other Bible version will be fixed
+* No breaking changes - fully backward compatible
+
 ## 0.2.2 - TransChange Support for Added Text
 
 ### Added

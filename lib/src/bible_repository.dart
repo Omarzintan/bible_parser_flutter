@@ -188,7 +188,7 @@ class BibleRepository {
     return databaseFactoryPlatform.openDatabase(
       dbPath,
       options: OpenDatabaseOptions(
-        version: 3, // Incremented for transChange support
+        version: 4, // Incremented for UNIQUE constraint on verses
         onCreate: (db, version) async {
           // Create tables
           await db.execute('''
@@ -206,7 +206,8 @@ class BibleRepository {
           chapter_num INTEGER,
           verse_num INTEGER,
           text TEXT,
-          FOREIGN KEY (book_id) REFERENCES books (id)
+          FOREIGN KEY (book_id) REFERENCES books (id),
+          UNIQUE(book_id, chapter_num, verse_num)
         )
       ''');
 
@@ -253,6 +254,50 @@ class BibleRepository {
             // Delete all data to force a complete reparse with transChange support
             await db.execute('DELETE FROM verse_segments');
             await db.execute('DELETE FROM verses');
+            await db.execute('DELETE FROM books');
+            // The data will be reparsed during initialization
+          }
+
+          // Handle migration from version 3 to 4 (UNIQUE constraint on verses)
+          // Need to recreate verses table with UNIQUE constraint
+          if (oldVersion < 4) {
+            // Delete all data and recreate table with UNIQUE constraint
+            await db.execute('DROP TABLE IF EXISTS verse_segments');
+            await db.execute('DROP TABLE IF EXISTS verses');
+
+            // Recreate verses table with UNIQUE constraint
+            await db.execute('''
+              CREATE TABLE verses (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                book_id TEXT,
+                chapter_num INTEGER,
+                verse_num INTEGER,
+                text TEXT,
+                FOREIGN KEY (book_id) REFERENCES books (id),
+                UNIQUE(book_id, chapter_num, verse_num)
+              )
+            ''');
+
+            // Recreate segments table
+            await db.execute('''
+              CREATE TABLE verse_segments (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                verse_id INTEGER NOT NULL,
+                segment_order INTEGER NOT NULL,
+                text TEXT NOT NULL,
+                attributes TEXT,
+                FOREIGN KEY (verse_id) REFERENCES verses (id) ON DELETE CASCADE
+              )
+            ''');
+
+            // Recreate indexes
+            await db.execute(
+                'CREATE INDEX idx_verses_lookup ON verses (book_id, chapter_num, verse_num)');
+            await db.execute('CREATE INDEX idx_verses_search ON verses (text)');
+            await db.execute(
+                'CREATE INDEX idx_segments_verse ON verse_segments (verse_id)');
+
+            // Delete books to force complete reparse
             await db.execute('DELETE FROM books');
             // The data will be reparsed during initialization
           }
