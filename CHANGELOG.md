@@ -1,3 +1,17 @@
+## 0.2.5 - Code Quality Improvements
+
+### Fixed
+* **Code quality improvements** - Fixed string concatenation linting issues
+  * Replaced `+` operator with string interpolation in USFX parser
+  * Changed `currentVerse.text + ' ' + trimmedText` to `'${currentVerse.text} $trimmedText'`
+  * Fixed in both `parseBooks()` and `parseVerses()` methods
+  * All 76 tests passing
+  * `flutter analyze lib/` now reports no issues
+
+### Impact
+* Expected improvement in pub.dev package score from 140/160 to ~150/160
+* Better code maintainability and adherence to Dart style guidelines
+
 ## 0.2.4 - USFX Added Text Support
 
 ### Added

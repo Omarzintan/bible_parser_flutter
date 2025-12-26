@@ -353,9 +353,9 @@ class UsfxParser extends BaseParser {
               if (currentVerse.text.isEmpty) {
                 newText = trimmedText;
               } else if (trimmedText.startsWith(RegExp(r'[.,;:!?)]'))) {
-                newText = currentVerse.text + trimmedText;
+                newText = '${currentVerse.text}$trimmedText';
               } else {
-                newText = currentVerse.text + ' ' + trimmedText;
+                newText = '${currentVerse.text} $trimmedText';
               }
               // Remove any space before punctuation
               newText = newText.replaceAll(RegExp(r'\s+([.,;:!?])'), r'\1');
@@ -573,9 +573,9 @@ class UsfxParser extends BaseParser {
               if (currentVerse.text.isEmpty) {
                 newText = trimmedText;
               } else if (trimmedText.startsWith(RegExp(r'[.,;:!?)]'))) {
-                newText = currentVerse.text + trimmedText;
+                newText = '${currentVerse.text}$trimmedText';
               } else {
-                newText = currentVerse.text + ' ' + trimmedText;
+                newText = '${currentVerse.text} $trimmedText';
               }
               // Remove any space before punctuation
               newText = newText.replaceAll(RegExp(r'\s+([.,;:!?])'), r'\1');
