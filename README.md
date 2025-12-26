@@ -5,7 +5,7 @@ A Flutter package for parsing Bible texts in various XML formats (USFX, OSIS, ZE
 ## Features
 
 - **🆕 Red-Letter Bible Support** - Identify and style Jesus' words in OSIS and USFX formats
-- **🆕 Added Text Support** - Track translator additions (italicized text) in OSIS format
+- **🆕 Added Text Support** - Track translator additions (italicized text) in OSIS and USFX formats
 - Parse Bible texts in multiple formats (USFX, OSIS, ZEFANIA)
 - Automatic format detection
 - Memory-efficient SAX-style XML parsing using proper async streams
@@ -178,6 +178,7 @@ if (verse.segments != null) {
 
 **Supported formats:**
 - OSIS: `<transChange type="added">` tags
+- USFX: `<add>` tags
 
 **Example:** In Matthew 27:65 KJV, the word "it" is marked as added text:
 > Pilate said unto them, Ye have a watch: go your way, make _it_ as sure as ye can.
@@ -219,4 +220,6 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 
 Inspired by the Ruby [bible_parser](https://github.com/seven1m/bible_parser) library.
 
-Bible XML files in the example are from the [open-bibles](https://github.com/seven1m/open-bibles) GitHub repository.
+Bible XML files in the example are from:
+- [open-bibles](https://github.com/seven1m/open-bibles) GitHub repository
+- [eBible.org](https://ebible.org/) - Free Bible translations in many languages

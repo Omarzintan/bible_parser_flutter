@@ -380,7 +380,8 @@ class _BibleParserExampleScreenState extends State<BibleParserExampleScreen> {
               key.endsWith('.xml') &&
               (key.contains('eng-asv') ||
                   key.contains('eng-kjv') ||
-                  key.contains('eng-web')))
+                  key.contains('eng-web') ||
+                  key.contains('eng-webu')))
           .toList();
 
       if (files.isEmpty) {

@@ -23,5 +23,8 @@ flutter:
   assets:
     - assets/
     - assets/open-bibles/eng-asv.osis.xml
+    - assets/open-bibles/eng-asv.usfx.xml
+    - assets/open-bibles/eng-kjv-2006.usfx.xml
     - assets/open-bibles/eng-kjv.osis.xml
     - assets/open-bibles/eng-web.usfx.xml
+    - assets/open-bibles/eng-webu.usfx.xml

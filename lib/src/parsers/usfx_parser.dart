@@ -243,6 +243,24 @@ class UsfxParser extends BaseParser {
             }
             hasQuoteTags = true;
             currentAttributes = {'speaker': 'Jesus'};
+          } else if (event.name == 'add' && currentVerse != null) {
+            // Added text tag - save current segment and start new one
+            hasQuoteTags = true;
+
+            if (currentSegmentText.isNotEmpty) {
+              currentSegments.add(TextSegment(
+                text: currentSegmentText.toString().trim(),
+                attributes: currentAttributes,
+              ));
+              currentSegmentText = StringBuffer();
+            }
+
+            // Add 'transChange' attribute to mark as added text
+            Map<String, String> attrs = currentAttributes != null
+                ? Map<String, String>.from(currentAttributes)
+                : {};
+            attrs['transChange'] = 'added';
+            currentAttributes = attrs.isNotEmpty ? attrs : null;
           }
         } else if (event is XmlEndElementEvent) {
           if (event.name == 'book' && currentBook != null) {
@@ -302,6 +320,21 @@ class UsfxParser extends BaseParser {
               currentSegmentText = StringBuffer();
             }
             currentAttributes = null;
+          } else if (event.name == 'add' && currentVerse != null) {
+            // End of added text tag - save current segment and reset transChange attribute
+            if (currentSegmentText.isNotEmpty) {
+              currentSegments.add(TextSegment(
+                text: currentSegmentText.toString().trim(),
+                attributes: currentAttributes,
+              ));
+              currentSegmentText = StringBuffer();
+            }
+            // Remove transChange attribute but keep other attributes (like speaker)
+            if (currentAttributes?.containsKey('transChange') ?? false) {
+              final attrs = Map<String, String>.from(currentAttributes ?? {});
+              attrs.remove('transChange');
+              currentAttributes = attrs.isNotEmpty ? attrs : null;
+            }
           }
         } else if (event is XmlTextEvent && currentVerse != null) {
           if (insideFTag || insideXTag) {
@@ -449,6 +482,24 @@ class UsfxParser extends BaseParser {
             }
             hasQuoteTags = true;
             currentAttributes = {'speaker': 'Jesus'};
+          } else if (event.name == 'add' && currentVerse != null) {
+            // Added text tag
+            hasQuoteTags = true;
+
+            if (currentSegmentText.isNotEmpty) {
+              currentSegments.add(TextSegment(
+                text: currentSegmentText.toString().trim(),
+                attributes: currentAttributes,
+              ));
+              currentSegmentText = StringBuffer();
+            }
+
+            // Add 'transChange' attribute to mark as added text
+            Map<String, String> attrs = currentAttributes != null
+                ? Map<String, String>.from(currentAttributes)
+                : {};
+            attrs['transChange'] = 'added';
+            currentAttributes = attrs.isNotEmpty ? attrs : null;
           }
         } else if (event is XmlEndElementEvent) {
           if (event.name == 'v' && currentVerse != null) {
@@ -489,6 +540,21 @@ class UsfxParser extends BaseParser {
               currentSegmentText = StringBuffer();
             }
             currentAttributes = null;
+          } else if (event.name == 'add' && currentVerse != null) {
+            // End of added text tag - save current segment and reset transChange attribute
+            if (currentSegmentText.isNotEmpty) {
+              currentSegments.add(TextSegment(
+                text: currentSegmentText.toString().trim(),
+                attributes: currentAttributes,
+              ));
+              currentSegmentText = StringBuffer();
+            }
+            // Remove transChange attribute but keep other attributes (like speaker)
+            if (currentAttributes?.containsKey('transChange') ?? false) {
+              final attrs = Map<String, String>.from(currentAttributes ?? {});
+              attrs.remove('transChange');
+              currentAttributes = attrs.isNotEmpty ? attrs : null;
+            }
           }
         } else if (event is XmlTextEvent && currentVerse != null) {
           if (insideFTag || insideXTag) {

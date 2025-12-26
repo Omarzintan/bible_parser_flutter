@@ -1,3 +1,33 @@
+## 0.2.4 - USFX Added Text Support
+
+### Added
+* **Added text support for USFX format** - Track translator additions (italicized text) in USFX files
+  * Parser now recognizes `<add>` tags in USFX XML
+  * Uses same `transChange: 'added'` attribute as OSIS format for consistency
+  * Works alongside Jesus words (`<wj>` tags) when both are present
+  * Added 7 comprehensive tests for USFX add tag functionality
+* **Example app improvements**
+  * Added 3 new USFX Bible files to example assets: `eng-kjv-2006.usfx.xml`, `eng-asv.usfx.xml`, `eng-webu.usfx.xml`
+  * Updated asset manifest to include all new XML files
+  * Italics toggle now works with both OSIS and USFX formats
+
+### Documentation
+* Updated README acknowledgments to include eBible.org as a source for Bible XML files
+
+### Example Usage
+```dart
+// USFX added text is tracked the same way as OSIS
+for (final segment in verse.segments ?? []) {
+  if (segment.isAdded) {
+    // Render in italics (translator addition)
+    print('Italic: ${segment.text}');
+  } else if (segment.isJesus) {
+    // Render in red (Jesus' words)
+    print('Red: ${segment.text}');
+  }
+}
+```
+
 ## 0.2.3 - Critical Bug Fix for Duplicate Verses
 
 ### Fixed
