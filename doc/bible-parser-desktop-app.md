@@ -295,3 +295,95 @@ class ExportService {
 **Phase 3 (1-2 weeks):** Testing, documentation, and release
 
 This desktop app will significantly enhance the `bible_parser_flutter` package by providing a professional tool for Bible data management and database creation.
+
+---
+
+## 📁 File Management & Persistence (v0.3.0)
+
+### **Database Storage Locations**
+
+#### **Temporary Storage (App Directory)**
+```
+/Users/[username]/Library/Containers/com.example.bibleParserExample/Data/dbfiles/
+├── eng-kjv.osis.db
+├── eng-asv.usfx.db
+└── eng-web.zefania.db
+```
+
+**Characteristics:**
+- ✅ **Created automatically** when you click "Create Database"
+- ✅ **Persists** across `flutter run` sessions
+- ✅ **Persists** across computer restarts
+- ✅ **Overwritten** when creating database with same name
+- ❌ **Deleted** when app is uninstalled or data cleared
+
+#### **Permanent Storage (User Choice)**
+```
+/Users/[username]/Desktop/BibleDatabases/eng-kjv.osis.db
+/Users/[username]/Documents/BibleDatabases/eng-kjv.osis.db
+/Users/[username]/Downloads/eng-kjv.osis.db
+```
+
+**Characteristics:**
+- ✅ **User-controlled** location via file picker
+- ✅ **Permanent** storage outside app sandbox
+- ✅ **Accessible** for Firebase upload
+- ✅ **Shareable** with other developers
+
+### **Workflow Examples**
+
+#### **Development Workflow**
+```bash
+# 1. Create database
+flutter run -d macos
+# Select XML → Create Database → Download to Desktop
+
+# 2. Stop app (database persists in app directory)
+q
+
+# 3. Resume development
+flutter run -d macos
+# Previous database still available for re-download
+```
+
+#### **Production Workflow**
+```bash
+# 1. Create all Bible databases
+eng-kjv.osis.xml → Create Database → Download to Desktop/BibleDatabases/
+eng-asv.usfx.xml → Create Database → Download to Desktop/BibleDatabases/
+eng-web.zefania.xml → Create Database → Download to Desktop/BibleDatabases/
+
+# 2. Upload to Firebase
+firebase deploy --only storage
+
+# 3. Mobile app downloads
+https://firebasestorage.googleapis.com/.../eng-kjv.osis.db
+```
+
+### **File Behavior Summary**
+
+| Action | Temporary File | Permanent File |
+|---------|----------------|----------------|
+| **Create Database** | ✅ Created | ❌ Not affected |
+| **Stop flutter run** | ✅ Persists | ✅ Persists |
+| **Restart flutter run** | ✅ Available | ✅ Available |
+| **Create same name** | ✅ Overwritten | ❌ Not affected |
+| **Download** | ✅ Copied from | ✅ Created |
+| **Uninstall app** | ❌ Deleted | ✅ Remains |
+
+### **Best Practices**
+
+#### **For Development**
+- Use temporary files for testing
+- Re-create databases frequently to test changes
+- Download to convenient location for testing
+
+#### **For Production**
+- Download each database to permanent location
+- Upload to Firebase Storage immediately
+- Keep backup copies in version control
+
+#### **File Naming**
+- Database name matches XML basename: `eng-kjv.osis.xml` → `eng-kjv.osis.db`
+- Consistent naming across platforms
+- Avoid special characters in filenames

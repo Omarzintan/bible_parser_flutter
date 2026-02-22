@@ -1,6 +1,36 @@
 # Bible Parser Flutter
 
-A Flutter package for parsing Bible texts in various XML formats (USFX, OSIS, ZEFANIA). This package provides both direct parsing and database-backed approaches for handling Bible data in your Flutter applications. The parser is optimized for production use with proper error handling.
+A Flutter package for parsing Bible texts in OSIS, USFX, and ZEFANIA XML formats with both direct parsing and database-backed approaches. **Now includes a desktop app for Bible database creation and management!**
+
+## 🆕 v0.3.0 Features
+
+- ✅ **Desktop App**: Complete Bible database creation tool
+- ✅ **Database Export**: User-controlled file saving
+- ✅ **Database Loading**: Direct database file loading
+- ✅ **Cross-Platform**: macOS, Windows, Linux support
+- ✅ **Production Workflow**: XML → Database → Mobile App Distribution
+
+## 📱 Desktop App Usage
+
+### **Installation & Setup**
+```bash
+cd desktop_app
+flutter pub get
+flutter run -d macos  # or -d windows, -d linux
+```
+
+### **Workflow**
+1. **Create Database**: Select XML file → Click "Create Database"
+2. **Download**: Click "Download" → Choose save location (Desktop, Documents, etc.)
+3. **Test**: Switch to "Load from Database" mode → Test exported file
+4. **Deploy**: Upload db file to any storage service (Firebase, Google Drive, etc.) 
+
+### **File Management**
+- **Temporary Storage**: Databases created in app's `dbfiles/` directory
+- **Persistence**: Files remain after stopping `flutter run`
+- **Overwrite**: Creating same database name overwrites previous file
+- **Download**: User saves to permanent location of their choice
+
 
 ## Features
 
