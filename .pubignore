@@ -1,3 +1,14 @@
 # Exclude desktop app from pub package to keep size reasonable
 # Desktop app is available separately for development and testing
+# but not included in the published package to keep size reasonable
 desktop_app/
+
+# Exclude example app as it's not needed in the published package
+example/
+
+# Exclude documentation files that are not needed in the package
+doc/
+
+# Exclude test files that are not needed in the published package
+test_functionality.dart
+test_database_loading.dart
