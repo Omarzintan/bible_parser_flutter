@@ -2,7 +2,7 @@ import 'dart:async';
 import 'dart:io';
 
 // import 'package:sqflite/sqflite.dart';
-import 'package:path/path.dart';
+import 'package:path/path.dart' as p;
 import 'sqflite_factory.dart';
 
 import 'dart:convert';
@@ -26,11 +26,23 @@ class BibleRepository {
   /// The format of the Bible data.
   final String? format;
 
+  /// The actual database file path (set during initialization).
+  String? _databaseFilePath;
+
   /// Creates a new Bible repository from a file path.
   BibleRepository({
     required this.xmlPath,
     this.format,
   }) : xmlString = null;
+
+  /// Creates a new Bible repository from an existing database file.
+  ///
+  /// This constructor is used when you have a pre-created database file
+  /// and want to access it without parsing XML.
+  BibleRepository.fromDatabase()
+      : xmlPath = '',
+        xmlString = null,
+        format = null;
 
   /// Creates a new Bible repository from XML content as a string.
   ///
@@ -54,22 +66,33 @@ class BibleRepository {
         // Ignore errors when closing
       }
 
+      // Get the actual database file path
+      _databaseFilePath = await _getDatabasePath(databaseName);
+
       // Check if database is already initialized
       final dbInitialized = await _isDatabaseInitialized(databaseName);
 
       if (!dbInitialized) {
+        // For fromDatabase case, we can't create without XML
+        if (xmlPath.isEmpty && xmlString == null) {
+          throw Exception(
+              'Database does not exist and no XML source provided for creation');
+        }
         // Create database from XML
         await _createDatabaseFromXml(databaseName);
       } else {
         // Open database connection
         _database = await _openDatabase(databaseName);
 
-        // Check if database is empty (after migration)
-        final result = await _database!.rawQuery('SELECT COUNT(*) FROM books');
-        final bookCount = result.first.values.first as int;
-        if (bookCount == 0) {
-          // Database was cleared during migration, reparse
-          await _createDatabaseFromXml(databaseName);
+        // Check if database is empty (after migration) - only for XML-based repos
+        if (xmlPath.isNotEmpty || xmlString != null) {
+          final result =
+              await _database!.rawQuery('SELECT COUNT(*) FROM books');
+          final bookCount = result.first.values.first as int;
+          if (bookCount == 0) {
+            // Database was cleared during migration, reparse
+            await _createDatabaseFromXml(databaseName);
+          }
         }
       }
 
@@ -312,7 +335,15 @@ class BibleRepository {
     if (base.isEmpty) {
       return databaseName;
     }
-    return join(base, databaseName);
+    return p.join(base, databaseName);
+  }
+
+  /// Gets the current database file path.
+  ///
+  /// Returns the full path to the database file if the repository is initialized,
+  /// otherwise returns null.
+  Future<String?> getDatabasePath() async {
+    return _databaseFilePath;
   }
 
   /// Ensures database is initialized before use

@@ -1,0 +1,33 @@
+name: bible_parser_desktop
+description: Desktop app for creating Bible databases from XML files
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.0.0 <4.0.0'
+  flutter: ">=3.0.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  bible_parser_flutter:
+    path: ../
+  path: ^1.8.0
+  file_picker: ^6.1.1
+  desktop_window: ^0.4.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^2.0.0
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/
+    - assets/open-bibles/eng-asv.osis.xml
+    - assets/open-bibles/eng-asv.usfx.xml
+    - assets/open-bibles/eng-kjv-2006.usfx.xml
+    - assets/open-bibles/eng-kjv.osis.xml
+    - assets/open-bibles/eng-web.usfx.xml
+    - assets/open-bibles/eng-webu.usfx.xml

@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="utf-8"?>
+<usfx xmlns="http://www.bibletechnologies.net/2003/USFX/namespace">
+  <book id="GEN">
+    <c id="1">
+      <v id="1">In the beginning God created the heaven and the earth.</v>
+      <v id="2">And the earth was without form, and void; and darkness was upon the face of the deep. And the Spirit of God moved upon the face of the waters.</v>
+      <v id="3">And God said, Let there be light: and there was light.</v>
+      <v id="4">And God saw the light, that it was good: and God divided the light from the darkness.</v>
+      <v id="5">And God called the light Day, and the darkness he called Night. And the evening and the morning were the first day.</v>
+    </c>
+    <c id="2">
+      <v id="1">Thus the heavens and the earth were finished, and all the host of them.</v>
+      <v id="2">And on the seventh day God ended his work which he had made; and he rested on the seventh day from all his work which he had made.</v>
+      <v id="3">And God blessed the seventh day, and sanctified it: because that in it he had rested from all his work which God created and made.</v>
+    </c>
+  </book>
+  <book id="EXO">
+    <c id="1">
+      <v id="1">Now these are the names of the children of Israel, which came into Egypt; every man and his household came with Jacob.</v>
+      <v id="2">Reuben, Simeon, Levi, and Judah,</v>
+      <v id="3">Issachar, Zebulun, and Benjamin,</v>
+    </c>
+    <c id="20">
+      <v id="1">And God spake all these words, saying,</v>
+      <v id="2">I am the LORD thy God, which have brought thee out of the land of Egypt, out of the house of bondage.</v>
+      <v id="3">Thou shalt have no other gods before me.</v>
+    </c>
+  </book>
+  <book id="PSA">
+    <c id="1">
+      <v id="1">Blessed is the man that walketh not in the counsel of the ungodly, nor standeth in the way of sinners, nor sitteth in the seat of the scornful.</v>
+      <v id="2">But his delight is in the law of the LORD; and in his law doth he meditate day and night.</v>
+      <v id="3">And he shall be like a tree planted by the rivers of water, that bringeth forth his fruit in his season; his leaf also shall not wither; and whatsoever he doeth shall prosper.</v>
+    </c>
+    <c id="23">
+      <v id="1">The LORD is my shepherd; I shall not want.</v>
+      <v id="2">He maketh me to lie down in green pastures: he leadeth me beside the still waters.</v>
+      <v id="3">He restoreth my soul: he leadeth me in the paths of righteousness for his name's sake.</v>
+    </c>
+  </book>
+  <book id="MAT">
+    <c id="1">
+      <v id="1">The book of the generation of Jesus Christ, the son of David, the son of Abraham.</v>
+      <v id="2">Abraham begat Isaac; and Isaac begat Jacob; and Jacob begat Judas and his brethren;</v>
+    </c>
+    <c id="5">
+      <v id="1">And seeing the multitudes, he went up into a mountain: and when he was set, his disciples came unto him:</v>
+      <v id="2">And he opened his mouth, and taught them, saying,</v>
+      <v id="3">Blessed are the poor in spirit: for theirs is the kingdom of heaven.</v>
+    </c>
+  </book>
+  <book id="REV">
+    <c id="22">
+      <v id="20">He which testifieth these things saith, Surely I come quickly. Amen. Even so, come, Lord Jesus.</v>
+      <v id="21">The grace of our Lord Jesus Christ be with you all. Amen.</v>
+    </c>
+  </book>
+</usfx>

@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="utf-8"?>
+<osis xmlns="http://www.bibletechnologies.net/2003/OSIS/namespace" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.bibletechnologies.net/2003/OSIS/namespace http://www.bibletechnologies.net/osisCore.2.1.1.xsd">
+  <osisText osisIDWork="KJV">
+    <div type="book" osisID="Gen">
+      <chapter osisID="Gen.1">
+        <verse osisID="Gen.1.1">In the beginning God created the heaven and the earth.</verse>
+        <verse osisID="Gen.1.2">And the earth was without form, and void; and darkness was upon the face of the deep. And the Spirit of God moved upon the face of the waters.</verse>
+        <verse osisID="Gen.1.3">And God said, Let there be light: and there was light.</verse>
+        <verse osisID="Gen.1.4">And God saw the light, that it was good: and God divided the light from the darkness.</verse>
+        <verse osisID="Gen.1.5">And God called the light Day, and the darkness he called Night. And the evening and the morning were the first day.</verse>
+      </chapter>
+      <chapter osisID="Gen.2">
+        <verse osisID="Gen.2.1">Thus the heavens and the earth were finished, and all the host of them.</verse>
+        <verse osisID="Gen.2.2">And on the seventh day God ended his work which he had made; and he rested on the seventh day from all his work which he had made.</verse>
+        <verse osisID="Gen.2.3">And God blessed the seventh day, and sanctified it: because that in it he had rested from all his work which God created and made.</verse>
+      </chapter>
+    </div>
+    <div type="book" osisID="Exod">
+      <chapter osisID="Exod.1">
+        <verse osisID="Exod.1.1">Now these are the names of the children of Israel, which came into Egypt; every man and his household came with Jacob.</verse>
+        <verse osisID="Exod.1.2">Reuben, Simeon, Levi, and Judah,</verse>
+        <verse osisID="Exod.1.3">Issachar, Zebulun, and Benjamin,</verse>
+      </chapter>
+      <chapter osisID="Exod.20">
+        <verse osisID="Exod.20.1">And God spake all these words, saying,</verse>
+        <verse osisID="Exod.20.2">I am the LORD thy God, which have brought thee out of the land of Egypt, out of the house of bondage.</verse>
+        <verse osisID="Exod.20.3">Thou shalt have no other gods before me.</verse>
+      </chapter>
+    </div>
+    <div type="book" osisID="Ps">
+      <chapter osisID="Ps.1">
+        <verse osisID="Ps.1.1">Blessed is the man that walketh not in the counsel of the ungodly, nor standeth in the way of sinners, nor sitteth in the seat of the scornful.</verse>
+        <verse osisID="Ps.1.2">But his delight is in the law of the LORD; and in his law doth he meditate day and night.</verse>
+        <verse osisID="Ps.1.3">And he shall be like a tree planted by the rivers of water, that bringeth forth his fruit in his season; his leaf also shall not wither; and whatsoever he doeth shall prosper.</verse>
+      </chapter>
+      <chapter osisID="Ps.23">
+        <verse osisID="Ps.23.1">The LORD is my shepherd; I shall not want.</verse>
+        <verse osisID="Ps.23.2">He maketh me to lie down in green pastures: he leadeth me beside the still waters.</verse>
+        <verse osisID="Ps.23.3">He restoreth my soul: he leadeth me in the paths of righteousness for his name's sake.</verse>
+        <verse osisID="Ps.23.4">Yea, though I walk through the valley of the shadow of death, I will fear no evil: for thou art with me; thy rod and thy staff they comfort me.</verse>
+      </chapter>
+    </div>
+    <div type="book" osisID="Matt">
+      <chapter osisID="Matt.5">
+        <verse osisID="Matt.5.1">And seeing the multitudes, he went up into a mountain: and when he was set, his disciples came unto him:</verse>
+        <verse osisID="Matt.5.2">And he opened his mouth, and taught them, saying,</verse>
+        <verse osisID="Matt.5.3">Blessed are the poor in spirit: for theirs is the kingdom of heaven.</verse>
+        <verse osisID="Matt.5.4">Blessed are they that mourn: for they shall be comforted.</verse>
+        <verse osisID="Matt.5.5">Blessed are the meek: for they shall inherit the earth.</verse>
+      </chapter>
+    </div>
+    <div type="book" osisID="John">
+      <chapter osisID="John.1">
+        <verse osisID="John.1.1">In the beginning was the Word, and the Word was with God, and the Word was God.</verse>
+        <verse osisID="John.1.2">The same was in the beginning with God.</verse>
+        <verse osisID="John.1.3">All things were made by him; and without him was not any thing made that was made.</verse>
+      </chapter>
+      <chapter osisID="John.3">
+        <verse osisID="John.3.16">For God so loved the world, that he gave his only begotten Son, that whosoever believeth in him should not perish, but have everlasting life.</verse>
+        <verse osisID="John.3.17">For God sent not his Son into the world to condemn the world; but that the world through him might be saved.</verse>
+      </chapter>
+    </div>
+  </osisText>
+</osis>
