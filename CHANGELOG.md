@@ -1,3 +1,58 @@
+## 0.3.0 - Desktop App Release
+
+### 🆕 Major Features
+* **Complete Desktop App** - Full-featured Bible database creation tool
+  * Cross-platform support (macOS, Windows, Linux)
+  * File picker integration for XML selection
+  * Database export with user-controlled file saving
+  * Database loading from existing files for testing
+  * Production-ready XML to database workflow
+
+### 📱 New Package Capabilities
+* **BibleRepository.fromDatabase() constructor** - Direct database file loading
+  * Enables mobile apps to load pre-created databases without XML parsing
+  * Perfect for production apps with Firebase distribution
+* **Enhanced path handling** - Improved database file path management
+* **Comprehensive test coverage** - Full test suite for new desktop features
+
+### 🛠️ Desktop App Features
+* **Dual Mode Interface** - Switch between "Create from XML" and "Load from Database"
+* **File Management** - Intelligent temporary/permanent file handling
+  * Temporary storage in app's `dbfiles/` directory
+  - Persists across `flutter run` sessions
+  - Overwrites when creating same database name
+* **User-Controlled Export** - Download databases to any location (Desktop, Documents, Downloads)
+* **Production Workflow** - XML → Database → Firebase → Mobile Apps
+
+### 📚 Documentation & Examples
+* **Updated README** with desktop app installation and usage guide
+* **File Management Documentation** - Complete persistence behavior guide
+* **Mobile Integration Examples** - Firebase download patterns for mobile apps
+* **Production Workflow Examples** - End-to-end Bible database distribution
+
+### 🔄 Breaking Changes
+* None - Fully backward compatible with existing code
+
+### 📦 Package Structure
+```
+bible_parser_flutter/
+├── lib/                    # Core parsing library
+├── desktop_app/            # New desktop application
+│   ├── lib/main.dart       # Desktop app UI and logic
+│   ├── test/               # Desktop app tests
+│   └── macos/               # macOS platform files
+└── doc/                    # Updated documentation
+```
+
+### 🎯 Impact
+This release transforms the package from a parsing library to a **complete Bible database management solution**. Developers can now:
+- Create production Bible databases with a desktop GUI tool
+- Distribute databases via Firebase or other cloud storage
+- Load databases directly in mobile apps without XML parsing overhead
+- Test and validate Bible data before production deployment
+
+---
+
 ## 0.2.5 - Code Quality Improvements
 
 ### Fixed
