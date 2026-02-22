@@ -1,5 +1,5 @@
 name: bible_parser_flutter
-description: "A Flutter package for parsing Bible texts in OSIS, USFX, and ZXBML formats with direct parsing and database-backed approaches. Includes desktop app for database creation and management."
+description: "A Flutter package for parsing Bible texts in OSIS, USFX, and ZEFANIA formats with direct parsing and database-backed approaches. Includes desktop app for database creation and management."
 version: 0.3.0
 homepage: https://github.com/Omarzintan/bible_parser_flutter
 repository: https://github.com/Omarzintan/bible_parser_flutter
@@ -16,24 +16,12 @@ dependencies:
   sqflite: ^2.3.0
   path: ^1.8.3
   sqflite_common_ffi: ^2.3.0
-  sqflite_common_ffi_web: ^0.4.5+4
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
-  flutter_lints: ^5.0.0
+  lints: ^2.0.0
   test: ^1.24.0
-
-# For information on the generic Dart part of this file, see the
-# following page: https://dart.dev/tools/pub/pubspec
-
-# The following section is specific to Flutter packages.
-flutter:
-
-  # To add assets to your package, add an assets section, like this:
-  # assets:
-  #   - images/a_dot_burr.jpeg
-  #   - images/a_dot_ham.jpeg
   #
   # For details regarding assets in packages, see
   # https://flutter.dev/to/asset-from-package

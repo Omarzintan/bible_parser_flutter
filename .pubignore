@@ -1,0 +1,3 @@
+# Exclude desktop app from pub package to keep size reasonable
+# Desktop app is available separately for development and testing
+desktop_app/

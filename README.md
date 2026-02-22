@@ -14,9 +14,24 @@ A Flutter package for parsing Bible texts in OSIS, USFX, and ZEFANIA XML formats
 
 ### **Installation & Setup**
 ```bash
+# Clone the repository to get the desktop app
+git clone https://github.com/Omarzintan/bible_parser_flutter.git
+cd bible_parser_flutter
+
+# Navigate to desktop app
 cd desktop_app
 flutter pub get
 flutter run -d macos  # or -d windows, -d linux
+```
+
+### **Alternative: Download Desktop App Only**
+If you only want the desktop app without the full package:
+```bash
+# Clone and checkout only the desktop app
+git clone --filter=blob:'desktop_app/*' https://github.com/Omarzintan/bible_parser_flutter.git
+cd bible_parser_flutter/desktop_app
+flutter pub get
+flutter run -d macos
 ```
 
 ### **Workflow**
@@ -32,7 +47,23 @@ flutter run -d macos  # or -d windows, -d linux
 - **Download**: User saves to permanent location of their choice
 
 
-## Features
+## 📦 Package Contents
+
+### **Core Library** (`lib/`)
+- **Bible parsing** for OSIS, USFX, and ZEFANIA XML formats
+- **Database repository** with SQLite caching
+- **Text segments** for red-letter and added text support
+- **Cross-platform** mobile and web support
+
+### **Desktop App** (`desktop_app/`)
+- **GUI tool** for Bible database creation and management
+- **Cross-platform** desktop support (macOS, Windows, Linux)
+- **File picker** integration for XML selection
+- **Database export** with user-controlled saving
+- **Database loading** for testing exported files
+- **Production workflow** ready for Firebase distribution
+
+> **Note**: The desktop app is included in the Git repository but excluded from the published Flutter package to keep the package size reasonable. Clone the repository to access the desktop app.
 
 - **🆕 Red-Letter Bible Support** - Identify and style Jesus' words in OSIS and USFX formats
 - **🆕 Added Text Support** - Track translator additions (italicized text) in OSIS and USFX formats
