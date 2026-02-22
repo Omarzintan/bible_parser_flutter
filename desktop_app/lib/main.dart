@@ -246,7 +246,7 @@ class _BibleParserDesktopScreenState extends State<BibleParserDesktopScreen> {
       final databaseName = '${path.basenameWithoutExtension(xmlFilePath!)}.db';
 
       // Save to app's data directory (where we have permissions)
-      final dbFilesDir = Directory('dbfiles');
+      final dbFilesDir = Directory(path.absolute('dbfiles'));
       if (!await dbFilesDir.exists()) {
         await dbFilesDir.create(recursive: true);
       }
@@ -256,8 +256,8 @@ class _BibleParserDesktopScreenState extends State<BibleParserDesktopScreen> {
       // Initialize the repository with the app's path
       await repository!.initialize(savePath);
 
-      // Store the database path for reference
-      databasePath = savePath;
+      // Store the database path for reference (use the actual path from repository)
+      databasePath = await repository!.getDatabasePath();
 
       stopwatch.stop();
 
