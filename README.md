@@ -84,7 +84,7 @@ Add this to your package's `pubspec.yaml` file:
 
 ```yaml
 dependencies:
-  bible_parser_flutter: ^0.2.0
+  bible_parser_flutter: ^0.3.0
 ```
 
 Then run:
@@ -136,44 +136,93 @@ Future<void> parseBible() async {
 }
 ```
 
-### Database Approach (Recommended for Production)
+### 🆕 Database Loading (Recommended for Production)
 
-For better performance, especially in production apps, use the database approach:
+Load from pre-created database files for instant startup and optimal performance:
 
 ```dart
 import 'package:bible_parser_flutter/bible_parser_flutter.dart';
 
-Future<void> useBibleRepository() async {
-  // Create a repository
-  final repository = BibleRepository.fromString(
-    xmlString: 'path/to/bible.xml',
-    format: 'USFX',
-  );
-  
-  // Initialize the database (parses XML and stores in SQLite)
-  // This only needs to be done once, typically on first app launch
-  await repository.initialize('some_database_name.db');
-  
-  // Get all books
-  final books = await repository.getBooks();
-  for (final book in books) {
-    print('${book.title} (${book.id})');
+// Load from pre-created database file (instant startup)
+final repository = BibleRepository.fromDatabase();
+await repository.initialize('path/to/eng-kjv.osis.db');
+
+// Get books, chapters, verses instantly (no XML parsing)
+final books = await repository.getBooks();
+final verses = await repository.getVerses('John', 1, 1);
+
+// Support for red-letter and added text
+for (final verse in verses) {
+  for (final segment in verse.segments ?? []) {
+    if (segment.isJesus) {
+      // Render in red (Jesus' words)
+      print('Jesus: "${segment.text}"');
+    } else if (segment.isAdded) {
+      // Render in italics (translator additions)
+      print('Added: "${segment.text}"');
+    } else {
+      // Normal text
+      print('Text: "${segment.text}"');
+    }
   }
-  
-  // Get verses from a specific chapter
-  final verses = await repository.getVerses('gen', 1);
-  for (final verse in verses) {
-    print('${verse.bookId} ${verse.chapterNum}:${verse.num} - ${verse.text}');
-  }
-  
-  // Search for verses containing specific text
-  final searchResults = await repository.searchVerses('love');
-  print('Found ${searchResults.length} verses containing "love"');
-  
-  // Don't forget to close the database when done
-  await repository.close();
 }
+
+// Search functionality
+final searchResults = await repository.searchVerses('love');
+print('Found ${searchResults.length} verses containing "love"');
+
+// Don't forget to close when done
+await repository.close();
 ```
+
+**Production Workflow:**
+1. Use the **desktop app** to create database files from XML
+2. Upload database files to Firebase Storage or cloud service
+3. Download and load in mobile app using `BibleRepository.fromDatabase()`
+
+**Benefits:**
+- ⚡ **Instant startup** - No XML parsing needed
+- 📱 **Mobile optimized** - Smaller app size, faster performance
+- 🔄 **Easy updates** - Update databases without app updates
+- 🎨 **Full features** - Red-letter, added text, search support
+
+### Database Repository Approach
+
+Parse XML and cache in a database for repeated access. This is more efficient for apps that need frequent Bible access:
+
+```dart
+import 'package:bible_parser_flutter/bible_parser_flutter.dart';
+
+// Parse XML and create database
+final repository = BibleRepository.fromString(
+  xmlString: xmlContent,
+  format: 'OSIS', // or 'USFX', 'ZEFANIA'
+);
+
+await repository.initialize('my_bible.db');
+
+// Get books
+final books = await repository.getBooks();
+
+// Get verses from a specific chapter
+final verses = await repository.getVerses('gen', 1);
+for (final verse in verses) {
+  print('${verse.bookId} ${verse.chapterNum}:${verse.num} - ${verse.text}');
+}
+
+// Search for verses containing specific text
+final searchResults = await repository.searchVerses('love');
+print('Found ${searchResults.length} verses containing "love"');
+
+// Don't forget to close when done
+await repository.close();
+```
+
+**Use this approach when:**
+- 📱 Building a Bible app with frequent access
+- 🔄 Need to switch between books/chapters quickly
+- 🔍 Want search functionality
+- 💾 Have storage space for database caching
 
 ### Red-Letter Bible Support (New in v0.2.0)
 
