@@ -1,3 +1,5 @@
+import 'rich_content.dart';
+
 /// Represents a verse in the Bible.
 class Verse {
    /// The verse number.
@@ -15,8 +17,17 @@ class Verse {
       /// The footnotes for this verse.
       final List<String> notes;
 
-      /// The cross‑references for this verse (e.g., "John 3:16").
-      final List<String> references;
+   /// The cross‑references for this verse (e.g., "John 3:16").
+   final List<String> references;
+
+   /// Structured spans used for rich inline rendering.
+   final List<VerseSpan> spans;
+
+   /// Structured footnotes for this verse.
+   final List<Footnote> footnotes;
+
+   /// Structured cross-references for this verse.
+   final List<CrossReference> crossReferences;
 
    /// Creates a new verse.
    Verse({
@@ -26,8 +37,14 @@ class Verse {
       required this.bookId,
       List<String>? notes,
       List<String>? references,
+      List<VerseSpan>? spans,
+      List<Footnote>? footnotes,
+      List<CrossReference>? crossReferences,
    })  : notes = notes ?? [],
-        references = references ?? [];
+        references = references ?? [],
+        spans = spans ?? const [],
+        footnotes = footnotes ?? const [],
+        crossReferences = crossReferences ?? const [];
 
    /// Creates a verse from a map, typically from database results.
    factory Verse.fromMap(Map<String, dynamic> map) {

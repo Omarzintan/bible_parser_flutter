@@ -1,4 +1,5 @@
 import 'chapter.dart';
+import 'rich_content.dart';
 import 'verse.dart';
 
 /// Represents a book in the Bible.
@@ -11,6 +12,12 @@ class Book {
   
   /// The title of the book.
   final String title;
+
+  /// Optional navigation labels or alternate titles for this book.
+  final List<TocLabel> tocLabels;
+
+  /// Optional front matter or introduction blocks for this book.
+  final List<DocumentBlock> introductionBlocks;
   
   /// The chapters in this book.
   final List<Chapter> _chapters = [];
@@ -20,6 +27,8 @@ class Book {
     required this.id,
     required this.num,
     required this.title,
+    this.tocLabels = const [],
+    this.introductionBlocks = const [],
   });
   
   /// Creates a book from a map, typically from database results.

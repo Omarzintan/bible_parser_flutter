@@ -1,3 +1,4 @@
+import 'rich_content.dart';
 import 'verse.dart';
 
 /// Represents a chapter in the Bible.
@@ -10,11 +11,15 @@ class Chapter {
   
   /// The verses in this chapter.
   final List<Verse> _verses = [];
+
+  /// Optional structured blocks that belong to this chapter.
+  final List<DocumentBlock> blocks;
   
   /// Creates a new chapter.
   Chapter({
     required this.num,
     required this.bookId,
+    this.blocks = const [],
   });
   
   /// Adds a verse to this chapter.
