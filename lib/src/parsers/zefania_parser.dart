@@ -1,11 +1,13 @@
 import 'dart:async';
+
 import 'package:xml/xml_events.dart';
 
 import 'base_parser.dart';
 import '../book.dart';
 import '../chapter.dart';
-import '../verse.dart';
 import '../errors.dart';
+import '../rich_content.dart';
+import '../verse.dart';
 
 /// Parser for the Zefania Bible format.
 class ZefaniaParser extends BaseParser {
@@ -84,114 +86,207 @@ class ZefaniaParser extends BaseParser {
 
   @override
   bool checkFormat(String content) {
-    // Check for Zefania format markers
-    return content.contains('<XMLBIBLE') || content.contains('<XMLBIBLE>');
+    return content.contains('<XMLBIBLE') || content.contains('<xmlbible');
   }
 
   @override
   Stream<Book> parseBooks() async* {
     final content = await getContent();
 
-    // Current parsing state
     Book? currentBook;
     Chapter? currentChapter;
     Verse? currentVerse;
 
-    // Parse XML using events for memory efficiency
+    bool insideProlog = false;
+    bool insideCaption = false;
+    bool insideNote = false;
+    bool insideXref = false;
+
+    String currentPrologText = '';
+    String currentCaptionText = '';
+    String currentNoteText = '';
+    String? currentNoteLabel;
+    String currentXrefText = '';
+    String? currentXrefTarget;
+
+    int wordsOfJesusDepth = 0;
+    int translatorAdditionDepth = 0;
+    final List<BibleStyleContext> styleStack = <BibleStyleContext>[];
+
     try {
       final events = await parseEvents(content).toList();
 
       for (final event in events) {
         if (event is XmlStartElementEvent) {
           if (event.name == 'BIBLEBOOK') {
-            // Find book ID from attributes
-            String bookId = '';
+            final bookId = _bookIdFromEvent(event);
+            if (bookId == null || bookId.isEmpty) continue;
 
-            for (var attr in event.attributes) {
-              if (attr.name == 'bsname') {
-                bookId = attr.value;
-                break;
-              }
-            }
+            currentBook = Book(
+              id: bookId.toLowerCase(),
+              num: _getBookNum(bookId),
+              title: _bookTitleFromEvent(event, bookId),
+              tocLabels: <TocLabel>[],
+              introductionBlocks: <DocumentBlock>[],
+            );
 
-            if (bookId.isNotEmpty) {
-              bookId = bookId.toLowerCase();
-              final bookNum = _getBookNum(bookId);
-              final bookName = _getBookName(bookId);
-
-              currentBook = Book(
-                id: bookId,
-                num: bookNum,
-                title: bookName,
-              );
+            final bookTitle = _attributeValue(event, 'bname');
+            if (bookTitle != null && bookTitle.isNotEmpty) {
+              currentBook.tocLabels.add(TocLabel(text: bookTitle, level: 1));
             }
           } else if (event.name == 'CHAPTER' && currentBook != null) {
-            // Find chapter number from attributes
-            String chapterNumStr = '1';
-
-            for (var attr in event.attributes) {
-              if (attr.name == 'cnumber') {
-                chapterNumStr = attr.value;
-                break;
-              }
-            }
-
-            final chapterNum = int.tryParse(chapterNumStr) ?? 1;
-
+            final chapterNum =
+                int.tryParse(_attributeValue(event, 'cnumber') ?? '') ?? 1;
             currentChapter = Chapter(
               num: chapterNum,
               bookId: currentBook.id,
+              blocks: <DocumentBlock>[],
             );
+          } else if (event.name == 'PROLOG' && currentBook != null) {
+            insideProlog = true;
+            currentPrologText = '';
+          } else if (event.name == 'CAPTION' &&
+              currentBook != null &&
+              currentChapter != null) {
+            insideCaption = true;
+            currentCaptionText = '';
           } else if (event.name == 'VERS' &&
               currentBook != null &&
               currentChapter != null) {
-            // Find verse number from attributes
-            String verseNumStr = '1';
-
-            for (var attr in event.attributes) {
-              if (attr.name == 'vnumber') {
-                verseNumStr = attr.value;
-                break;
-              }
-            }
-
-            final verseNum = int.tryParse(verseNumStr) ?? 1;
-
-            // Verse text will be collected in the character events
-            currentVerse = Verse(
-              num: verseNum,
+            final verseNum =
+                int.tryParse(_attributeValue(event, 'vnumber') ?? '') ?? 1;
+            currentVerse = _createVerse(
+              verseNum: verseNum,
               chapterNum: currentChapter.num,
-              text: '',
               bookId: currentBook.id,
             );
+          } else if (event.name == 'NOTE' && currentVerse != null) {
+            insideNote = true;
+            currentNoteText = '';
+            currentNoteLabel =
+                _attributeValue(event, 'type') ?? _attributeValue(event, 'n');
+          } else if (event.name == 'XREF' && currentVerse != null) {
+            insideXref = true;
+            currentXrefText = '';
+            currentXrefTarget = _attributeValue(event, 'fscope') ??
+                _attributeValue(event, 'target');
+          } else if (event.name == 'STYLE' && currentVerse != null) {
+            final styleContext = _styleContextFromEvent(event);
+            styleStack.add(styleContext);
+            if (styleContext.wordsOfJesus) {
+              wordsOfJesusDepth++;
+            }
+            if (styleContext.translatorAddition) {
+              translatorAdditionDepth++;
+            }
           }
         } else if (event is XmlEndElementEvent) {
           if (event.name == 'BIBLEBOOK' && currentBook != null) {
             yield currentBook;
             currentBook = null;
             currentChapter = null;
+            currentVerse = null;
           } else if (event.name == 'CHAPTER' &&
               currentBook != null &&
               currentChapter != null) {
             currentBook.addChapter(currentChapter);
             currentChapter = null;
+          } else if (event.name == 'PROLOG' && currentBook != null) {
+            final text = currentPrologText.trim();
+            if (text.isNotEmpty) {
+              currentBook.introductionBlocks.add(
+                DocumentBlock(
+                  kind: DocumentBlockKind.introduction,
+                  text: text,
+                ),
+              );
+            }
+            insideProlog = false;
+            currentPrologText = '';
+          } else if (event.name == 'CAPTION' &&
+              currentBook != null &&
+              currentChapter != null) {
+            final text = currentCaptionText.trim();
+            if (text.isNotEmpty) {
+              currentChapter.blocks.add(
+                DocumentBlock(
+                  kind: DocumentBlockKind.heading,
+                  text: text,
+                ),
+              );
+            }
+            insideCaption = false;
+            currentCaptionText = '';
           } else if (event.name == 'VERS' &&
               currentBook != null &&
               currentChapter != null &&
               currentVerse != null) {
             currentChapter.addVerse(currentVerse);
             currentVerse = null;
+          } else if (event.name == 'NOTE') {
+            if (currentVerse != null && currentNoteText.isNotEmpty) {
+              currentVerse.notes.add(currentNoteText);
+              currentVerse.footnotes.add(
+                Footnote(
+                  text: currentNoteText,
+                  label: currentNoteLabel,
+                ),
+              );
+            }
+            insideNote = false;
+            currentNoteText = '';
+            currentNoteLabel = null;
+          } else if (event.name == 'XREF') {
+            if (currentVerse != null && currentXrefText.isNotEmpty) {
+              currentVerse.references.add(currentXrefText);
+              currentVerse.crossReferences.add(
+                CrossReference(
+                  label: currentXrefText,
+                  target: currentXrefTarget,
+                ),
+              );
+            }
+            insideXref = false;
+            currentXrefText = '';
+            currentXrefTarget = null;
+          } else if (event.name == 'STYLE' && styleStack.isNotEmpty) {
+            final styleContext = styleStack.removeLast();
+            if (styleContext.wordsOfJesus && wordsOfJesusDepth > 0) {
+              wordsOfJesusDepth--;
+            }
+            if (styleContext.translatorAddition &&
+                translatorAdditionDepth > 0) {
+              translatorAdditionDepth--;
+            }
           }
-        } else if (event is XmlTextEvent && currentVerse != null) {
-          final trimmedText = event.value.trim();
-          if (trimmedText.isNotEmpty) {
-            // Append text to current verse
-            final newText = [currentVerse.text, trimmedText].join(' ');
-            currentVerse = Verse(
-              num: currentVerse.num,
-              chapterNum: currentVerse.chapterNum,
-              text: newText,
-              bookId: currentVerse.bookId,
+        } else if (event is XmlTextEvent) {
+          final cleaned = _normalizeInlineText(event.value);
+          if (cleaned.isEmpty) continue;
+
+          if (insideProlog && currentBook != null) {
+            currentPrologText = _appendText(currentPrologText, cleaned);
+          } else if (insideCaption &&
+              currentBook != null &&
+              currentChapter != null) {
+            currentCaptionText = _appendText(currentCaptionText, cleaned);
+          } else if (insideNote && currentVerse != null) {
+            currentNoteText = _appendText(currentNoteText, cleaned);
+          } else if (insideXref && currentVerse != null) {
+            currentXrefText = _appendText(currentXrefText, cleaned);
+          } else if (currentVerse != null) {
+            currentVerse = _appendVerseText(
+              currentVerse,
+              cleaned,
+              kind: _currentSpanKind(
+                wordsOfJesusDepth: wordsOfJesusDepth,
+                translatorAdditionDepth: translatorAdditionDepth,
+                styleStack: styleStack,
+              ),
+              metadata: _currentSpanMetadata(
+                wordsOfJesusDepth: wordsOfJesusDepth,
+                translatorAdditionDepth: translatorAdditionDepth,
+                styleStack: styleStack,
+              ),
             );
           }
         }
@@ -205,79 +300,124 @@ class ZefaniaParser extends BaseParser {
   Stream<Verse> parseVerses() async* {
     final content = await getContent();
 
-    // Current parsing state
     String? currentBookId;
     int? currentChapterNum;
     Verse? currentVerse;
 
-    // Parse XML using events for memory efficiency
+    bool insideNote = false;
+    bool insideXref = false;
+
+    String currentNoteText = '';
+    String? currentNoteLabel;
+    String currentXrefText = '';
+    String? currentXrefTarget;
+
+    int wordsOfJesusDepth = 0;
+    int translatorAdditionDepth = 0;
+    final List<BibleStyleContext> styleStack = <BibleStyleContext>[];
+
     try {
       final events = await parseEvents(content).toList();
 
       for (final event in events) {
         if (event is XmlStartElementEvent) {
           if (event.name == 'BIBLEBOOK') {
-            // Find book ID from attributes
-            String bookId = '';
-
-            for (var attr in event.attributes) {
-              if (attr.name == 'bsname') {
-                bookId = attr.value;
-                break;
-              }
-            }
-
-            if (bookId.isEmpty) continue;
-            currentBookId = bookId;
+            currentBookId = _bookIdFromEvent(event)?.toLowerCase();
           } else if (event.name == 'CHAPTER' && currentBookId != null) {
-            // Find chapter number from attributes
-            String chapterNumStr = '1';
-
-            for (var attr in event.attributes) {
-              if (attr.name == 'cnumber') {
-                chapterNumStr = attr.value;
-                break;
-              }
-            }
-
-            currentChapterNum = int.tryParse(chapterNumStr) ?? 1;
+            currentChapterNum =
+                int.tryParse(_attributeValue(event, 'cnumber') ?? '') ?? 1;
           } else if (event.name == 'VERS' &&
               currentBookId != null &&
               currentChapterNum != null) {
-            // Find verse number from attributes
-            String verseNumStr = '1';
-
-            for (var attr in event.attributes) {
-              if (attr.name == 'vnumber') {
-                verseNumStr = attr.value;
-                break;
-              }
-            }
-
-            final verseNum = int.tryParse(verseNumStr) ?? 1;
-
-            currentVerse = Verse(
-              num: verseNum,
+            final verseNum =
+                int.tryParse(_attributeValue(event, 'vnumber') ?? '') ?? 1;
+            currentVerse = _createVerse(
+              verseNum: verseNum,
               chapterNum: currentChapterNum,
-              text: '',
               bookId: currentBookId,
             );
+          } else if (event.name == 'NOTE' && currentVerse != null) {
+            insideNote = true;
+            currentNoteText = '';
+            currentNoteLabel =
+                _attributeValue(event, 'type') ?? _attributeValue(event, 'n');
+          } else if (event.name == 'XREF' && currentVerse != null) {
+            insideXref = true;
+            currentXrefText = '';
+            currentXrefTarget = _attributeValue(event, 'fscope') ??
+                _attributeValue(event, 'target');
+          } else if (event.name == 'STYLE' && currentVerse != null) {
+            final styleContext = _styleContextFromEvent(event);
+            styleStack.add(styleContext);
+            if (styleContext.wordsOfJesus) {
+              wordsOfJesusDepth++;
+            }
+            if (styleContext.translatorAddition) {
+              translatorAdditionDepth++;
+            }
           }
         } else if (event is XmlEndElementEvent) {
           if (event.name == 'VERS' && currentVerse != null) {
             yield currentVerse;
             currentVerse = null;
+          } else if (event.name == 'NOTE') {
+            if (currentVerse != null && currentNoteText.isNotEmpty) {
+              currentVerse.notes.add(currentNoteText);
+              currentVerse.footnotes.add(
+                Footnote(
+                  text: currentNoteText,
+                  label: currentNoteLabel,
+                ),
+              );
+            }
+            insideNote = false;
+            currentNoteText = '';
+            currentNoteLabel = null;
+          } else if (event.name == 'XREF') {
+            if (currentVerse != null && currentXrefText.isNotEmpty) {
+              currentVerse.references.add(currentXrefText);
+              currentVerse.crossReferences.add(
+                CrossReference(
+                  label: currentXrefText,
+                  target: currentXrefTarget,
+                ),
+              );
+            }
+            insideXref = false;
+            currentXrefText = '';
+            currentXrefTarget = null;
+          } else if (event.name == 'STYLE' && styleStack.isNotEmpty) {
+            final styleContext = styleStack.removeLast();
+            if (styleContext.wordsOfJesus && wordsOfJesusDepth > 0) {
+              wordsOfJesusDepth--;
+            }
+            if (styleContext.translatorAddition &&
+                translatorAdditionDepth > 0) {
+              translatorAdditionDepth--;
+            }
           }
         } else if (event is XmlTextEvent && currentVerse != null) {
-          // Append text to current verse
-          final trimmedText = event.value.trim();
-          if (trimmedText.isNotEmpty) {
-            final newText = [currentVerse.text, trimmedText].join(' ');
-            currentVerse = Verse(
-              num: currentVerse.num,
-              chapterNum: currentVerse.chapterNum,
-              text: newText,
-              bookId: currentVerse.bookId,
+          final cleaned = _normalizeInlineText(event.value);
+          if (cleaned.isEmpty) continue;
+
+          if (insideNote) {
+            currentNoteText = _appendText(currentNoteText, cleaned);
+          } else if (insideXref) {
+            currentXrefText = _appendText(currentXrefText, cleaned);
+          } else {
+            currentVerse = _appendVerseText(
+              currentVerse,
+              cleaned,
+              kind: _currentSpanKind(
+                wordsOfJesusDepth: wordsOfJesusDepth,
+                translatorAdditionDepth: translatorAdditionDepth,
+                styleStack: styleStack,
+              ),
+              metadata: _currentSpanMetadata(
+                wordsOfJesusDepth: wordsOfJesusDepth,
+                translatorAdditionDepth: translatorAdditionDepth,
+                styleStack: styleStack,
+              ),
             );
           }
         }
@@ -287,7 +427,6 @@ class ZefaniaParser extends BaseParser {
     }
   }
 
-  /// Gets the book number based on its ID.
   int _getBookNum(String bookId) {
     final keys = _bookNames.keys.toList();
     for (int i = 0; i < keys.length; i++) {
@@ -298,7 +437,6 @@ class ZefaniaParser extends BaseParser {
     return 0;
   }
 
-  /// Gets the book name based on its ID.
   String _getBookName(String bookId) {
     for (final entry in _bookNames.entries) {
       if (bookId.toLowerCase().startsWith(entry.key.toLowerCase())) {
@@ -308,14 +446,175 @@ class ZefaniaParser extends BaseParser {
     return 'Unknown';
   }
 
-  /// Parses XML events from the content string.
   Stream<XmlEvent> parseEvents(String content) {
     try {
       final events = XmlEventDecoder().convert(content);
       return Stream.fromIterable(events);
     } catch (e) {
-      // Handle XML parsing errors
       throw BibleParserException('Error parsing XML: $e');
     }
   }
+
+  Verse _createVerse({
+    required int verseNum,
+    required int chapterNum,
+    required String bookId,
+  }) {
+    return Verse(
+      num: verseNum,
+      chapterNum: chapterNum,
+      text: '',
+      bookId: bookId,
+      notes: <String>[],
+      references: <String>[],
+      spans: <VerseSpan>[],
+      footnotes: <Footnote>[],
+      crossReferences: <CrossReference>[],
+    );
+  }
+
+  Verse _appendVerseText(
+    Verse verse,
+    String segment, {
+    VerseSpanKind kind = VerseSpanKind.normal,
+    Map<String, String> metadata = const {},
+  }) {
+    String newText;
+    if (verse.text.isEmpty) {
+      newText = segment;
+    } else if (segment.startsWith(RegExp(r'[.,;:!?)]'))) {
+      newText = verse.text + segment;
+    } else {
+      newText = '${verse.text} $segment';
+    }
+
+    newText = newText
+        .replaceAll(RegExp(r'\s+([.,;:!?])'), r'\1')
+        .replaceAll(RegExp(r'\(\s+'), '(');
+
+    final spans = List<VerseSpan>.from(verse.spans)
+      ..add(
+        VerseSpan(
+          text: segment,
+          kind: kind,
+          metadata: metadata,
+        ),
+      );
+
+    return Verse(
+      num: verse.num,
+      chapterNum: verse.chapterNum,
+      text: newText,
+      bookId: verse.bookId,
+      notes: verse.notes,
+      references: verse.references,
+      spans: spans,
+      footnotes: verse.footnotes,
+      crossReferences: verse.crossReferences,
+    );
+  }
+
+  String? _bookIdFromEvent(XmlStartElementEvent event) {
+    return _attributeValue(event, 'bsname') ??
+        _attributeValue(event, 'bname') ??
+        _attributeValue(event, 'bnumber');
+  }
+
+  String _bookTitleFromEvent(
+      XmlStartElementEvent event, String fallbackBookId) {
+    return _attributeValue(event, 'bname') ?? _getBookName(fallbackBookId);
+  }
+
+  BibleStyleContext _styleContextFromEvent(XmlStartElementEvent event) {
+    final styleName = (_attributeValue(event, 'css') ??
+            _attributeValue(event, 'id') ??
+            _attributeValue(event, 'style') ??
+            '')
+        .toLowerCase();
+
+    return BibleStyleContext(
+      wordsOfJesus: styleName.contains('red') ||
+          styleName.contains('jesus') ||
+          styleName.contains('wj'),
+      translatorAddition:
+          styleName.contains('italic') || styleName.contains('add'),
+      kind: styleName.contains('poetry') || styleName.contains('quote')
+          ? VerseSpanKind.poetry
+          : null,
+      metadata: {
+        if (styleName.isNotEmpty) 'style': styleName,
+        if (_attributeValue(event, 'gr') case final gr? when gr.isNotEmpty)
+          'gr': gr,
+      },
+    );
+  }
+
+  VerseSpanKind _currentSpanKind({
+    required int wordsOfJesusDepth,
+    required int translatorAdditionDepth,
+    required List<BibleStyleContext> styleStack,
+  }) {
+    if (wordsOfJesusDepth > 0) return VerseSpanKind.wordsOfJesus;
+    if (translatorAdditionDepth > 0) return VerseSpanKind.translatorAddition;
+
+    for (final style in styleStack.reversed) {
+      if (style.kind != null) return style.kind!;
+    }
+
+    return VerseSpanKind.normal;
+  }
+
+  Map<String, String> _currentSpanMetadata({
+    required int wordsOfJesusDepth,
+    required int translatorAdditionDepth,
+    required List<BibleStyleContext> styleStack,
+  }) {
+    final metadata = <String, String>{};
+
+    if (wordsOfJesusDepth > 0) {
+      metadata['wordsOfJesus'] = 'true';
+    }
+    if (translatorAdditionDepth > 0) {
+      metadata['translatorAddition'] = 'true';
+    }
+
+    for (final style in styleStack) {
+      metadata.addAll(style.metadata);
+    }
+
+    return metadata;
+  }
+
+  String? _attributeValue(XmlStartElementEvent event, String name) {
+    for (final attr in event.attributes) {
+      if (attr.name == name) return attr.value;
+    }
+    return null;
+  }
+
+  String _normalizeInlineText(String value) {
+    return value.replaceAll(RegExp(r'\s+'), ' ').trim();
+  }
+
+  String _appendText(String current, String next) {
+    if (current.isEmpty) return next;
+    if (next.startsWith(RegExp(r'[.,;:!?)]'))) {
+      return current + next;
+    }
+    return '$current $next';
+  }
+}
+
+class BibleStyleContext {
+  final bool wordsOfJesus;
+  final bool translatorAddition;
+  final VerseSpanKind? kind;
+  final Map<String, String> metadata;
+
+  const BibleStyleContext({
+    this.wordsOfJesus = false,
+    this.translatorAddition = false,
+    this.kind,
+    this.metadata = const {},
+  });
 }

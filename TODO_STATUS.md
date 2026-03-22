@@ -10,24 +10,24 @@ Status meanings:
 
 ## Current Status
 
-- `partial` Phase 1 shared rich-content model types now exist in code, and USFX/OSIS now populate part of them, but output is still incomplete and Zefania remains mostly plain-text.
-- `in_progress` Rich parser work is now active across the main app formats: USFX and OSIS preserve some structured spans/notes/front matter, while Zefania is still the least complete path.
+- `partial` Phase 1 shared rich-content model types now exist in code, and all three main parser formats now populate part of them, but output is still incomplete and format fidelity is still lossy.
+- `in_progress` Rich parser work is now active across all main app formats: USFX, OSIS, and Zefania all preserve some structured spans, notes, references, and front-matter content.
 
 | Feature | USFX | OSIS | Zefania | Notes |
 |---|---|---|---|---|
 | Book/chapter/verse parsing | done | done | done | Core extraction works in all three parsers. |
 | Auto format detection | done | done | done | Detection exists in `BibleParser`. |
-| Footnotes | partial | partial | todo | USFX and OSIS now preserve plain strings plus basic structured footnotes, but still do not capture every nested note detail. |
-| Cross references | partial | partial | todo | USFX and OSIS now preserve plain strings plus basic structured cross references. |
-| Red-letter text | partial | partial | todo | USFX `<wj>` and OSIS `<q who="Jesus">` now produce span flags; Zefania still lacks an implementation. |
-| Poetry / quoted line structure | partial | partial | todo | USFX/OSIS `<q>` now map into quote/poetry spans, but paragraph-level block handling is still incomplete. |
+| Footnotes | partial | partial | partial | All three formats now preserve plain strings plus basic structured footnotes, but still do not capture every nested note detail. |
+| Cross references | partial | partial | partial | All three formats now preserve plain strings plus basic structured cross references. |
+| Red-letter text | partial | partial | partial | Zefania can now infer red-letter style from style metadata where the source uses that convention. |
+| Poetry / quoted line structure | partial | partial | partial | Zefania can now preserve style-driven poetry/quote spans where the source exposes them, but paragraph-level block handling is still incomplete. |
 | Paragraph boundaries | todo | todo | todo | Paragraph-level structure is flattened. |
-| Section headings / titles | partial | partial | todo | USFX and OSIS now preserve some headings/titles as introduction or chapter blocks. |
-| Word-level metadata | partial | partial | todo | USFX now preserves `s`/`l`; OSIS preserves `lemma`/`morph` when present. |
-| Translator additions | partial | partial | todo | USFX `<add>` and OSIS `<transChange>` now produce translator-addition spans. |
-| Inline formatting spans | partial | partial | todo | Canonical span output exists for some semantics, but broader style coverage is still not modeled. |
-| Introductions / front matter | partial | partial | todo | USFX preserves basic toc labels/headings/pre-chapter blocks; OSIS now preserves some titles and chapter headings. |
-| Structured notes model | partial | partial | todo | Structured note/reference objects now exist in USFX and OSIS, but still coexist with legacy plain-text lists and remain lossy. |
+| Section headings / titles | partial | partial | partial | All three formats now preserve some headings/titles as introduction or chapter blocks. |
+| Word-level metadata | partial | partial | partial | Zefania can now preserve some style/`gr` metadata, though it is less explicit than USFX/OSIS word markup. |
+| Translator additions | partial | partial | partial | Zefania can now infer translator-addition spans from italic/add-style conventions where present. |
+| Inline formatting spans | partial | partial | partial | Canonical span output exists in all three formats for some semantics, but broader style coverage is still not modeled. |
+| Introductions / front matter | partial | partial | partial | Zefania now preserves `PROLOG`/`CAPTION` content alongside the existing USFX and OSIS front-matter support. |
+| Structured notes model | partial | partial | partial | Structured note/reference objects now exist in all three formats, but still coexist with legacy plain-text lists and remain lossy. |
 | Lossless round-trip friendliness | todo | todo | todo | Current parser is optimized for reading, not preservation. |
 | Format-fidelity target | todo | todo | todo | The long-term goal is to preserve as much meaningful structure as practical across all supported formats. |
 | Shared rich-content model types | done | done | done | Canonical rich-content types now exist; parser behavior still needs to populate them. |
@@ -130,6 +130,7 @@ Recommended next output shape:
 What exists now:
 - USFX preserves basic `toc` labels and pre-chapter heading/paragraph blocks as structured content.
 - OSIS preserves book titles as introduction blocks and chapter titles as chapter blocks.
+- Zefania preserves `PROLOG` as introduction blocks and `CAPTION` as chapter heading blocks.
 
 What is missing:
 - More complete source coverage
@@ -159,7 +160,7 @@ Important constraint:
    - USFX `<q level="...">`
 4. Upgrade the USFX parser first, because it already handles notes/references and local app assets use it heavily.
 5. Upgrade the OSIS parser second for red-letter, title, and note/reference semantics.
-6. Upgrade Zefania after the shared model settles, focusing first on note/style/title semantics that can map cleanly into the shared model.
+6. Improve Zefania style coverage only after you confirm which style conventions appear in the real source files you care about.
 7. Only then decide how much of the richer model should be stored in `BibleRepository` and app-side databases.
 
 ## App Integration Impact

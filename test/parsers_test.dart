@@ -287,6 +287,25 @@ void main() {
   </BIBLEBOOK>
 </XMLBIBLE>
 ''';
+    final sampleZefaniaRichXml = '''
+<?xml version="1.0" encoding="UTF-8"?>
+<XMLBIBLE>
+  <BIBLEBOOK bnumber="43" bname="John" bsname="JHN">
+    <PROLOG>This is the introduction to John.</PROLOG>
+    <CHAPTER cnumber="1">
+      <CAPTION>The Word Became Flesh</CAPTION>
+      <VERS vnumber="1">
+        <STYLE css="color: red">I am</STYLE>
+        the
+        <STYLE css="font-style: italic" gr="G2570">good</STYLE>
+        shepherd.
+        <NOTE type="study">Footnote text</NOTE>
+        <XREF fscope="JHN.10.11">John 10:11</XREF>
+      </VERS>
+    </CHAPTER>
+  </BIBLEBOOK>
+</XMLBIBLE>
+''';
 
     test('ZefaniaParser can parse sample XML', () async {
       final parser = ZefaniaParser(sampleZefaniaXml);
@@ -306,6 +325,45 @@ void main() {
       expect(verses.first.chapterNum, equals(1));
       expect(verses.first.bookId.toLowerCase(), equals('gen'));
       expect(verses.first.text, contains('In the beginning'));
+    });
+
+    test('ZefaniaParser preserves rich structured metadata', () async {
+      final parser = ZefaniaParser(sampleZefaniaRichXml);
+
+      final books = await parser.parseBooks().toList();
+      expect(books, isNotEmpty);
+
+      final john = books.first;
+      expect(john.tocLabels, isNotEmpty);
+      expect(
+        john.introductionBlocks
+            .any((block) => block.text.contains('introduction')),
+        isTrue,
+      );
+      expect(
+        john.chapters.first.blocks
+            .any((block) => block.text.contains('The Word Became Flesh')),
+        isTrue,
+      );
+
+      final verse = john.chapters.first.verses.first;
+      expect(verse.footnotes, isNotEmpty);
+      expect(verse.footnotes.first.text, contains('Footnote text'));
+      expect(verse.crossReferences, isNotEmpty);
+      expect(verse.crossReferences.first.target, equals('JHN.10.11'));
+      expect(
+        verse.spans.any((span) => span.kind == VerseSpanKind.wordsOfJesus),
+        isTrue,
+      );
+      expect(
+        verse.spans
+            .any((span) => span.kind == VerseSpanKind.translatorAddition),
+        isTrue,
+      );
+      expect(
+        verse.spans.any((span) => span.metadata['gr'] == 'G2570'),
+        isTrue,
+      );
     });
   });
 }
