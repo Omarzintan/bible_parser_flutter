@@ -119,6 +119,7 @@ class OsisParser extends BaseParser {
     int wordsOfJesusDepth = 0;
     final List<int?> quoteLevels = <int?>[];
     final List<bool> jesusQuoteStack = <bool>[];
+    final List<bool> quoteLineStarts = <bool>[];
     Map<String, String>? currentWordMetadata;
 
     try {
@@ -159,7 +160,9 @@ class OsisParser extends BaseParser {
               // instead of guessing where prose should break.
               currentChapter.blocks.add(
                 DocumentBlock(
-                  kind: DocumentBlockKind.paragraph,
+                  kind: _paragraphKindFromMetadata(
+                    pendingParagraphBlock.metadata,
+                  ),
                   text: currentParagraphText.trim(),
                   metadata: {
                     ...pendingParagraphBlock.metadata,
@@ -208,7 +211,7 @@ class OsisParser extends BaseParser {
             currentParagraphText = '';
             currentParagraphMetadata = _paragraphMetadataFromEvent(event);
             pendingParagraphBlock = DocumentBlock(
-              kind: DocumentBlockKind.paragraph,
+              kind: _paragraphKindFromMetadata(currentParagraphMetadata),
               text: '',
               metadata: currentParagraphMetadata,
             );
@@ -219,6 +222,7 @@ class OsisParser extends BaseParser {
                 (_attributeValue(event, 'who') ?? '').contains('Jesus');
             quoteLevels.add(quoteLevel);
             jesusQuoteStack.add(isJesusQuote);
+            quoteLineStarts.add(true);
             if (isJesusQuote) {
               wordsOfJesusDepth++;
             }
@@ -312,6 +316,9 @@ class OsisParser extends BaseParser {
           } else if (event.name == 'q' && quoteLevels.isNotEmpty) {
             final wasJesusQuote = jesusQuoteStack.removeLast();
             quoteLevels.removeLast();
+            if (quoteLineStarts.isNotEmpty) {
+              quoteLineStarts.removeLast();
+            }
             if (wasJesusQuote && wordsOfJesusDepth > 0) {
               wordsOfJesusDepth--;
             }
@@ -349,9 +356,13 @@ class OsisParser extends BaseParser {
                 wordsOfJesusDepth: wordsOfJesusDepth,
                 translatorAdditionDepth: translatorAdditionDepth,
                 quoteLevels: quoteLevels,
+                quoteLineStarts: quoteLineStarts,
                 wordMetadata: currentWordMetadata,
               ),
             );
+            if (quoteLineStarts.isNotEmpty) {
+              quoteLineStarts[quoteLineStarts.length - 1] = false;
+            }
           }
         }
       }
@@ -382,6 +393,7 @@ class OsisParser extends BaseParser {
     int wordsOfJesusDepth = 0;
     final List<int?> quoteLevels = <int?>[];
     final List<bool> jesusQuoteStack = <bool>[];
+    final List<bool> quoteLineStarts = <bool>[];
     Map<String, String>? currentWordMetadata;
 
     try {
@@ -425,6 +437,7 @@ class OsisParser extends BaseParser {
                 (_attributeValue(event, 'who') ?? '').contains('Jesus');
             quoteLevels.add(quoteLevel);
             jesusQuoteStack.add(isJesusQuote);
+            quoteLineStarts.add(true);
             if (isJesusQuote) {
               wordsOfJesusDepth++;
             }
@@ -471,6 +484,9 @@ class OsisParser extends BaseParser {
           } else if (event.name == 'q' && quoteLevels.isNotEmpty) {
             final wasJesusQuote = jesusQuoteStack.removeLast();
             quoteLevels.removeLast();
+            if (quoteLineStarts.isNotEmpty) {
+              quoteLineStarts.removeLast();
+            }
             if (wasJesusQuote && wordsOfJesusDepth > 0) {
               wordsOfJesusDepth--;
             }
@@ -502,9 +518,13 @@ class OsisParser extends BaseParser {
                 wordsOfJesusDepth: wordsOfJesusDepth,
                 translatorAdditionDepth: translatorAdditionDepth,
                 quoteLevels: quoteLevels,
+                quoteLineStarts: quoteLineStarts,
                 wordMetadata: currentWordMetadata,
               ),
             );
+            if (quoteLineStarts.isNotEmpty) {
+              quoteLineStarts[quoteLineStarts.length - 1] = false;
+            }
           }
         }
       }
@@ -704,6 +724,7 @@ class OsisParser extends BaseParser {
     required int wordsOfJesusDepth,
     required int translatorAdditionDepth,
     required List<int?> quoteLevels,
+    required List<bool> quoteLineStarts,
     required Map<String, String>? wordMetadata,
   }) {
     final metadata = <String, String>{
@@ -718,6 +739,9 @@ class OsisParser extends BaseParser {
     }
     if (quoteLevels.isNotEmpty && quoteLevels.last != null) {
       metadata['quoteLevel'] = quoteLevels.last.toString();
+    }
+    if (quoteLineStarts.isNotEmpty && quoteLineStarts.last) {
+      metadata['lineStart'] = 'true';
     }
 
     return metadata;
@@ -747,6 +771,18 @@ class OsisParser extends BaseParser {
       metadata['subType'] = subType;
     }
     return metadata;
+  }
+
+  DocumentBlockKind _paragraphKindFromMetadata(Map<String, String> metadata) {
+    final combined =
+        '${metadata['type'] ?? ''} ${metadata['subType'] ?? ''}'.toLowerCase();
+    if (combined.contains('quote') ||
+        combined.contains('poetry') ||
+        combined.contains('line') ||
+        combined.contains('lg')) {
+      return DocumentBlockKind.poetry;
+    }
+    return DocumentBlockKind.paragraph;
   }
 
   DocumentBlockKind _titleBlockKind(String? titleType) {

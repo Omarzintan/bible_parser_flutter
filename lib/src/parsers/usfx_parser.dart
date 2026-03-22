@@ -106,6 +106,7 @@ class UsfxParser extends BaseParser {
     int wordsOfJesusDepth = 0;
     int translatorAdditionDepth = 0;
     final List<int?> quoteLevels = <int?>[];
+    final List<bool> quoteLineStarts = <bool>[];
     Map<String, String>? currentWordMetadata;
 
     String currentFootnoteText = '';
@@ -164,7 +165,9 @@ class UsfxParser extends BaseParser {
               // app to guess paragraph breaks later.
               currentChapter.blocks.add(
                 DocumentBlock(
-                  kind: DocumentBlockKind.paragraph,
+                  kind: _paragraphKindFromMetadata(
+                    pendingChapterParagraphBlock.metadata,
+                  ),
                   text: pendingChapterParagraphBlock.text,
                   metadata: {
                     ...pendingChapterParagraphBlock.metadata,
@@ -224,7 +227,8 @@ class UsfxParser extends BaseParser {
                 _paragraphMetadataFromEvent(event);
             if (event.isSelfClosing) {
               pendingChapterParagraphBlock = DocumentBlock(
-                kind: DocumentBlockKind.paragraph,
+                kind:
+                    _paragraphKindFromMetadata(currentChapterParagraphMetadata),
                 text: '',
                 metadata: currentChapterParagraphMetadata,
               );
@@ -239,6 +243,7 @@ class UsfxParser extends BaseParser {
           } else if (event.name == 'q' && currentVerse != null) {
             quoteLevels
                 .add(int.tryParse(_attributeValue(event, 'level') ?? ''));
+            quoteLineStarts.add(true);
           } else if (event.name == 'w' && currentVerse != null) {
             currentWordMetadata = _wordMetadataFromEvent(event);
           }
@@ -349,7 +354,7 @@ class UsfxParser extends BaseParser {
               insideChapterParagraph) {
             final text = currentChapterParagraphText.trim();
             pendingChapterParagraphBlock = DocumentBlock(
-              kind: DocumentBlockKind.paragraph,
+              kind: _paragraphKindFromMetadata(currentChapterParagraphMetadata),
               text: text,
               metadata: currentChapterParagraphMetadata,
             );
@@ -362,6 +367,9 @@ class UsfxParser extends BaseParser {
             translatorAdditionDepth--;
           } else if (event.name == 'q' && quoteLevels.isNotEmpty) {
             quoteLevels.removeLast();
+            if (quoteLineStarts.isNotEmpty) {
+              quoteLineStarts.removeLast();
+            }
           } else if (event.name == 'w') {
             currentWordMetadata = null;
           }
@@ -407,9 +415,13 @@ class UsfxParser extends BaseParser {
                 wordsOfJesusDepth: wordsOfJesusDepth,
                 translatorAdditionDepth: translatorAdditionDepth,
                 quoteLevels: quoteLevels,
+                quoteLineStarts: quoteLineStarts,
                 wordMetadata: currentWordMetadata,
               ),
             );
+            if (quoteLineStarts.isNotEmpty) {
+              quoteLineStarts[quoteLineStarts.length - 1] = false;
+            }
           }
         }
       }
@@ -432,6 +444,7 @@ class UsfxParser extends BaseParser {
     int wordsOfJesusDepth = 0;
     int translatorAdditionDepth = 0;
     final List<int?> quoteLevels = <int?>[];
+    final List<bool> quoteLineStarts = <bool>[];
     Map<String, String>? currentWordMetadata;
 
     String currentFootnoteText = '';
@@ -489,6 +502,7 @@ class UsfxParser extends BaseParser {
           } else if (event.name == 'q' && currentVerse != null) {
             quoteLevels
                 .add(int.tryParse(_attributeValue(event, 'level') ?? ''));
+            quoteLineStarts.add(true);
           } else if (event.name == 'w' && currentVerse != null) {
             currentWordMetadata = _wordMetadataFromEvent(event);
           }
@@ -535,6 +549,9 @@ class UsfxParser extends BaseParser {
             translatorAdditionDepth--;
           } else if (event.name == 'q' && quoteLevels.isNotEmpty) {
             quoteLevels.removeLast();
+            if (quoteLineStarts.isNotEmpty) {
+              quoteLineStarts.removeLast();
+            }
           } else if (event.name == 'w') {
             currentWordMetadata = null;
           }
@@ -564,9 +581,13 @@ class UsfxParser extends BaseParser {
                 wordsOfJesusDepth: wordsOfJesusDepth,
                 translatorAdditionDepth: translatorAdditionDepth,
                 quoteLevels: quoteLevels,
+                quoteLineStarts: quoteLineStarts,
                 wordMetadata: currentWordMetadata,
               ),
             );
+            if (quoteLineStarts.isNotEmpty) {
+              quoteLineStarts[quoteLineStarts.length - 1] = false;
+            }
           }
         }
       }
@@ -698,6 +719,7 @@ class UsfxParser extends BaseParser {
     required int wordsOfJesusDepth,
     required int translatorAdditionDepth,
     required List<int?> quoteLevels,
+    required List<bool> quoteLineStarts,
     required Map<String, String>? wordMetadata,
   }) {
     final metadata = <String, String>{
@@ -712,6 +734,9 @@ class UsfxParser extends BaseParser {
     }
     if (quoteLevels.isNotEmpty && quoteLevels.last != null) {
       metadata['quoteLevel'] = quoteLevels.last.toString();
+    }
+    if (quoteLineStarts.isNotEmpty && quoteLineStarts.last) {
+      metadata['lineStart'] = 'true';
     }
 
     return metadata;
@@ -738,5 +763,13 @@ class UsfxParser extends BaseParser {
       metadata['style'] = style;
     }
     return metadata;
+  }
+
+  DocumentBlockKind _paragraphKindFromMetadata(Map<String, String> metadata) {
+    final style = metadata['style']?.toLowerCase() ?? '';
+    if (style.startsWith('q') || style.startsWith('qr')) {
+      return DocumentBlockKind.poetry;
+    }
+    return DocumentBlockKind.paragraph;
   }
 }

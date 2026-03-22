@@ -67,6 +67,22 @@ void main() {
   </osisText>
 </osis>
 ''';
+    final sampleOsisPoetryXml = '''
+<?xml version="1.0" encoding="UTF-8"?>
+<osis xmlns="http://www.bibletechnologies.net/2003/OSIS/namespace">
+  <osisText osisIDWork="TEST">
+    <div type="book" osisID="John">
+      <chapter osisID="John.1">
+        <p type="poetry"/>
+        <verse osisID="John.1.1">
+          <q level="2">First line</q>
+          <q level="2">Second line</q>
+        </verse>
+      </chapter>
+    </div>
+  </osisText>
+</osis>
+''';
     test('OsisParser can parse sample XML', () async {
       final parser = OsisParser(sampleOsisXml);
 
@@ -153,6 +169,23 @@ void main() {
       expect(paragraphBlocks.last.metadata['beforeVerse'], equals('3'));
       expect(paragraphBlocks.last.metadata['subType'], equals('x-indented'));
     });
+
+    test('OsisParser preserves poetry markers and line starts', () async {
+      final parser = OsisParser(sampleOsisPoetryXml);
+
+      final chapter = (await parser.parseBooks().toList()).first.chapters.first;
+      expect(chapter.blocks.first.kind, equals(DocumentBlockKind.poetry));
+
+      final verse = chapter.verses.first;
+      final poetrySpans = verse.spans
+          .where((span) => span.kind == VerseSpanKind.poetry)
+          .toList();
+
+      expect(poetrySpans, hasLength(2));
+      expect(poetrySpans.first.metadata['lineStart'], equals('true'));
+      expect(poetrySpans.first.metadata['quoteLevel'], equals('2'));
+      expect(poetrySpans.last.metadata['lineStart'], equals('true'));
+    });
   });
 
   group('USFX Parser Tests', () {
@@ -218,6 +251,17 @@ void main() {
       <v id="2">And the earth was without form, and void.</v>
       <p sfm="m"/>
       <v id="3">And God said, Let there be light.</v>
+    </c>
+  </book>
+</usfx>
+''';
+    final sampleUsfxPoetryXml = '''
+<?xml version="1.0" encoding="UTF-8"?>
+<usfx>
+  <book id="GEN">
+    <c id="1">
+      <p sfm="q1"/>
+      <v id="1"><q level="2">First line</q><q level="2">Second line</q></v>
     </c>
   </book>
 </usfx>
@@ -333,6 +377,23 @@ void main() {
       expect(paragraphBlocks.last.metadata['beforeVerse'], equals('3'));
       expect(paragraphBlocks.last.metadata['style'], equals('m'));
     });
+
+    test('UsfxParser preserves poetry markers and line starts', () async {
+      final parser = UsfxParser(sampleUsfxPoetryXml);
+
+      final chapter = (await parser.parseBooks().toList()).first.chapters.first;
+      expect(chapter.blocks.first.kind, equals(DocumentBlockKind.poetry));
+
+      final verse = chapter.verses.first;
+      final poetrySpans = verse.spans
+          .where((span) => span.kind == VerseSpanKind.poetry)
+          .toList();
+
+      expect(poetrySpans, hasLength(2));
+      expect(poetrySpans.first.metadata['lineStart'], equals('true'));
+      expect(poetrySpans.first.metadata['quoteLevel'], equals('2'));
+      expect(poetrySpans.last.metadata['lineStart'], equals('true'));
+    });
   });
 
   group('ZXBML Parser Tests', () {
@@ -376,6 +437,19 @@ void main() {
       <VERS vnumber="2">He was in the beginning with God.</VERS>
       <BR art="q1"/>
       <VERS vnumber="3">All things were made through him.</VERS>
+    </CHAPTER>
+  </BIBLEBOOK>
+</XMLBIBLE>
+''';
+    final sampleZefaniaPoetryXml = '''
+<?xml version="1.0" encoding="UTF-8"?>
+<XMLBIBLE>
+  <BIBLEBOOK bnumber="43" bname="John" bsname="JHN">
+    <CHAPTER cnumber="1">
+      <VERS vnumber="1">
+        <STYLE css="poetry">First line</STYLE>
+        <STYLE css="poetry">Second line</STYLE>
+      </VERS>
     </CHAPTER>
   </BIBLEBOOK>
 </XMLBIBLE>
@@ -452,6 +526,24 @@ void main() {
       expect(blocks.last.kind, equals(DocumentBlockKind.poetry));
       expect(blocks.last.metadata['beforeVerse'], equals('3'));
       expect(blocks.last.metadata['art'], equals('q1'));
+    });
+
+    test('ZefaniaParser preserves poetry line starts', () async {
+      final parser = ZefaniaParser(sampleZefaniaPoetryXml);
+
+      final verse = (await parser.parseBooks().toList())
+          .first
+          .chapters
+          .first
+          .verses
+          .first;
+      final poetrySpans = verse.spans
+          .where((span) => span.kind == VerseSpanKind.poetry)
+          .toList();
+
+      expect(poetrySpans, hasLength(2));
+      expect(poetrySpans.first.metadata['lineStart'], equals('true'));
+      expect(poetrySpans.last.metadata['lineStart'], equals('true'));
     });
   });
 }

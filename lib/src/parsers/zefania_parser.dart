@@ -116,6 +116,7 @@ class ZefaniaParser extends BaseParser {
     int wordsOfJesusDepth = 0;
     int translatorAdditionDepth = 0;
     final List<BibleStyleContext> styleStack = <BibleStyleContext>[];
+    final List<bool> styleLineStarts = <bool>[];
 
     try {
       final events = await parseEvents(content).toList();
@@ -210,6 +211,7 @@ class ZefaniaParser extends BaseParser {
           } else if (event.name == 'STYLE' && currentVerse != null) {
             final styleContext = _styleContextFromEvent(event);
             styleStack.add(styleContext);
+            styleLineStarts.add(styleContext.kind == VerseSpanKind.poetry);
             if (styleContext.wordsOfJesus) {
               wordsOfJesusDepth++;
             }
@@ -291,6 +293,9 @@ class ZefaniaParser extends BaseParser {
             currentParagraphMetadata = const {};
           } else if (event.name == 'STYLE' && styleStack.isNotEmpty) {
             final styleContext = styleStack.removeLast();
+            if (styleLineStarts.isNotEmpty) {
+              styleLineStarts.removeLast();
+            }
             if (styleContext.wordsOfJesus && wordsOfJesusDepth > 0) {
               wordsOfJesusDepth--;
             }
@@ -331,8 +336,12 @@ class ZefaniaParser extends BaseParser {
                 wordsOfJesusDepth: wordsOfJesusDepth,
                 translatorAdditionDepth: translatorAdditionDepth,
                 styleStack: styleStack,
+                styleLineStarts: styleLineStarts,
               ),
             );
+            if (styleLineStarts.isNotEmpty) {
+              styleLineStarts[styleLineStarts.length - 1] = false;
+            }
           }
         }
       }
@@ -360,6 +369,7 @@ class ZefaniaParser extends BaseParser {
     int wordsOfJesusDepth = 0;
     int translatorAdditionDepth = 0;
     final List<BibleStyleContext> styleStack = <BibleStyleContext>[];
+    final List<bool> styleLineStarts = <bool>[];
 
     try {
       final events = await parseEvents(content).toList();
@@ -394,6 +404,7 @@ class ZefaniaParser extends BaseParser {
           } else if (event.name == 'STYLE' && currentVerse != null) {
             final styleContext = _styleContextFromEvent(event);
             styleStack.add(styleContext);
+            styleLineStarts.add(styleContext.kind == VerseSpanKind.poetry);
             if (styleContext.wordsOfJesus) {
               wordsOfJesusDepth++;
             }
@@ -433,6 +444,9 @@ class ZefaniaParser extends BaseParser {
             currentXrefTarget = null;
           } else if (event.name == 'STYLE' && styleStack.isNotEmpty) {
             final styleContext = styleStack.removeLast();
+            if (styleLineStarts.isNotEmpty) {
+              styleLineStarts.removeLast();
+            }
             if (styleContext.wordsOfJesus && wordsOfJesusDepth > 0) {
               wordsOfJesusDepth--;
             }
@@ -462,8 +476,12 @@ class ZefaniaParser extends BaseParser {
                 wordsOfJesusDepth: wordsOfJesusDepth,
                 translatorAdditionDepth: translatorAdditionDepth,
                 styleStack: styleStack,
+                styleLineStarts: styleLineStarts,
               ),
             );
+            if (styleLineStarts.isNotEmpty) {
+              styleLineStarts[styleLineStarts.length - 1] = false;
+            }
           }
         }
       }
@@ -637,6 +655,7 @@ class ZefaniaParser extends BaseParser {
     required int wordsOfJesusDepth,
     required int translatorAdditionDepth,
     required List<BibleStyleContext> styleStack,
+    required List<bool> styleLineStarts,
   }) {
     final metadata = <String, String>{};
 
@@ -649,6 +668,9 @@ class ZefaniaParser extends BaseParser {
 
     for (final style in styleStack) {
       metadata.addAll(style.metadata);
+    }
+    if (styleLineStarts.isNotEmpty && styleLineStarts.last) {
+      metadata['lineStart'] = 'true';
     }
 
     return metadata;

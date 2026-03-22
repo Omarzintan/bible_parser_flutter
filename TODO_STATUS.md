@@ -12,7 +12,7 @@ Status meanings:
 
 - `partial` Phase 1 shared rich-content model types now exist in code, and all three main parser formats now populate part of them, but output is still incomplete and format fidelity is still lossy.
 - `in_progress` Rich parser work is now active across all main app formats: USFX, OSIS, and Zefania all preserve some structured spans, notes, references, and front-matter content.
-- `in_progress` All three main parser formats now emit chapter paragraph-start blocks where their source files expose paragraph markers, but the coverage is still lossy and depends on what each XML source actually contains.
+- `in_progress` All three main parser formats now emit chapter paragraph-start blocks where their source files expose paragraph markers, and they now preserve more source-driven poetry line starts as span metadata, but the coverage is still lossy and depends on what each XML source actually contains.
 
 | Feature | USFX | OSIS | Zefania | Notes |
 |---|---|---|---|---|
@@ -21,8 +21,8 @@ Status meanings:
 | Footnotes | partial | partial | partial | All three formats now preserve plain strings plus basic structured footnotes, but still do not capture every nested note detail. |
 | Cross references | partial | partial | partial | All three formats now preserve plain strings plus basic structured cross references. |
 | Red-letter text | partial | partial | partial | Zefania can now infer red-letter style from style metadata where the source uses that convention. |
-| Poetry / quoted line structure | partial | partial | partial | Zefania can now preserve style-driven poetry/quote spans where the source exposes them, but paragraph-level block handling is still incomplete. |
-| Paragraph boundaries | partial | partial | partial | All three now preserve chapter paragraph-start markers in the shared block model when the source exposes them, but this is still not lossless full layout fidelity. |
+| Poetry / quoted line structure | partial | partial | partial | All three formats now preserve more source-driven poetry/quote line starts, but coverage is still incomplete and not lossless. |
+| Paragraph boundaries | partial | partial | partial | All three now preserve chapter paragraph-start markers in the shared block model when the source exposes them, but this is still not full layout fidelity. |
 | Section headings / titles | partial | partial | partial | All three formats now preserve some headings/titles as introduction or chapter blocks. |
 | Word-level metadata | partial | partial | partial | Zefania can now preserve some style/`gr` metadata, though it is less explicit than USFX/OSIS word markup. |
 | Translator additions | partial | partial | partial | Zefania can now infer translator-addition spans from italic/add-style conventions where present. |
