@@ -1,11 +1,13 @@
 import 'dart:async';
+
 import 'package:xml/xml_events.dart';
 
 import 'base_parser.dart';
 import '../book.dart';
 import '../chapter.dart';
-import '../verse.dart';
 import '../errors.dart';
+import '../rich_content.dart';
+import '../verse.dart';
 
 /// Parser for the USFX Bible format.
 class UsfxParser extends BaseParser {
@@ -79,14 +81,12 @@ class UsfxParser extends BaseParser {
     'REV': 'Revelation',
   };
 
-  /// Creates a new USFX parser.
   UsfxParser(super.source);
 
   @override
   bool checkFormat(String content) {
-    // Check for USFX format markers
     return content.contains('<usfx') || content.contains('<USFX');
-    }
+  }
 
   @override
   Stream<Book> parseBooks() async* {
@@ -95,11 +95,29 @@ class UsfxParser extends BaseParser {
     Book? currentBook;
     Chapter? currentChapter;
     Verse? currentVerse;
-    String currentNote = '';
-  bool insideFTag = false;
-  bool insideXTag = false;
-  // Accumulate reference text while inside an <x> tag
-  String currentReference = '';
+
+    bool insideFootnote = false;
+    bool insideFootnoteLabel = false;
+    bool insideCrossReference = false;
+    bool insideHeading = false;
+    bool insideParagraph = false;
+    bool insideToc = false;
+    int wordsOfJesusDepth = 0;
+    int translatorAdditionDepth = 0;
+    final List<int?> quoteLevels = <int?>[];
+    Map<String, String>? currentWordMetadata;
+
+    String currentFootnoteText = '';
+    String currentFootnoteLabel = '';
+    String? currentFootnoteMarker;
+
+    String currentReferenceText = '';
+    String? currentReferenceTarget;
+
+    String currentHeadingText = '';
+    String currentParagraphText = '';
+    String currentTocText = '';
+    int? currentTocLevel;
 
     try {
       final events = await parseEvents(content).toList();
@@ -107,25 +125,19 @@ class UsfxParser extends BaseParser {
       for (final event in events) {
         if (event is XmlStartElementEvent) {
           if (event.name == 'book') {
-            String bookId = event.attributes
-        .firstWhere((attr) => attr.name == 'id',
-          orElse: () => XmlEventAttribute('', '', XmlAttributeType.DOUBLE_QUOTE))
-                .value
-                .toLowerCase();
-
+            final bookId = _attributeValue(event, 'id')?.toLowerCase() ?? '';
             if (bookId.isEmpty) continue;
 
-            final bookNum = _getBookNum(bookId);
-            final bookName = _getBookName(bookId.toUpperCase());
-
-            currentBook = Book(id: bookId, num: bookNum, title: bookName);
+            currentBook = Book(
+              id: bookId,
+              num: _getBookNum(bookId),
+              title: _getBookName(bookId.toUpperCase()),
+              tocLabels: <TocLabel>[],
+              introductionBlocks: <DocumentBlock>[],
+            );
           } else if (event.name == 'c' && currentBook != null) {
-            String chapterNumStr = event.attributes
-        .firstWhere((attr) => attr.name == 'id',
-          orElse: () => XmlEventAttribute('', '1', XmlAttributeType.DOUBLE_QUOTE))
-                .value;
-
-            final chapterNum = int.tryParse(chapterNumStr) ?? 1;
+            final chapterNum =
+                int.tryParse(_attributeValue(event, 'id') ?? '') ?? 1;
 
             if (currentChapter != null && chapterNum != currentChapter.num) {
               currentBook.addChapter(currentChapter);
@@ -135,101 +147,210 @@ class UsfxParser extends BaseParser {
             currentChapter = Chapter(
               num: chapterNum,
               bookId: currentBook.id,
+              blocks: <DocumentBlock>[],
             );
           } else if (event.name == 'v' &&
               currentBook != null &&
               currentChapter != null) {
-            String verseNumStr = event.attributes
-        .firstWhere((attr) => attr.name == 'id',
-          orElse: () => XmlEventAttribute('', '1', XmlAttributeType.DOUBLE_QUOTE))
-                .value;
-
-            final verseNum = int.tryParse(verseNumStr) ?? 1;
-
-            currentVerse = Verse(
-              num: verseNum,
+            final verseNum =
+                int.tryParse(_attributeValue(event, 'id') ?? '') ?? 1;
+            currentVerse = _createVerse(
+              verseNum: verseNum,
               chapterNum: currentChapter.num,
-              text: '',
               bookId: currentBook.id,
             );
           } else if (event.isSelfClosing &&
               event.name == 've' &&
-              currentBook != null &&
               currentChapter != null &&
               currentVerse != null) {
             currentChapter.addVerse(currentVerse);
             currentVerse = null;
-          } else if (event.name == 'f' &&
+          } else if (event.name == 'f' && currentVerse != null) {
+            insideFootnote = true;
+            currentFootnoteText = '';
+            currentFootnoteLabel = '';
+            currentFootnoteMarker = _attributeValue(event, 'caller');
+          } else if (event.name == 'fr' && insideFootnote) {
+            insideFootnoteLabel = true;
+          } else if (event.name == 'x' && currentVerse != null) {
+            insideCrossReference = true;
+            currentReferenceText = '';
+            currentReferenceTarget = null;
+          } else if (event.name == 'ref' &&
+              (insideFootnote || insideCrossReference)) {
+            currentReferenceTarget = _attributeValue(event, 'tgt');
+          } else if (event.name == 'toc' && currentBook != null) {
+            insideToc = true;
+            currentTocText = '';
+            currentTocLevel =
+                int.tryParse(_attributeValue(event, 'level') ?? '');
+          } else if (event.name == 'h' && currentBook != null) {
+            insideHeading = true;
+            currentHeadingText = '';
+          } else if (event.name == 'p' &&
               currentBook != null &&
-              currentVerse != null) {
-            insideFTag = true;
-          } else if (event.name == 'x' &&
-              currentBook != null &&
-              currentVerse != null) {
-            insideXTag = true;
-            currentReference = '';
+              currentChapter == null) {
+            // Before the first chapter, paragraph content is treated as
+            // book/front-matter introduction content instead of verse text.
+            insideParagraph = true;
+            currentParagraphText = '';
+          } else if (event.name == 'wj' && currentVerse != null) {
+            wordsOfJesusDepth++;
+          } else if (event.name == 'add' && currentVerse != null) {
+            translatorAdditionDepth++;
+          } else if (event.name == 'q' && currentVerse != null) {
+            quoteLevels
+                .add(int.tryParse(_attributeValue(event, 'level') ?? ''));
+          } else if (event.name == 'w' && currentVerse != null) {
+            currentWordMetadata = _wordMetadataFromEvent(event);
           }
         } else if (event is XmlEndElementEvent) {
           if (event.name == 'book' && currentBook != null) {
-            if (currentChapter != null) currentBook.addChapter(currentChapter);
+            if (currentChapter != null) {
+              currentBook.addChapter(currentChapter);
+            }
             yield currentBook;
             currentBook = null;
             currentChapter = null;
+            currentVerse = null;
           } else if (event.name == 'c' &&
               currentBook != null &&
               currentChapter != null) {
             currentBook.addChapter(currentChapter);
             currentChapter = null;
           } else if (event.name == 'v' &&
-              currentBook != null &&
               currentChapter != null &&
               currentVerse != null) {
             currentChapter.addVerse(currentVerse);
             currentVerse = null;
           } else if (event.name == 'f') {
-            if (currentVerse != null && currentNote.isNotEmpty) {
-              currentVerse.notes.add(currentNote);
-              currentNote = '';
-            }
-            insideFTag = false;
-          } else if (event.name == 'x') {
-            // End of reference tag – store accumulated reference
-            if (currentVerse != null && currentReference.isNotEmpty) {
-              currentVerse.references.add(currentReference);
-            }
-            insideXTag = false;
-            currentReference = '';
-          }
-          } else if (event is XmlTextEvent && currentVerse != null) {
-            if (insideFTag) {
-              currentNote += event.value;
-            } else if (insideXTag) {
-              // Accumulate reference text
-              currentReference += event.value;
-            } else {
-            final trimmedText = event.value.trim();
-            if (trimmedText.isNotEmpty) {
-              String newText;
-              if (currentVerse.text.isEmpty) {
-                newText = trimmedText;
-              } else if (trimmedText.startsWith(RegExp(r'[.,;:!?)]'))) {
-                newText = currentVerse.text + trimmedText;
-              } else {
-                newText = '${currentVerse.text} $trimmedText';
-              }
-
-              newText = newText
-                  .replaceAll(RegExp(r'\s+([.,;:!?])'), r'\1')
-                  .replaceAll(RegExp(r'\(\s+'), '(');
-
-              currentVerse = Verse(
-                num: currentVerse.num,
-                chapterNum: currentVerse.chapterNum,
-                text: newText,
-                bookId: currentVerse.bookId,
-                notes: currentVerse.notes,
+            if (currentVerse != null && currentFootnoteText.isNotEmpty) {
+              currentVerse.notes.add(currentFootnoteText);
+              currentVerse.footnotes.add(
+                Footnote(
+                  text: currentFootnoteText,
+                  marker: currentFootnoteMarker,
+                  label: currentFootnoteLabel.isEmpty
+                      ? null
+                      : currentFootnoteLabel,
+                ),
               );
             }
+            insideFootnote = false;
+            insideFootnoteLabel = false;
+            currentFootnoteText = '';
+            currentFootnoteLabel = '';
+            currentFootnoteMarker = null;
+          } else if (event.name == 'fr') {
+            insideFootnoteLabel = false;
+          } else if (event.name == 'x') {
+            if (currentVerse != null && currentReferenceText.isNotEmpty) {
+              currentVerse.references.add(currentReferenceText);
+              currentVerse.crossReferences.add(
+                CrossReference(
+                  label: currentReferenceText,
+                  target: currentReferenceTarget,
+                ),
+              );
+            }
+            insideCrossReference = false;
+            currentReferenceText = '';
+            currentReferenceTarget = null;
+          } else if (event.name == 'toc' && currentBook != null) {
+            final text = currentTocText.trim();
+            if (text.isNotEmpty) {
+              // Preserve TOC labels so the app can later expose richer
+              // navigation names instead of relying on a single title field.
+              currentBook.tocLabels.add(
+                TocLabel(
+                  text: text,
+                  level: currentTocLevel ?? 0,
+                ),
+              );
+            }
+            insideToc = false;
+            currentTocText = '';
+            currentTocLevel = null;
+          } else if (event.name == 'h' && currentBook != null) {
+            final text = currentHeadingText.trim();
+            if (text.isNotEmpty) {
+              // For now headings are normalized into introduction blocks.
+              // This keeps the information without forcing raw USFX tags
+              // into the app layer.
+              currentBook.introductionBlocks.add(
+                DocumentBlock(
+                  kind: DocumentBlockKind.heading,
+                  text: text,
+                ),
+              );
+            }
+            insideHeading = false;
+            currentHeadingText = '';
+          } else if (event.name == 'p' &&
+              currentBook != null &&
+              currentChapter == null) {
+            final text = currentParagraphText.trim();
+            if (text.isNotEmpty) {
+              // `FRT` is commonly used for Bible-level preface/front matter.
+              // Other pre-chapter paragraphs are treated as book
+              // introductions until we have a more detailed block model.
+              currentBook.introductionBlocks.add(
+                DocumentBlock(
+                  kind: currentBook.id == 'frt'
+                      ? DocumentBlockKind.preface
+                      : DocumentBlockKind.introduction,
+                  text: text,
+                ),
+              );
+            }
+            insideParagraph = false;
+            currentParagraphText = '';
+          } else if (event.name == 'wj' && wordsOfJesusDepth > 0) {
+            wordsOfJesusDepth--;
+          } else if (event.name == 'add' && translatorAdditionDepth > 0) {
+            translatorAdditionDepth--;
+          } else if (event.name == 'q' && quoteLevels.isNotEmpty) {
+            quoteLevels.removeLast();
+          } else if (event.name == 'w') {
+            currentWordMetadata = null;
+          }
+        } else if (event is XmlTextEvent) {
+          final cleaned = _normalizeInlineText(event.value);
+          if (cleaned.isEmpty) continue;
+
+          if (insideFootnote && currentVerse != null) {
+            if (insideFootnoteLabel) {
+              currentFootnoteLabel = _appendText(currentFootnoteLabel, cleaned);
+            } else {
+              currentFootnoteText = _appendText(currentFootnoteText, cleaned);
+            }
+          } else if (insideCrossReference && currentVerse != null) {
+            currentReferenceText = _appendText(currentReferenceText, cleaned);
+          } else if (insideToc && currentBook != null) {
+            currentTocText = _appendText(currentTocText, cleaned);
+          } else if (insideHeading && currentBook != null) {
+            currentHeadingText = _appendText(currentHeadingText, cleaned);
+          } else if (insideParagraph &&
+              currentBook != null &&
+              currentChapter == null) {
+            currentParagraphText = _appendText(currentParagraphText, cleaned);
+          } else if (currentVerse != null) {
+            currentVerse = _appendVerseText(
+              currentVerse,
+              cleaned,
+              kind: _currentSpanKind(
+                wordsOfJesusDepth: wordsOfJesusDepth,
+                translatorAdditionDepth: translatorAdditionDepth,
+                quoteLevels: quoteLevels,
+                wordMetadata: currentWordMetadata,
+              ),
+              metadata: _currentSpanMetadata(
+                wordsOfJesusDepth: wordsOfJesusDepth,
+                translatorAdditionDepth: translatorAdditionDepth,
+                quoteLevels: quoteLevels,
+                wordMetadata: currentWordMetadata,
+              ),
+            );
           }
         }
       }
@@ -245,9 +366,21 @@ class UsfxParser extends BaseParser {
     String? currentBookId;
     int? currentChapterNum;
     Verse? currentVerse;
-    String currentNote = '';
-    bool insideFTag = false;
-    bool insideXTag = false;
+
+    bool insideFootnote = false;
+    bool insideFootnoteLabel = false;
+    bool insideCrossReference = false;
+    int wordsOfJesusDepth = 0;
+    int translatorAdditionDepth = 0;
+    final List<int?> quoteLevels = <int?>[];
+    Map<String, String>? currentWordMetadata;
+
+    String currentFootnoteText = '';
+    String currentFootnoteLabel = '';
+    String? currentFootnoteMarker;
+
+    String currentReferenceText = '';
+    String? currentReferenceTarget;
 
     try {
       final events = await parseEvents(content).toList();
@@ -255,34 +388,20 @@ class UsfxParser extends BaseParser {
       for (final event in events) {
         if (event is XmlStartElementEvent) {
           if (event.name == 'book') {
-            String bookId = event.attributes
-        .firstWhere((attr) => attr.name == 'id',
-          orElse: () => XmlEventAttribute('', '', XmlAttributeType.DOUBLE_QUOTE))
-                .value
-                .toLowerCase();
-
+            final bookId = _attributeValue(event, 'id')?.toLowerCase() ?? '';
             if (bookId.isEmpty) continue;
             currentBookId = bookId;
           } else if (event.name == 'c' && currentBookId != null) {
-            String chapterNumStr = event.attributes
-        .firstWhere((attr) => attr.name == 'id',
-          orElse: () => XmlEventAttribute('', '1', XmlAttributeType.DOUBLE_QUOTE))
-                .value;
-
-            currentChapterNum = int.tryParse(chapterNumStr) ?? 1;
+            currentChapterNum =
+                int.tryParse(_attributeValue(event, 'id') ?? '') ?? 1;
           } else if (event.name == 'v' &&
               currentBookId != null &&
               currentChapterNum != null) {
-            String verseNumStr = event.attributes
-        .firstWhere((attr) => attr.name == 'id',
-          orElse: () => XmlEventAttribute('', '1', XmlAttributeType.DOUBLE_QUOTE))
-                .value;
-
-            final verseNum = int.tryParse(verseNumStr) ?? 1;
-            currentVerse = Verse(
-              num: verseNum,
+            final verseNum =
+                int.tryParse(_attributeValue(event, 'id') ?? '') ?? 1;
+            currentVerse = _createVerse(
+              verseNum: verseNum,
               chapterNum: currentChapterNum,
-              text: '',
               bookId: currentBookId,
             );
           } else if (event.isSelfClosing &&
@@ -291,52 +410,104 @@ class UsfxParser extends BaseParser {
             yield currentVerse;
             currentVerse = null;
           } else if (event.name == 'f' && currentVerse != null) {
-            insideFTag = true;
+            insideFootnote = true;
+            currentFootnoteText = '';
+            currentFootnoteLabel = '';
+            currentFootnoteMarker = _attributeValue(event, 'caller');
+          } else if (event.name == 'fr' && insideFootnote) {
+            insideFootnoteLabel = true;
           } else if (event.name == 'x' && currentVerse != null) {
-            insideXTag = true;
+            insideCrossReference = true;
+            currentReferenceText = '';
+            currentReferenceTarget = null;
+          } else if (event.name == 'ref' &&
+              (insideFootnote || insideCrossReference)) {
+            currentReferenceTarget = _attributeValue(event, 'tgt');
+          } else if (event.name == 'wj' && currentVerse != null) {
+            wordsOfJesusDepth++;
+          } else if (event.name == 'add' && currentVerse != null) {
+            translatorAdditionDepth++;
+          } else if (event.name == 'q' && currentVerse != null) {
+            quoteLevels
+                .add(int.tryParse(_attributeValue(event, 'level') ?? ''));
+          } else if (event.name == 'w' && currentVerse != null) {
+            currentWordMetadata = _wordMetadataFromEvent(event);
           }
         } else if (event is XmlEndElementEvent) {
           if (event.name == 'v' && currentVerse != null) {
             yield currentVerse;
             currentVerse = null;
           } else if (event.name == 'f') {
-            if (currentVerse != null && currentNote.isNotEmpty) {
-              currentVerse.notes.add(currentNote);
-              currentNote = '';
-            }
-            insideFTag = false;
-          } else if (event.name == 'x') {
-            insideXTag = false;
-          }
-        } else if (event is XmlTextEvent && currentVerse != null) {
-          if (insideFTag) {
-            currentNote += event.value;
-          } else if (insideXTag) {
-            continue;
-          } else {
-            final trimmedText = event.value.trim();
-            if (trimmedText.isNotEmpty) {
-              String newText;
-              if (currentVerse.text.isEmpty) {
-                newText = trimmedText;
-              } else if (trimmedText.startsWith(RegExp(r'[.,;:!?)]'))) {
-                newText = currentVerse.text + trimmedText;
-              } else {
-                newText = '${currentVerse.text} $trimmedText';
-              }
-
-              newText = newText
-                  .replaceAll(RegExp(r'\s+([.,;:!?])'), r'\1')
-                  .replaceAll(RegExp(r'\(\s+'), '(');
-
-              currentVerse = Verse(
-                num: currentVerse.num,
-                chapterNum: currentVerse.chapterNum,
-                text: newText,
-                bookId: currentVerse.bookId,
-                notes: currentVerse.notes,
+            if (currentVerse != null && currentFootnoteText.isNotEmpty) {
+              currentVerse.notes.add(currentFootnoteText);
+              currentVerse.footnotes.add(
+                Footnote(
+                  text: currentFootnoteText,
+                  marker: currentFootnoteMarker,
+                  label: currentFootnoteLabel.isEmpty
+                      ? null
+                      : currentFootnoteLabel,
+                ),
               );
             }
+            insideFootnote = false;
+            insideFootnoteLabel = false;
+            currentFootnoteText = '';
+            currentFootnoteLabel = '';
+            currentFootnoteMarker = null;
+          } else if (event.name == 'fr') {
+            insideFootnoteLabel = false;
+          } else if (event.name == 'x') {
+            if (currentVerse != null && currentReferenceText.isNotEmpty) {
+              currentVerse.references.add(currentReferenceText);
+              currentVerse.crossReferences.add(
+                CrossReference(
+                  label: currentReferenceText,
+                  target: currentReferenceTarget,
+                ),
+              );
+            }
+            insideCrossReference = false;
+            currentReferenceText = '';
+            currentReferenceTarget = null;
+          } else if (event.name == 'wj' && wordsOfJesusDepth > 0) {
+            wordsOfJesusDepth--;
+          } else if (event.name == 'add' && translatorAdditionDepth > 0) {
+            translatorAdditionDepth--;
+          } else if (event.name == 'q' && quoteLevels.isNotEmpty) {
+            quoteLevels.removeLast();
+          } else if (event.name == 'w') {
+            currentWordMetadata = null;
+          }
+        } else if (event is XmlTextEvent && currentVerse != null) {
+          final cleaned = _normalizeInlineText(event.value);
+          if (cleaned.isEmpty) continue;
+
+          if (insideFootnote) {
+            if (insideFootnoteLabel) {
+              currentFootnoteLabel = _appendText(currentFootnoteLabel, cleaned);
+            } else {
+              currentFootnoteText = _appendText(currentFootnoteText, cleaned);
+            }
+          } else if (insideCrossReference) {
+            currentReferenceText = _appendText(currentReferenceText, cleaned);
+          } else {
+            currentVerse = _appendVerseText(
+              currentVerse,
+              cleaned,
+              kind: _currentSpanKind(
+                wordsOfJesusDepth: wordsOfJesusDepth,
+                translatorAdditionDepth: translatorAdditionDepth,
+                quoteLevels: quoteLevels,
+                wordMetadata: currentWordMetadata,
+              ),
+              metadata: _currentSpanMetadata(
+                wordsOfJesusDepth: wordsOfJesusDepth,
+                translatorAdditionDepth: translatorAdditionDepth,
+                quoteLevels: quoteLevels,
+                wordMetadata: currentWordMetadata,
+              ),
+            );
           }
         }
       }
@@ -363,5 +534,140 @@ class UsfxParser extends BaseParser {
     } catch (e) {
       throw ParseError('Failed to parse XML content: $e');
     }
+  }
+
+  Verse _createVerse({
+    required int verseNum,
+    required int chapterNum,
+    required String bookId,
+  }) {
+    return Verse(
+      num: verseNum,
+      chapterNum: chapterNum,
+      text: '',
+      bookId: bookId,
+      notes: <String>[],
+      references: <String>[],
+      spans: <VerseSpan>[],
+      footnotes: <Footnote>[],
+      crossReferences: <CrossReference>[],
+    );
+  }
+
+  Verse _appendVerseText(
+    Verse verse,
+    String segment, {
+    VerseSpanKind kind = VerseSpanKind.normal,
+    Map<String, String> metadata = const {},
+  }) {
+    String newText;
+    if (verse.text.isEmpty) {
+      newText = segment;
+    } else if (segment.startsWith(RegExp(r'[.,;:!?)]'))) {
+      newText = verse.text + segment;
+    } else {
+      newText = '${verse.text} $segment';
+    }
+
+    newText = newText
+        .replaceAll(RegExp(r'\s+([.,;:!?])'), r'\1')
+        .replaceAll(RegExp(r'\(\s+'), '(');
+
+    // Keep plain text for compatibility and search, but also retain a span
+    // per appended segment so richer formatting can be layered in later.
+    final spans = List<VerseSpan>.from(verse.spans)
+      ..add(
+        VerseSpan(
+          text: segment,
+          kind: kind,
+          metadata: metadata,
+        ),
+      );
+
+    return Verse(
+      num: verse.num,
+      chapterNum: verse.chapterNum,
+      text: newText,
+      bookId: verse.bookId,
+      notes: verse.notes,
+      references: verse.references,
+      spans: spans,
+      footnotes: verse.footnotes,
+      crossReferences: verse.crossReferences,
+    );
+  }
+
+  String? _attributeValue(XmlStartElementEvent event, String name) {
+    for (final attr in event.attributes) {
+      if (attr.name == name) return attr.value;
+    }
+    return null;
+  }
+
+  String _normalizeInlineText(String value) {
+    return value.replaceAll(RegExp(r'\s+'), ' ').trim();
+  }
+
+  String _appendText(String current, String next) {
+    if (current.isEmpty) return next;
+    if (next.startsWith(RegExp(r'[.,;:!?)]'))) {
+      return current + next;
+    }
+    return '$current $next';
+  }
+
+  VerseSpanKind _currentSpanKind({
+    required int wordsOfJesusDepth,
+    required int translatorAdditionDepth,
+    required List<int?> quoteLevels,
+    required Map<String, String>? wordMetadata,
+  }) {
+    if (wordsOfJesusDepth > 0) return VerseSpanKind.wordsOfJesus;
+    if (translatorAdditionDepth > 0) return VerseSpanKind.translatorAddition;
+    if (quoteLevels.isNotEmpty) {
+      return quoteLevels.any((level) => level != null)
+          ? VerseSpanKind.poetry
+          : VerseSpanKind.quote;
+    }
+    if (wordMetadata != null && wordMetadata.isNotEmpty) {
+      return VerseSpanKind.word;
+    }
+    return VerseSpanKind.normal;
+  }
+
+  Map<String, String> _currentSpanMetadata({
+    required int wordsOfJesusDepth,
+    required int translatorAdditionDepth,
+    required List<int?> quoteLevels,
+    required Map<String, String>? wordMetadata,
+  }) {
+    final metadata = <String, String>{
+      ...?wordMetadata,
+    };
+
+    if (wordsOfJesusDepth > 0) {
+      metadata['wordsOfJesus'] = 'true';
+    }
+    if (translatorAdditionDepth > 0) {
+      metadata['translatorAddition'] = 'true';
+    }
+    if (quoteLevels.isNotEmpty && quoteLevels.last != null) {
+      metadata['quoteLevel'] = quoteLevels.last.toString();
+    }
+
+    return metadata;
+  }
+
+  Map<String, String>? _wordMetadataFromEvent(XmlStartElementEvent event) {
+    final metadata = <String, String>{};
+    final strongs = _attributeValue(event, 's');
+    if (strongs != null && strongs.isNotEmpty) {
+      metadata['strongs'] = strongs;
+    }
+    final lemma = _attributeValue(event, 'l');
+    if (lemma != null && lemma.isNotEmpty) {
+      metadata['lemma'] = lemma;
+    }
+    return metadata.isEmpty ? null : metadata;
   }
 }

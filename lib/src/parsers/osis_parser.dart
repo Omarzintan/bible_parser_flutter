@@ -1,11 +1,13 @@
 import 'dart:async';
+
 import 'package:xml/xml_events.dart';
 
 import 'base_parser.dart';
 import '../book.dart';
 import '../chapter.dart';
-import '../verse.dart';
 import '../errors.dart';
+import '../rich_content.dart';
+import '../verse.dart';
 
 /// Parser for the OSIS Bible format.
 class OsisParser extends BaseParser {
@@ -84,7 +86,6 @@ class OsisParser extends BaseParser {
 
   @override
   bool checkFormat(String content) {
-    // Check for OSIS format markers
     return content.contains('<osis') || content.contains('<osisText');
   }
 
@@ -92,145 +93,112 @@ class OsisParser extends BaseParser {
   Stream<Book> parseBooks() async* {
     final content = await getContent();
 
-    // Current parsing state
     Book? currentBook;
     Chapter? currentChapter;
     Verse? currentVerse;
 
-    // Parse XML using events for memory efficiency
+    bool insideTitle = false;
+    bool insideNote = false;
+    bool insideReference = false;
+
+    String currentTitleText = '';
+    String? currentTitleType;
+
+    String currentNoteText = '';
+    String? currentNoteLabel;
+    final List<CrossReference> currentNoteReferences = <CrossReference>[];
+
+    String currentReferenceText = '';
+    String? currentReferenceTarget;
+
+    int translatorAdditionDepth = 0;
+    int wordsOfJesusDepth = 0;
+    final List<int?> quoteLevels = <int?>[];
+    final List<bool> jesusQuoteStack = <bool>[];
+    Map<String, String>? currentWordMetadata;
+
     try {
       final events = await parseEvents(content).toList();
 
       for (final event in events) {
         if (event is XmlStartElementEvent) {
-          if (event.name == 'div') {
-            // Check if this is a book div by looking for type="book" attribute
-            bool isBookDiv = false;
-            for (var attr in event.attributes) {
-              if (attr.name == 'type' && attr.value == 'book') {
-                isBookDiv = true;
-                break;
-              }
+          if (_isBookStart(event)) {
+            final osisID = _attributeValue(event, 'osisID');
+            if (osisID == null || osisID.isEmpty) continue;
+
+            final bookId = osisID.toLowerCase();
+            currentBook = Book(
+              id: bookId,
+              num: _getBookNum(bookId),
+              title: _getBookName(bookId),
+              tocLabels: <TocLabel>[],
+              introductionBlocks: <DocumentBlock>[],
+            );
+          } else if (_isChapterStart(event) && currentBook != null) {
+            final chapterNum = _readChapterNumber(event);
+
+            if (currentChapter != null && chapterNum != currentChapter.num) {
+              currentBook.addChapter(currentChapter);
             }
-
-            // Skip if not a book div
-            if (!isBookDiv) continue;
-
-            // Find the osisID attribute
-            String osisID = '';
-            for (var attr in event.attributes) {
-              if (attr.name == 'osisID') {
-                osisID = attr.value;
-                break;
-              }
-            }
-
-            if (osisID.isNotEmpty) {
-              final bookId = osisID.toLowerCase();
-              final bookNum = _getBookNum(bookId);
-              final bookName = _getBookName(bookId);
-
-              currentBook = Book(
-                id: bookId,
-                num: bookNum,
-                title: bookName,
-              );
-            }
-            // Some osis xml version use <chapter eID=""/> as end tags. Without the explicit check for eID here, those tags will be wrongly marked as start tags.
-          } else if (event.name == 'chapter' &&
-              currentBook != null &&
-              !event.attributes.any((attr) => attr.name == 'eID')) {
-            // Find chapter number from attributes
-            String chapterNumStr = '1';
-            String attrName = '';
-
-            for (var attr in event.attributes) {
-              if (attr.name == 'n') {
-                chapterNumStr = attr.value;
-                attrName = attr.name;
-                break;
-              } else if (attr.name == 'osisRef') {
-                chapterNumStr = attr.value;
-                attrName = attr.name;
-                break;
-              } else if (attr.name == 'osisID') {
-                chapterNumStr = attr.value;
-                attrName = attr.name;
-                break;
-              }
-            }
-
-            // Extract chapter number from osisID (e.g., "Gen.1" -> "1")
-            if (attrName == 'osisID' && chapterNumStr.contains('.')) {
-              chapterNumStr = chapterNumStr.split('.').last;
-            } else if (attrName == 'osisRef' && chapterNumStr.contains('.')) {
-              chapterNumStr = chapterNumStr.split('.').last;
-            }
-
-            final chapterNum = int.tryParse(chapterNumStr) ?? 1;
 
             currentChapter = Chapter(
               num: chapterNum,
               bookId: currentBook.id,
+              blocks: <DocumentBlock>[],
             );
-            // Some osis xml version use <verse eID=""/> as end tags. Without the explicit check for eID here, those tags will be wrongly marked as start tags.
-          } else if (event.name == 'verse' &&
+          } else if (_isVerseStart(event) &&
               currentBook != null &&
-              currentChapter != null &&
-              !event.attributes.any((attr) => attr.name == 'eID')) {
-            // Find verse attributes
-            String verseOsisID = '';
-            String verseNum = '1';
-
-            for (var attr in event.attributes) {
-              if (attr.name == 'n') {
-                verseNum = attr.value;
-              } else if (attr.name == 'osisID') {
-                verseOsisID = attr.value;
-              }
-            }
-
-            // Extract verse number from osisID (e.g., "Gen.1.1" -> "1") or use 'n' attribute
-            String verseNumStr = verseNum;
-            if (verseOsisID.isNotEmpty) {
-              final parts = verseOsisID.split('.');
-              if (parts.length > 2) {
-                verseNumStr = parts[2];
-              }
-            }
-
-            final verseNumber = int.tryParse(verseNumStr) ?? 1;
-
-            // Verse text will be collected in the character events
-            currentVerse = Verse(
-              num: verseNumber,
+              currentChapter != null) {
+            currentVerse = _createVerse(
+              verseNum: _readVerseNumber(event),
               chapterNum: currentChapter.num,
-              text: '',
               bookId: currentBook.id,
             );
-            // Some osis xml version use <chapter eID=""/> as end tags for chapters. This catches such cases..
-          } else if (event.name == 'chapter' &&
+          } else if (_isChapterEndMarker(event) &&
               currentBook != null &&
-              currentChapter != null &&
-              event.attributes.any((attr) => attr.name == 'eID')) {
-            // End of chapter - add to current book
+              currentChapter != null) {
             currentBook.addChapter(currentChapter);
             currentChapter = null;
-          }
-          // Some osis xml version use <verse eID=""/> as end tags for verses. This catches such cases.
-          else if (event.name == 'verse' &&
-              currentBook != null &&
+          } else if (_isVerseEndMarker(event) &&
               currentChapter != null &&
-              currentVerse != null &&
-              event.attributes.any((attr) => attr.name == 'eID')) {
-            // End of verse - add to current chapter
+              currentVerse != null) {
             currentChapter.addVerse(currentVerse);
             currentVerse = null;
+          } else if (event.name == 'title' && currentBook != null) {
+            insideTitle = true;
+            currentTitleText = '';
+            currentTitleType = _attributeValue(event, 'type');
+          } else if (event.name == 'note' && currentVerse != null) {
+            insideNote = true;
+            currentNoteText = '';
+            currentNoteLabel =
+                _attributeValue(event, 'n') ?? _attributeValue(event, 'type');
+            currentNoteReferences.clear();
+          } else if (event.name == 'reference' && currentVerse != null) {
+            insideReference = true;
+            currentReferenceText = '';
+            currentReferenceTarget = _attributeValue(event, 'osisRef') ??
+                _attributeValue(event, 'target');
+          } else if (event.name == 'q' && currentVerse != null) {
+            final quoteLevel =
+                int.tryParse(_attributeValue(event, 'level') ?? '');
+            final isJesusQuote =
+                (_attributeValue(event, 'who') ?? '').contains('Jesus');
+            quoteLevels.add(quoteLevel);
+            jesusQuoteStack.add(isJesusQuote);
+            if (isJesusQuote) {
+              wordsOfJesusDepth++;
+            }
+          } else if (event.name == 'transChange' && currentVerse != null) {
+            translatorAdditionDepth++;
+          } else if (event.name == 'w' && currentVerse != null) {
+            currentWordMetadata = _wordMetadataFromEvent(event);
           }
         } else if (event is XmlEndElementEvent) {
           if (event.name == 'div' && currentBook != null) {
-            // End of book div - we rely on the element name and current state to determine if this is the end of a book
-            // Directly yield the book instead of using a stream controller
+            if (currentChapter != null) {
+              currentBook.addChapter(currentChapter);
+            }
             yield currentBook;
             currentBook = null;
             currentChapter = null;
@@ -238,27 +206,111 @@ class OsisParser extends BaseParser {
           } else if (event.name == 'chapter' &&
               currentBook != null &&
               currentChapter != null) {
-            // End of chapter - add to current book
             currentBook.addChapter(currentChapter);
             currentChapter = null;
           } else if (event.name == 'verse' &&
-              currentBook != null &&
               currentChapter != null &&
               currentVerse != null) {
-            // End of verse - add to current chapter
             currentChapter.addVerse(currentVerse);
             currentVerse = null;
+          } else if (event.name == 'title' && currentBook != null) {
+            final titleText = currentTitleText.trim();
+            if (titleText.isNotEmpty) {
+              // OSIS titles can be book front matter or chapter headings.
+              // Normalize them into shared document structures instead of
+              // leaking raw OSIS tags into the app layer.
+              if (currentChapter == null) {
+                currentBook.tocLabels.add(
+                  TocLabel(
+                      text: titleText, level: currentBook.tocLabels.length + 1),
+                );
+                currentBook.introductionBlocks.add(
+                  DocumentBlock(
+                    kind: _titleBlockKind(currentTitleType),
+                    text: titleText,
+                  ),
+                );
+              } else {
+                currentChapter.blocks.add(
+                  DocumentBlock(
+                    kind: DocumentBlockKind.heading,
+                    text: titleText,
+                  ),
+                );
+              }
+            }
+            insideTitle = false;
+            currentTitleText = '';
+            currentTitleType = null;
+          } else if (event.name == 'note') {
+            if (currentVerse != null && currentNoteText.isNotEmpty) {
+              currentVerse.notes.add(currentNoteText);
+              currentVerse.footnotes.add(
+                Footnote(
+                  text: currentNoteText,
+                  label: currentNoteLabel,
+                  references: List<CrossReference>.from(currentNoteReferences),
+                ),
+              );
+            }
+            insideNote = false;
+            currentNoteText = '';
+            currentNoteLabel = null;
+            currentNoteReferences.clear();
+          } else if (event.name == 'reference') {
+            if (currentVerse != null && currentReferenceText.isNotEmpty) {
+              final crossReference = CrossReference(
+                label: currentReferenceText,
+                target: currentReferenceTarget,
+              );
+              if (insideNote) {
+                currentNoteReferences.add(crossReference);
+              } else {
+                currentVerse.references.add(currentReferenceText);
+                currentVerse.crossReferences.add(crossReference);
+              }
+            }
+            insideReference = false;
+            currentReferenceText = '';
+            currentReferenceTarget = null;
+          } else if (event.name == 'q' && quoteLevels.isNotEmpty) {
+            final wasJesusQuote = jesusQuoteStack.removeLast();
+            quoteLevels.removeLast();
+            if (wasJesusQuote && wordsOfJesusDepth > 0) {
+              wordsOfJesusDepth--;
+            }
+          } else if (event.name == 'transChange' &&
+              translatorAdditionDepth > 0) {
+            translatorAdditionDepth--;
+          } else if (event.name == 'w') {
+            currentWordMetadata = null;
           }
-        } else if (event is XmlTextEvent && currentVerse != null) {
-          final trimmedText = event.value.trim();
-          if (trimmedText.isNotEmpty) {
-            // Append text to current verse
-            final newText = [currentVerse.text, trimmedText].join(' ');
-            currentVerse = Verse(
-              num: currentVerse.num,
-              chapterNum: currentVerse.chapterNum,
-              text: newText,
-              bookId: currentVerse.bookId,
+        } else if (event is XmlTextEvent) {
+          final cleaned = _normalizeInlineText(event.value);
+          if (cleaned.isEmpty) continue;
+
+          if (insideTitle) {
+            currentTitleText = _appendText(currentTitleText, cleaned);
+          } else if (insideReference) {
+            currentReferenceText = _appendText(currentReferenceText, cleaned);
+          } else if (insideNote) {
+            currentNoteText = _appendText(currentNoteText, cleaned);
+          } else if (currentVerse != null) {
+            currentVerse = _appendVerseText(
+              currentVerse,
+              cleaned,
+              kind: _currentSpanKind(
+                wordsOfJesusDepth: wordsOfJesusDepth,
+                translatorAdditionDepth: translatorAdditionDepth,
+                quoteLevels: quoteLevels,
+                wordMetadata: currentWordMetadata,
+              ),
+              metadata: _currentSpanMetadata(
+                wordsOfJesusDepth: wordsOfJesusDepth,
+                translatorAdditionDepth: translatorAdditionDepth,
+                quoteLevels: quoteLevels,
+                wordMetadata: currentWordMetadata,
+              ),
             );
           }
         }
@@ -272,132 +324,146 @@ class OsisParser extends BaseParser {
   Stream<Verse> parseVerses() async* {
     final content = await getContent();
 
-    // Current parsing state
     String? currentBookId;
     int? currentChapterNum;
     Verse? currentVerse;
 
+    bool insideNote = false;
+    bool insideReference = false;
+
+    String currentNoteText = '';
+    String? currentNoteLabel;
+    final List<CrossReference> currentNoteReferences = <CrossReference>[];
+
+    String currentReferenceText = '';
+    String? currentReferenceTarget;
+
+    int translatorAdditionDepth = 0;
+    int wordsOfJesusDepth = 0;
+    final List<int?> quoteLevels = <int?>[];
+    final List<bool> jesusQuoteStack = <bool>[];
+    Map<String, String>? currentWordMetadata;
+
     try {
-      // Parse XML using events for memory efficiency
       final events = await parseEvents(content).toList();
 
       for (final event in events) {
         if (event is XmlStartElementEvent) {
-          if (event.name == 'div') {
-            // Check if this is a book div by looking for type="book" attribute
-            bool isBookDiv = false;
-            for (var attr in event.attributes) {
-              if (attr.name == 'type' && attr.value == 'book') {
-                isBookDiv = true;
-                break;
-              }
-            }
-
-            // Skip if not a book div
-            if (!isBookDiv) continue;
-
-            // Find the osisID attribute
-            String osisID = '';
-            for (var attr in event.attributes) {
-              if (attr.name == 'osisID') {
-                osisID = attr.value;
-                break;
-              }
-            }
-
-            if (osisID.isNotEmpty) {
+          if (_isBookStart(event)) {
+            final osisID = _attributeValue(event, 'osisID');
+            if (osisID != null && osisID.isNotEmpty) {
               currentBookId = osisID.toLowerCase();
             }
-            // Some osis xml version use <chapter eID=""/> as end tags. Without the explicit check for eID here, those tags will be wrongly marked as start tags.
-          } else if (event.name == 'chapter' &&
+          } else if (_isChapterStart(event) && currentBookId != null) {
+            currentChapterNum = _readChapterNumber(event);
+          } else if (_isVerseStart(event) &&
               currentBookId != null &&
-              !event.attributes.any((attr) => attr.name == 'eID')) {
-            // Find chapter number from attributes
-            String chapterNumStr = '1';
-            String attrName = '';
-
-            for (var attr in event.attributes) {
-              if (attr.name == 'n') {
-                chapterNumStr = attr.value;
-                attrName = attr.name;
-                break;
-              } else if (attr.name == 'osisRef') {
-                chapterNumStr = attr.value;
-                attrName = attr.name;
-                break;
-              } else if (attr.name == 'osisID') {
-                chapterNumStr = attr.value;
-                attrName = attr.name;
-                break;
-              }
-            }
-
-            // Extract chapter number from osisID (e.g., "Gen.1" -> "1")
-            if (attrName == 'osisID' && chapterNumStr.contains('.')) {
-              chapterNumStr = chapterNumStr.split('.').last;
-            } else if (attrName == 'osisRef' && chapterNumStr.contains('.')) {
-              chapterNumStr = chapterNumStr.split('.').last;
-            }
-
-            currentChapterNum = int.tryParse(chapterNumStr) ?? 1;
-            // Some osis xml version use <verse eID=""/> as end tags. Without the explicit check for eID here, those tags will be wrongly marked as start tags.
-          } else if (event.name == 'verse' &&
-              currentBookId != null &&
-              currentChapterNum != null &&
-              !event.attributes.any((attr) => attr.name == 'eID')) {
-            // Find verse attributes
-            String verseOsisID = '';
-            String verseNumStr = '1';
-
-            for (var attr in event.attributes) {
-              if (attr.name == 'n') {
-                verseNumStr = attr.value;
-              } else if (attr.name == 'osisID') {
-                verseOsisID = attr.value;
-              }
-            }
-
-            // Extract verse number from osisID (e.g., "Gen.1.1" -> "1") or use 'n' attribute
-            if (verseOsisID.isNotEmpty) {
-              final parts = verseOsisID.split('.');
-              if (parts.length > 2) {
-                verseNumStr = parts[2];
-              }
-            }
-
-            final verseNum = int.tryParse(verseNumStr) ?? 1;
-
-            currentVerse = Verse(
-              num: verseNum,
+              currentChapterNum != null) {
+            currentVerse = _createVerse(
+              verseNum: _readVerseNumber(event),
               chapterNum: currentChapterNum,
-              text: '',
               bookId: currentBookId,
             );
-          }
-          // Some osis xml version use <verse eID=""/> as end tags for verses. This catches such cases.
-          else if (event.name == 'verse' &&
-              currentVerse != null &&
-              event.attributes.any((attr) => attr.name == 'eID')) {
-            // End of verse - add to current chapter
+          } else if (_isVerseEndMarker(event) && currentVerse != null) {
             yield currentVerse;
             currentVerse = null;
+          } else if (event.name == 'note' && currentVerse != null) {
+            insideNote = true;
+            currentNoteText = '';
+            currentNoteLabel =
+                _attributeValue(event, 'n') ?? _attributeValue(event, 'type');
+            currentNoteReferences.clear();
+          } else if (event.name == 'reference' && currentVerse != null) {
+            insideReference = true;
+            currentReferenceText = '';
+            currentReferenceTarget = _attributeValue(event, 'osisRef') ??
+                _attributeValue(event, 'target');
+          } else if (event.name == 'q' && currentVerse != null) {
+            final quoteLevel =
+                int.tryParse(_attributeValue(event, 'level') ?? '');
+            final isJesusQuote =
+                (_attributeValue(event, 'who') ?? '').contains('Jesus');
+            quoteLevels.add(quoteLevel);
+            jesusQuoteStack.add(isJesusQuote);
+            if (isJesusQuote) {
+              wordsOfJesusDepth++;
+            }
+          } else if (event.name == 'transChange' && currentVerse != null) {
+            translatorAdditionDepth++;
+          } else if (event.name == 'w' && currentVerse != null) {
+            currentWordMetadata = _wordMetadataFromEvent(event);
           }
         } else if (event is XmlEndElementEvent) {
           if (event.name == 'verse' && currentVerse != null) {
-            // Directly yield the verse instead of using a stream controller
             yield currentVerse;
             currentVerse = null;
+          } else if (event.name == 'note') {
+            if (currentVerse != null && currentNoteText.isNotEmpty) {
+              currentVerse.notes.add(currentNoteText);
+              currentVerse.footnotes.add(
+                Footnote(
+                  text: currentNoteText,
+                  label: currentNoteLabel,
+                  references: List<CrossReference>.from(currentNoteReferences),
+                ),
+              );
+            }
+            insideNote = false;
+            currentNoteText = '';
+            currentNoteLabel = null;
+            currentNoteReferences.clear();
+          } else if (event.name == 'reference') {
+            if (currentVerse != null && currentReferenceText.isNotEmpty) {
+              final crossReference = CrossReference(
+                label: currentReferenceText,
+                target: currentReferenceTarget,
+              );
+              if (insideNote) {
+                currentNoteReferences.add(crossReference);
+              } else {
+                currentVerse.references.add(currentReferenceText);
+                currentVerse.crossReferences.add(crossReference);
+              }
+            }
+            insideReference = false;
+            currentReferenceText = '';
+            currentReferenceTarget = null;
+          } else if (event.name == 'q' && quoteLevels.isNotEmpty) {
+            final wasJesusQuote = jesusQuoteStack.removeLast();
+            quoteLevels.removeLast();
+            if (wasJesusQuote && wordsOfJesusDepth > 0) {
+              wordsOfJesusDepth--;
+            }
+          } else if (event.name == 'transChange' &&
+              translatorAdditionDepth > 0) {
+            translatorAdditionDepth--;
+          } else if (event.name == 'w') {
+            currentWordMetadata = null;
           }
         } else if (event is XmlTextEvent && currentVerse != null) {
-          final trimmedText = event.value.trim();
-          if (trimmedText.isNotEmpty) {
-            // Append text to current verse
-            final newText = [currentVerse.text, trimmedText].join(' ');
-            currentVerse = Verse(
-              num: currentVerse.num,
-              chapterNum: currentVerse.chapterNum,
-              text: newText,
-              bookId: currentVerse.bookId,
+          final cleaned = _normalizeInlineText(event.value);
+          if (cleaned.isEmpty) continue;
+
+          if (insideReference) {
+            currentReferenceText = _appendText(currentReferenceText, cleaned);
+          } else if (insideNote) {
+            currentNoteText = _appendText(currentNoteText, cleaned);
+          } else {
+            currentVerse = _appendVerseText(
+              currentVerse,
+              cleaned,
+              kind: _currentSpanKind(
+                wordsOfJesusDepth: wordsOfJesusDepth,
+                translatorAdditionDepth: translatorAdditionDepth,
+                quoteLevels: quoteLevels,
+                wordMetadata: currentWordMetadata,
+              ),
+              metadata: _currentSpanMetadata(
+                wordsOfJesusDepth: wordsOfJesusDepth,
+                translatorAdditionDepth: translatorAdditionDepth,
+                quoteLevels: quoteLevels,
+                wordMetadata: currentWordMetadata,
+              ),
             );
           }
         }
@@ -407,7 +473,6 @@ class OsisParser extends BaseParser {
     }
   }
 
-  /// Gets the book number based on its ID.
   int _getBookNum(String bookId) {
     final keys = _bookNames.keys.toList();
     for (int i = 0; i < keys.length; i++) {
@@ -418,41 +483,22 @@ class OsisParser extends BaseParser {
     return 0;
   }
 
-  /// Gets the book name based on its ID.
-  // String _getBookName(String bookId) {
-
-    
-  //   for (final entry in _bookNames.entries) {
-  //     if (bookId.toLowerCase().startsWith(entry.key.toLowerCase())) {
-  //       return entry.value;
-  //     }
-  //   }
-    
-  //   return "Unknown";
-  // }
   String _getBookName(String bookId) {
-
-    
     for (final entry in _bookNames.entries) {
       if (bookId.toLowerCase().startsWith(entry.key.toLowerCase())) {
         return entry.value;
       }
     }
-    
+
     return bookId.toUpperCase();
   }
 
-  /// Parses XML events from the content string.
   Stream<XmlEvent> parseEvents(String content) {
     try {
-      // Use a more robust approach for XML parsing
       try {
-        // Convert the content to a list of XmlEvents and then create a stream from it
         final events = XmlEventDecoder().convert(content);
         return Stream.fromIterable(events);
-      } catch (xmlError) {
-        // Try a fallback approach for web compatibility
-        // Remove XML namespace declarations which can cause issues in some environments
+      } catch (_) {
         final cleanedContent =
             content.replaceAll(RegExp(r'xmlns(:\w+)?="[^"]*"'), '');
         final events = XmlEventDecoder().convert(cleanedContent);
@@ -466,17 +512,13 @@ class OsisParser extends BaseParser {
   @override
   Future<String> getContent() async {
     try {
-      // For web compatibility, handle the source directly if it's a string
       if (source is String) {
         return source as String;
       }
 
-      // Otherwise, try the parent implementation
       try {
         return await super.getContent();
       } catch (e) {
-        // If the source is a File but we're on web, this will fail
-        // In that case, if we can access the source directly, return it
         if (source != null) {
           return source.toString();
         }
@@ -485,5 +527,205 @@ class OsisParser extends BaseParser {
     } catch (e) {
       throw ParseError('Failed to read content: $e');
     }
+  }
+
+  bool _isBookStart(XmlStartElementEvent event) {
+    return event.name == 'div' &&
+        event.attributes
+            .any((attr) => attr.name == 'type' && attr.value == 'book');
+  }
+
+  bool _isChapterStart(XmlStartElementEvent event) {
+    return event.name == 'chapter' &&
+        !event.attributes.any((attr) => attr.name == 'eID');
+  }
+
+  bool _isChapterEndMarker(XmlStartElementEvent event) {
+    return event.name == 'chapter' &&
+        event.attributes.any((attr) => attr.name == 'eID');
+  }
+
+  bool _isVerseStart(XmlStartElementEvent event) {
+    return event.name == 'verse' &&
+        !event.attributes.any((attr) => attr.name == 'eID');
+  }
+
+  bool _isVerseEndMarker(XmlStartElementEvent event) {
+    return event.name == 'verse' &&
+        event.attributes.any((attr) => attr.name == 'eID');
+  }
+
+  int _readChapterNumber(XmlStartElementEvent event) {
+    var chapterNumStr = _attributeValue(event, 'n') ??
+        _attributeValue(event, 'osisRef') ??
+        _attributeValue(event, 'osisID') ??
+        '1';
+
+    if (chapterNumStr.contains('.')) {
+      chapterNumStr = chapterNumStr.split('.').last;
+    }
+
+    return int.tryParse(chapterNumStr) ?? 1;
+  }
+
+  int _readVerseNumber(XmlStartElementEvent event) {
+    final verseOsisID = _attributeValue(event, 'osisID');
+    var verseNumStr = _attributeValue(event, 'n') ?? '1';
+
+    if (verseOsisID != null && verseOsisID.isNotEmpty) {
+      final parts = verseOsisID.split('.');
+      if (parts.length > 2) {
+        verseNumStr = parts[2];
+      }
+    }
+
+    return int.tryParse(verseNumStr) ?? 1;
+  }
+
+  Verse _createVerse({
+    required int verseNum,
+    required int chapterNum,
+    required String bookId,
+  }) {
+    return Verse(
+      num: verseNum,
+      chapterNum: chapterNum,
+      text: '',
+      bookId: bookId,
+      notes: <String>[],
+      references: <String>[],
+      spans: <VerseSpan>[],
+      footnotes: <Footnote>[],
+      crossReferences: <CrossReference>[],
+    );
+  }
+
+  Verse _appendVerseText(
+    Verse verse,
+    String segment, {
+    VerseSpanKind kind = VerseSpanKind.normal,
+    Map<String, String> metadata = const {},
+  }) {
+    String newText;
+    if (verse.text.isEmpty) {
+      newText = segment;
+    } else if (segment.startsWith(RegExp(r'[.,;:!?)]'))) {
+      newText = verse.text + segment;
+    } else {
+      newText = '${verse.text} $segment';
+    }
+
+    newText = newText
+        .replaceAll(RegExp(r'\s+([.,;:!?])'), r'\1')
+        .replaceAll(RegExp(r'\(\s+'), '(');
+
+    final spans = List<VerseSpan>.from(verse.spans)
+      ..add(
+        VerseSpan(
+          text: segment,
+          kind: kind,
+          metadata: metadata,
+        ),
+      );
+
+    return Verse(
+      num: verse.num,
+      chapterNum: verse.chapterNum,
+      text: newText,
+      bookId: verse.bookId,
+      notes: verse.notes,
+      references: verse.references,
+      spans: spans,
+      footnotes: verse.footnotes,
+      crossReferences: verse.crossReferences,
+    );
+  }
+
+  VerseSpanKind _currentSpanKind({
+    required int wordsOfJesusDepth,
+    required int translatorAdditionDepth,
+    required List<int?> quoteLevels,
+    required Map<String, String>? wordMetadata,
+  }) {
+    if (wordsOfJesusDepth > 0) return VerseSpanKind.wordsOfJesus;
+    if (translatorAdditionDepth > 0) return VerseSpanKind.translatorAddition;
+    if (quoteLevels.isNotEmpty) {
+      return quoteLevels.any((level) => level != null)
+          ? VerseSpanKind.poetry
+          : VerseSpanKind.quote;
+    }
+    if (wordMetadata != null && wordMetadata.isNotEmpty) {
+      return VerseSpanKind.word;
+    }
+    return VerseSpanKind.normal;
+  }
+
+  Map<String, String> _currentSpanMetadata({
+    required int wordsOfJesusDepth,
+    required int translatorAdditionDepth,
+    required List<int?> quoteLevels,
+    required Map<String, String>? wordMetadata,
+  }) {
+    final metadata = <String, String>{
+      ...?wordMetadata,
+    };
+
+    if (wordsOfJesusDepth > 0) {
+      metadata['wordsOfJesus'] = 'true';
+    }
+    if (translatorAdditionDepth > 0) {
+      metadata['translatorAddition'] = 'true';
+    }
+    if (quoteLevels.isNotEmpty && quoteLevels.last != null) {
+      metadata['quoteLevel'] = quoteLevels.last.toString();
+    }
+
+    return metadata;
+  }
+
+  Map<String, String>? _wordMetadataFromEvent(XmlStartElementEvent event) {
+    final metadata = <String, String>{};
+    final lemma = _attributeValue(event, 'lemma');
+    if (lemma != null && lemma.isNotEmpty) {
+      metadata['lemma'] = lemma;
+    }
+    final morph = _attributeValue(event, 'morph');
+    if (morph != null && morph.isNotEmpty) {
+      metadata['morph'] = morph;
+    }
+    return metadata.isEmpty ? null : metadata;
+  }
+
+  DocumentBlockKind _titleBlockKind(String? titleType) {
+    switch (titleType) {
+      case 'main':
+      case 'chapter':
+        return DocumentBlockKind.heading;
+      case 'sub':
+        return DocumentBlockKind.introduction;
+      default:
+        return DocumentBlockKind.heading;
+    }
+  }
+
+  String? _attributeValue(XmlStartElementEvent event, String name) {
+    for (final attr in event.attributes) {
+      if (attr.name == name) {
+        return attr.value;
+      }
+    }
+    return null;
+  }
+
+  String _normalizeInlineText(String value) {
+    return value.replaceAll(RegExp(r'\s+'), ' ').trim();
+  }
+
+  String _appendText(String current, String next) {
+    if (current.isEmpty) return next;
+    if (next.startsWith(RegExp(r'[.,;:!?)]'))) {
+      return current + next;
+    }
+    return '$current $next';
   }
 }

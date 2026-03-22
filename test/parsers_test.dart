@@ -2,6 +2,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:bible_parser_flutter/src/parsers/osis_parser.dart';
 import 'package:bible_parser_flutter/src/parsers/usfx_parser.dart';
 import 'package:bible_parser_flutter/src/parsers/zefania_parser.dart';
+import 'package:bible_parser_flutter/src/rich_content.dart';
 
 void main() {
   group('OSIS Parser Tests', () {
@@ -27,6 +28,25 @@ void main() {
         <verse osisID="Gen.1.1" sID="Gen.1.1.seID.00002" n="1">In the beginning God created the heaven and the earth.<verse eID="Gen.1.1.seID.00002"/>
         <verse osisID="Gen.1.2" sID="Gen.1.2.seID.00003" n="2">And the earth was without form, and void; and darkness was upon the face of the deep.<verse eID="Gen.1.2.seID.00003"/>
       <chapter eID="Gen.1.seID.00001"/>
+    </div>
+  </osisText>
+</osis>
+''';
+    final sampleOsisRichXml = '''
+<?xml version="1.0" encoding="UTF-8"?>
+<osis xmlns="http://www.bibletechnologies.net/2003/OSIS/namespace">
+  <osisText osisIDWork="TEST">
+    <div type="book" osisID="John">
+      <title type="main">The Gospel According to John</title>
+      <chapter osisID="John.1">
+        <title type="chapter">The Word</title>
+        <verse osisID="John.1.1">
+          <q who="Jesus">I am</q>
+          <transChange type="added"> truly</transChange>
+          <note n="a">Footnote <reference osisRef="Gen.1.1">Genesis 1:1</reference></note>
+          <reference osisRef="Rev.1.8">Revelation 1:8</reference>
+        </verse>
+      </chapter>
     </div>
   </osisText>
 </osis>
@@ -72,6 +92,36 @@ void main() {
       expect(verses.first.bookId, equals('gen'));
       expect(verses.first.text, contains('In the beginning'));
     });
+
+    test('OsisParser preserves rich structured metadata', () async {
+      final parser = OsisParser(sampleOsisRichXml);
+
+      final books = await parser.parseBooks().toList();
+      expect(books, isNotEmpty);
+
+      final john = books.first;
+      expect(john.tocLabels, isNotEmpty);
+      expect(john.introductionBlocks.any((b) => b.text.contains('Gospel')),
+          isTrue);
+      expect(john.chapters.first.blocks.any((b) => b.text.contains('The Word')),
+          isTrue);
+
+      final verse = john.chapters.first.verses.first;
+      expect(verse.footnotes, isNotEmpty);
+      expect(verse.footnotes.first.text, contains('Footnote'));
+      expect(verse.footnotes.first.references, isNotEmpty);
+      expect(verse.crossReferences, isNotEmpty);
+      expect(verse.crossReferences.first.target, equals('Rev.1.8'));
+      expect(
+        verse.spans.any((span) => span.kind == VerseSpanKind.wordsOfJesus),
+        isTrue,
+      );
+      expect(
+        verse.spans
+            .any((span) => span.kind == VerseSpanKind.translatorAddition),
+        isTrue,
+      );
+    });
   });
 
   group('USFX Parser Tests', () {
@@ -94,6 +144,36 @@ void main() {
     <c id="1"/>
       <v id="1">In the beginning God created the heaven and the earth.<ve/>
       <v id="2">And the earth was without form, and void; and darkness was upon the face of the deep.<ve/>
+  </book>
+</usfx>
+''';
+
+    final sampleUsfxRichXml = '''
+<?xml version="1.0" encoding="UTF-8"?>
+<usfx>
+  <book id="FRT">
+    <h>Preface</h>
+    <toc level="1">Preface</toc>
+    <p>This is the Bible preface.</p>
+  </book>
+  <book id="GEN">
+    <h>Genesis</h>
+    <toc level="1">The First Book of Moses, Called Genesis</toc>
+    <toc level="2">Genesis</toc>
+    <p>This is the introduction to Genesis.</p>
+    <c id="1">
+      <v id="1">In the beginning<f caller="+"><fr>1.1</fr><ft>Footnote text</ft></f><x caller="+"><ref tgt="JHN.1.1">John 1:1</ref></x>.</v>
+    </c>
+  </book>
+</usfx>
+''';
+    final sampleUsfxSpanXml = '''
+<?xml version="1.0" encoding="UTF-8"?>
+<usfx>
+  <book id="JHN">
+    <c id="1">
+      <v id="1"><wj><w s="G1473">I</w> am</wj> the <add>good</add> shepherd.<q level="2">My sheep hear my voice.</q></v>
+    </c>
   </book>
 </usfx>
 ''';
@@ -136,6 +216,62 @@ void main() {
       expect(verses.first.chapterNum, equals(1));
       expect(verses.first.bookId, equals('gen'));
       expect(verses.first.text, contains('In the beginning'));
+    });
+
+    test('UsfxParser preserves rich structured metadata', () async {
+      final parser = UsfxParser(sampleUsfxRichXml);
+
+      final books = await parser.parseBooks().toList();
+      expect(books.length, equals(2));
+
+      final preface = books.first;
+      expect(preface.id, equals('frt'));
+      expect(preface.introductionBlocks, isNotEmpty);
+      expect(preface.introductionBlocks.first.text, contains('Preface'));
+      expect(preface.tocLabels, isNotEmpty);
+
+      final genesis = books.last;
+      expect(genesis.tocLabels.length, equals(2));
+      expect(genesis.introductionBlocks.any((b) => b.text.contains('Genesis')),
+          isTrue);
+      expect(
+        genesis.introductionBlocks
+            .any((b) => b.text.contains('introduction to Genesis')),
+        isTrue,
+      );
+
+      final verse = genesis.chapters.first.verses.first;
+      expect(verse.notes, contains('Footnote text'));
+      expect(verse.footnotes, isNotEmpty);
+      expect(verse.footnotes.first.label, equals('1.1'));
+      expect(verse.references, contains('John 1:1'));
+      expect(verse.crossReferences, isNotEmpty);
+      expect(verse.crossReferences.first.target, equals('JHN.1.1'));
+      expect(verse.spans, isNotEmpty);
+    });
+
+    test('UsfxParser preserves rich span kinds', () async {
+      final parser = UsfxParser(sampleUsfxSpanXml);
+
+      final verse = (await parser.parseVerses().toList()).first;
+
+      expect(
+        verse.spans.any((span) => span.kind == VerseSpanKind.wordsOfJesus),
+        isTrue,
+      );
+      expect(
+        verse.spans.any((span) => span.metadata['strongs'] == 'G1473'),
+        isTrue,
+      );
+      expect(
+        verse.spans
+            .any((span) => span.kind == VerseSpanKind.translatorAddition),
+        isTrue,
+      );
+      expect(
+        verse.spans.any((span) => span.kind == VerseSpanKind.poetry),
+        isTrue,
+      );
     });
   });
 
