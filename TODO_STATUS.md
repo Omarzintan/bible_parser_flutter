@@ -53,17 +53,18 @@ They are separate from feature backlog — they affect code quality and testabil
 
 ## Recommended Next Step
 
-- `next` Improve inline tag support: preserve `<nd>` (divine name / LORD) and `<add>` (translator addition) as distinct span kinds in USFX, verify OSIS `<transChange type="added">` is already working, and add fixture tests for each.
+- `next` Finish USFX intro paragraph support: preserve `<ip>`, `<imt>`, `<is>` intro tags and `<io1>`/`<io2>` outline entries as book-level introduction blocks, and `<cd>` as chapter-level blocks.
 
 **Why this first:**
 
-- `CrossReference.originRef` is done. The next highest-value lossy area is inline semantic tags that currently collapse to plain text.
-- `<nd>` (divine name) and `<add>` (translator addition) appear frequently in OT/NT and have distinct visual conventions in print Bibles.
+- `<nd>` (divine name) and `<add>` / `<transChange>` (translator addition) are now done for USFX and OSIS with fixture tests.
+- Intro paragraphs are the next highest-value lossy area — full book introductions are completely dropped right now.
 
 **Definition of done:**
 
-- `<nd>` text is preserved as a `divineNameTag` (or similar) span kind.
-- `<add>` / `<transChange type="added">` text is preserved as `translatorAddition` span kind consistently across USFX and OSIS.
+- `<ip>`, `<imt>`, `<is>` tags produce structured `introduction` or `heading` blocks at book level.
+- `<io1>` / `<io2>` produce list-style introduction outline blocks.
+- `<cd>` produces a chapter-level description block.
 - At least one fixture test per tag passes.
 
 ---
@@ -71,7 +72,7 @@ They are separate from feature backlog — they affect code quality and testabil
 ## Current Status
 
 - `partial` All three parser formats now populate part of the shared rich-content model, but output is still incomplete and format fidelity is still lossy across the board.
-- `in_progress` The active gap is the remaining non-verse layout structures — quote attribution, divine name, Selah markers, table content, and several inline formatting kinds — that the parsers still drop or flatten.
+- `in_progress` Remaining gaps include non-verse layout structures — Selah markers, table content, proper name spans, emphasis/bold/italic tags, USFX intro paragraphs — that are still dropped or flattened.
 
 **Feature coverage summary:**
 
@@ -86,8 +87,9 @@ They are separate from feature backlog — they affect code quality and testabil
 | Paragraph boundaries | partial | partial | partial | Chapter paragraph-start markers preserved in block model; not full layout fidelity. |
 | Section headings / titles | partial | partial | partial | Heading blocks exist; level and source-tag metadata coverage still incomplete. |
 | Word-level metadata | partial | partial | partial | Strong's stored in span metadata map; morphology and lemma dropped. |
-| Translator additions | partial | partial | partial | `<add>` and `<transChange>` tracked; Zefania infers from style conventions. |
-| Inline formatting spans | partial | partial | partial | Canonical span output exists for some semantics; broader style coverage not modeled. |
+| Translator additions | done | done | partial | `<add>` (USFX) and `<transChange type="added">` (OSIS) emit `translatorAddition` spans. Zefania infers from style conventions. |
+| Divine name (LORD) | done | done | todo | `<nd>` (USFX) and `<divineName>` (OSIS) emit `divineNameTag` spans. Zefania has no equivalent tag. |
+| Inline formatting spans | partial | partial | partial | Canonical span output exists for wj/add/nd/divineName; emphasis/bold/italic/pn/qs still not modeled. |
 | Introductions / front matter | partial | partial | partial | Book-level intro blocks exist in all three; Bible-level front matter still incomplete. |
 | Structured notes model | partial | partial | partial | Structured objects coexist with legacy plain-text lists; still lossy. |
 | Lossless round-trip | todo | todo | todo | Parser is optimized for reading, not preservation. |
@@ -99,6 +101,7 @@ The full per-tag breakdown is in `README.md` under **Format Feature Support**.
 
 ## Completed Recently
 
+- `done` Added `divineNameTag` span kind for USFX `<nd>` and OSIS `<divineName>`. Added `translatorAddition` fixture test confirming USFX `<add>` was already working. 63 tests pass.
 - `done` Added `CrossReference.originRef` from USFX `<xo>` and OSIS `<reference type="source">`. Also fixed OSIS cross-reference-only notes being silently dropped. 60 tests pass.
 - `done` OSIS and Zefania parsers now populate `Footnote.bodyText` with the full note text so the app's structured rendering path works for all three formats. 58 tests pass.
 - `done` USFX footnote parts separated: `Footnote` gains `bodyText` (`<ft>`) and `quotedText` (`<fq>`/`<fqa>`). Legacy `text` unchanged. App model and serializer updated. 58 tests pass.
