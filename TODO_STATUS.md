@@ -10,17 +10,18 @@ Status meanings:
 
 ## Current Status
 
+- `done` USFX now preserves more ignored front-matter and section tags such as `imt1`, `ip`, `mt1`, `is1`, `cl`, `s1`, and `d` as structured document blocks with source-tag metadata instead of dropping them before the app can render them.
 - `partial` Phase 1 shared rich-content model types now exist in code, and all three main parser formats now populate part of them, but output is still incomplete and format fidelity is still lossy.
 - `in_progress` Rich parser work is now active across all main app formats: USFX, OSIS, and Zefania all preserve some structured spans, notes, references, and front-matter content.
 - `in_progress` All three main parser formats now emit chapter paragraph-start blocks where their source files expose paragraph markers, and they now preserve more source-driven poetry line starts as span metadata, but the coverage is still lossy and depends on what each XML source actually contains.
-- `in_progress` Inline annotation anchors now survive parsing at a partial level across USFX, OSIS, and Zefania, so note/reference markers can be attached to specific spans instead of existing only as verse-level lists.
+- `in_progress` The next parser-formatting slice is expanding comparable front-matter and section-layout coverage in OSIS and Zefania so document mode depends less on USFX-specific richness.
 
 | Feature | USFX | OSIS | Zefania | Notes |
 |---|---|---|---|---|
 | Book/chapter/verse parsing | done | done | done | Core extraction works in all three parsers. |
 | Auto format detection | done | done | done | Detection exists in `BibleParser`. |
-| Footnotes | partial | partial | partial | All three formats now preserve plain strings plus basic structured footnotes, and note anchors can now attach to inline spans, but nested note detail is still incomplete. |
-| Cross references | partial | partial | partial | All three formats now preserve plain strings plus basic structured cross references, and cross-reference anchors can now attach to inline spans. |
+| Footnotes | partial | partial | partial | All three formats now preserve plain strings plus basic structured footnotes, but still do not capture every nested note detail. |
+| Cross references | partial | partial | partial | All three formats now preserve plain strings plus basic structured cross references. |
 | Red-letter text | partial | partial | partial | Zefania can now infer red-letter style from style metadata where the source uses that convention. |
 | Poetry / quoted line structure | partial | partial | partial | All three formats now preserve more source-driven poetry/quote line starts, but coverage is still incomplete and not lossless. |
 | Paragraph boundaries | partial | partial | partial | All three now preserve chapter paragraph-start markers in the shared block model when the source exposes them, but this is still not full layout fidelity. |

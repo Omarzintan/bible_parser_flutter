@@ -276,6 +276,25 @@ void main() {
   </book>
 </usfx>
 ''';
+    final sampleUsfxSectionBlocksXml = '''
+<?xml version="1.0" encoding="UTF-8"?>
+<usfx>
+  <book id="FRT">
+    <imt1>General Preface</imt1>
+    <ip>This is preface paragraph text.</ip>
+  </book>
+  <book id="JHN">
+    <mt1>The Gospel According to John</mt1>
+    <is1>Prologue</is1>
+    <cl>Chapter One</cl>
+    <c id="1">
+      <s1>The Eternal Word</s1>
+      <d>A Psalm-style line</d>
+      <v id="1">In the beginning was the Word.</v>
+    </c>
+  </book>
+</usfx>
+''';
 
     test('UsfxParser can parse sample XML', () async {
       final parser = UsfxParser(sampleUsfxXml);
@@ -413,6 +432,83 @@ void main() {
       expect(poetrySpans.first.metadata['lineStart'], equals('true'));
       expect(poetrySpans.first.metadata['quoteLevel'], equals('2'));
       expect(poetrySpans.last.metadata['lineStart'], equals('true'));
+    });
+
+    test('UsfxParser preserves additional front matter and section tags',
+        () async {
+      final parser = UsfxParser(sampleUsfxSectionBlocksXml);
+
+      final books = await parser.parseBooks().toList();
+      expect(books, hasLength(2));
+
+      final preface = books.first;
+      expect(
+        preface.introductionBlocks.any(
+          (block) =>
+              block.kind == DocumentBlockKind.preface &&
+              block.text.contains('General Preface') &&
+              block.metadata['sourceTag'] == 'imt1',
+        ),
+        isTrue,
+      );
+      expect(
+        preface.introductionBlocks.any(
+          (block) =>
+              block.kind == DocumentBlockKind.preface &&
+              block.text.contains('preface paragraph text') &&
+              block.metadata['sourceTag'] == 'ip',
+        ),
+        isTrue,
+      );
+
+      final john = books.last;
+      expect(
+        john.introductionBlocks.any(
+          (block) =>
+              block.kind == DocumentBlockKind.heading &&
+              block.text.contains('Gospel According to John') &&
+              block.metadata['sourceTag'] == 'mt1' &&
+              block.level == 1,
+        ),
+        isTrue,
+      );
+      expect(
+        john.introductionBlocks.any(
+          (block) =>
+              block.kind == DocumentBlockKind.heading &&
+              block.text.contains('Prologue') &&
+              block.metadata['sourceTag'] == 'is1',
+        ),
+        isTrue,
+      );
+      expect(
+        john.introductionBlocks.any(
+          (block) =>
+              block.kind == DocumentBlockKind.heading &&
+              block.text.contains('Chapter One') &&
+              block.metadata['sourceTag'] == 'cl',
+        ),
+        isTrue,
+      );
+      expect(
+        john.chapters.first.blocks.any(
+          (block) =>
+              block.kind == DocumentBlockKind.heading &&
+              block.text.contains('The Eternal Word') &&
+              block.metadata['sourceTag'] == 's1' &&
+              block.level == 1,
+        ),
+        isTrue,
+      );
+      expect(
+        john.chapters.first.blocks.any(
+          (block) =>
+              block.kind == DocumentBlockKind.poetry &&
+              block.text.contains('A Psalm-style line') &&
+              block.metadata['sourceTag'] == 'd',
+        ),
+        isTrue,
+      );
     });
   });
 

@@ -130,7 +130,10 @@ class UsfxParser extends BaseParser {
     String currentParagraphText = '';
     String currentChapterParagraphText = '';
     String currentTocText = '';
+    String? currentStructuredBlockTag;
+    String currentStructuredBlockText = '';
     int? currentTocLevel;
+    int? currentStructuredBlockLevel;
     Map<String, String> currentChapterParagraphMetadata = const {};
     DocumentBlock? pendingChapterParagraphBlock;
 
@@ -224,6 +227,12 @@ class UsfxParser extends BaseParser {
           } else if (event.name == 'h' && currentBook != null) {
             insideHeading = true;
             currentHeadingText = '';
+          } else if (_isStructuredBlockTag(event.name) &&
+              currentBook != null &&
+              currentVerse == null) {
+            currentStructuredBlockTag = event.name;
+            currentStructuredBlockText = '';
+            currentStructuredBlockLevel = _structuredBlockLevel(event.name);
           } else if (event.name == 'p' &&
               currentBook != null &&
               currentChapter == null) {
@@ -365,6 +374,36 @@ class UsfxParser extends BaseParser {
             }
             insideHeading = false;
             currentHeadingText = '';
+          } else if (currentStructuredBlockTag == event.name &&
+              currentBook != null) {
+            final text = currentStructuredBlockText.trim();
+            if (text.isNotEmpty) {
+              final block = DocumentBlock(
+                kind: _structuredBlockKind(
+                  event.name,
+                  isPreface: currentBook.id == 'frt' && currentChapter == null,
+                ),
+                text: text,
+                level: currentStructuredBlockLevel,
+                metadata: {
+                  'sourceTag': event.name,
+                  if (currentStructuredBlockLevel != null)
+                    'level': currentStructuredBlockLevel.toString(),
+                },
+              );
+
+              // These USFX intro/section tags carry layout that was previously
+              // dropped. Preserve them as shared blocks so the app can render
+              // document structure without needing raw USFX-specific logic.
+              if (currentChapter == null) {
+                currentBook.introductionBlocks.add(block);
+              } else if (currentVerse == null) {
+                currentChapter.blocks.add(block);
+              }
+            }
+            currentStructuredBlockTag = null;
+            currentStructuredBlockText = '';
+            currentStructuredBlockLevel = null;
           } else if (event.name == 'p' &&
               currentBook != null &&
               currentChapter == null) {
@@ -425,6 +464,13 @@ class UsfxParser extends BaseParser {
             currentTocText = _appendText(currentTocText, cleaned);
           } else if (insideHeading && currentBook != null) {
             currentHeadingText = _appendText(currentHeadingText, cleaned);
+          } else if (currentStructuredBlockTag != null &&
+              currentBook != null &&
+              currentVerse == null) {
+            currentStructuredBlockText = _appendText(
+              currentStructuredBlockText,
+              cleaned,
+            );
           } else if (insideParagraph &&
               currentBook != null &&
               currentChapter == null) {
@@ -859,6 +905,41 @@ class UsfxParser extends BaseParser {
       return DocumentBlockKind.poetry;
     }
     return DocumentBlockKind.paragraph;
+  }
+
+  bool _isStructuredBlockTag(String tagName) {
+    return RegExp(
+      r'^(imt\d*|mt\d*|mte\d*|is\d*|ipi?|im|imi|iot|io\d*|ie|ms\d*|s\d*|sp|cl|cd|d)$',
+      caseSensitive: false,
+    ).hasMatch(tagName);
+  }
+
+  int? _structuredBlockLevel(String tagName) {
+    final match = RegExp(r'(\d+)$').firstMatch(tagName);
+    return match == null ? null : int.tryParse(match.group(1)!);
+  }
+
+  DocumentBlockKind _structuredBlockKind(
+    String tagName, {
+    required bool isPreface,
+  }) {
+    final normalized = tagName.toLowerCase();
+    if (normalized.startsWith('imt') ||
+        normalized == 'ip' ||
+        normalized == 'ipi' ||
+        normalized == 'im' ||
+        normalized == 'imi' ||
+        normalized == 'iot' ||
+        normalized.startsWith('io') ||
+        normalized == 'ie') {
+      return isPreface
+          ? DocumentBlockKind.preface
+          : DocumentBlockKind.introduction;
+    }
+    if (normalized == 'd') {
+      return DocumentBlockKind.poetry;
+    }
+    return DocumentBlockKind.heading;
   }
 
   String _generatedMarker(int index) {
