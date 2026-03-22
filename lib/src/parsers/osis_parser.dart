@@ -100,6 +100,7 @@ class OsisParser extends BaseParser {
     bool insideTitle = false;
     bool insideNote = false;
     bool insideReference = false;
+    bool insideParagraph = false;
 
     String currentTitleText = '';
     String? currentTitleType;
@@ -110,6 +111,9 @@ class OsisParser extends BaseParser {
 
     String currentReferenceText = '';
     String? currentReferenceTarget;
+    String currentParagraphText = '';
+    Map<String, String> currentParagraphMetadata = const {};
+    DocumentBlock? pendingParagraphBlock;
 
     int translatorAdditionDepth = 0;
     int wordsOfJesusDepth = 0;
@@ -149,6 +153,23 @@ class OsisParser extends BaseParser {
           } else if (_isVerseStart(event) &&
               currentBook != null &&
               currentChapter != null) {
+            if (pendingParagraphBlock != null) {
+              // Preserve chapter paragraph markers before the verse that
+              // starts them so the app can render document-driven paragraphs
+              // instead of guessing where prose should break.
+              currentChapter.blocks.add(
+                DocumentBlock(
+                  kind: DocumentBlockKind.paragraph,
+                  text: currentParagraphText.trim(),
+                  metadata: {
+                    ...pendingParagraphBlock.metadata,
+                    'beforeVerse': _readVerseNumber(event).toString(),
+                  },
+                ),
+              );
+              pendingParagraphBlock = null;
+              currentParagraphText = '';
+            }
             currentVerse = _createVerse(
               verseNum: _readVerseNumber(event),
               chapterNum: currentChapter.num,
@@ -179,6 +200,18 @@ class OsisParser extends BaseParser {
             currentReferenceText = '';
             currentReferenceTarget = _attributeValue(event, 'osisRef') ??
                 _attributeValue(event, 'target');
+          } else if (event.name == 'p' &&
+              currentBook != null &&
+              currentChapter != null &&
+              currentVerse == null) {
+            insideParagraph = true;
+            currentParagraphText = '';
+            currentParagraphMetadata = _paragraphMetadataFromEvent(event);
+            pendingParagraphBlock = DocumentBlock(
+              kind: DocumentBlockKind.paragraph,
+              text: '',
+              metadata: currentParagraphMetadata,
+            );
           } else if (event.name == 'q' && currentVerse != null) {
             final quoteLevel =
                 int.tryParse(_attributeValue(event, 'level') ?? '');
@@ -273,6 +306,9 @@ class OsisParser extends BaseParser {
             insideReference = false;
             currentReferenceText = '';
             currentReferenceTarget = null;
+          } else if (event.name == 'p') {
+            insideParagraph = false;
+            currentParagraphMetadata = const {};
           } else if (event.name == 'q' && quoteLevels.isNotEmpty) {
             final wasJesusQuote = jesusQuoteStack.removeLast();
             quoteLevels.removeLast();
@@ -291,6 +327,10 @@ class OsisParser extends BaseParser {
 
           if (insideTitle) {
             currentTitleText = _appendText(currentTitleText, cleaned);
+          } else if (insideParagraph &&
+              currentChapter != null &&
+              currentVerse == null) {
+            currentParagraphText = _appendText(currentParagraphText, cleaned);
           } else if (insideReference) {
             currentReferenceText = _appendText(currentReferenceText, cleaned);
           } else if (insideNote) {
@@ -694,6 +734,19 @@ class OsisParser extends BaseParser {
       metadata['morph'] = morph;
     }
     return metadata.isEmpty ? null : metadata;
+  }
+
+  Map<String, String> _paragraphMetadataFromEvent(XmlStartElementEvent event) {
+    final metadata = <String, String>{};
+    final type = _attributeValue(event, 'type');
+    if (type != null && type.isNotEmpty) {
+      metadata['type'] = type;
+    }
+    final subType = _attributeValue(event, 'subType');
+    if (subType != null && subType.isNotEmpty) {
+      metadata['subType'] = subType;
+    }
+    return metadata;
   }
 
   DocumentBlockKind _titleBlockKind(String? titleType) {

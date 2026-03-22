@@ -51,6 +51,22 @@ void main() {
   </osisText>
 </osis>
 ''';
+    final sampleOsisParagraphXml = '''
+<?xml version="1.0" encoding="UTF-8"?>
+<osis xmlns="http://www.bibletechnologies.net/2003/OSIS/namespace">
+  <osisText osisIDWork="TEST">
+    <div type="book" osisID="John">
+      <chapter osisID="John.1">
+        <p type="x-p"/>
+        <verse osisID="John.1.1">In the beginning was the Word.</verse>
+        <verse osisID="John.1.2">He was in the beginning with God.</verse>
+        <p subType="x-indented"/>
+        <verse osisID="John.1.3">All things were made through him.</verse>
+      </chapter>
+    </div>
+  </osisText>
+</osis>
+''';
     test('OsisParser can parse sample XML', () async {
       final parser = OsisParser(sampleOsisXml);
 
@@ -121,6 +137,21 @@ void main() {
             .any((span) => span.kind == VerseSpanKind.translatorAddition),
         isTrue,
       );
+    });
+
+    test('OsisParser preserves chapter paragraph boundaries', () async {
+      final parser = OsisParser(sampleOsisParagraphXml);
+
+      final chapter = (await parser.parseBooks().toList()).first.chapters.first;
+      final paragraphBlocks = chapter.blocks
+          .where((block) => block.kind == DocumentBlockKind.paragraph)
+          .toList();
+
+      expect(paragraphBlocks, hasLength(2));
+      expect(paragraphBlocks.first.metadata['beforeVerse'], equals('1'));
+      expect(paragraphBlocks.first.metadata['type'], equals('x-p'));
+      expect(paragraphBlocks.last.metadata['beforeVerse'], equals('3'));
+      expect(paragraphBlocks.last.metadata['subType'], equals('x-indented'));
     });
   });
 
@@ -335,6 +366,20 @@ void main() {
   </BIBLEBOOK>
 </XMLBIBLE>
 ''';
+    final sampleZefaniaParagraphXml = '''
+<?xml version="1.0" encoding="UTF-8"?>
+<XMLBIBLE>
+  <BIBLEBOOK bnumber="43" bname="John" bsname="JHN">
+    <CHAPTER cnumber="1">
+      <BR art="p"/>
+      <VERS vnumber="1">In the beginning was the Word.</VERS>
+      <VERS vnumber="2">He was in the beginning with God.</VERS>
+      <BR art="q1"/>
+      <VERS vnumber="3">All things were made through him.</VERS>
+    </CHAPTER>
+  </BIBLEBOOK>
+</XMLBIBLE>
+''';
 
     test('ZefaniaParser can parse sample XML', () async {
       final parser = ZefaniaParser(sampleZefaniaXml);
@@ -393,6 +438,20 @@ void main() {
         verse.spans.any((span) => span.metadata['gr'] == 'G2570'),
         isTrue,
       );
+    });
+
+    test('ZefaniaParser preserves chapter paragraph boundaries', () async {
+      final parser = ZefaniaParser(sampleZefaniaParagraphXml);
+
+      final chapter = (await parser.parseBooks().toList()).first.chapters.first;
+      final blocks = chapter.blocks;
+      expect(blocks, hasLength(2));
+      expect(blocks.first.kind, equals(DocumentBlockKind.paragraph));
+      expect(blocks.first.metadata['beforeVerse'], equals('1'));
+      expect(blocks.first.metadata['art'], equals('p'));
+      expect(blocks.last.kind, equals(DocumentBlockKind.poetry));
+      expect(blocks.last.metadata['beforeVerse'], equals('3'));
+      expect(blocks.last.metadata['art'], equals('q1'));
     });
   });
 }

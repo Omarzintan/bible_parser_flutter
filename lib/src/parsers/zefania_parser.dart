@@ -101,6 +101,7 @@ class ZefaniaParser extends BaseParser {
     bool insideCaption = false;
     bool insideNote = false;
     bool insideXref = false;
+    bool insideParagraph = false;
 
     String currentPrologText = '';
     String currentCaptionText = '';
@@ -108,6 +109,9 @@ class ZefaniaParser extends BaseParser {
     String? currentNoteLabel;
     String currentXrefText = '';
     String? currentXrefTarget;
+    String currentParagraphText = '';
+    Map<String, String> currentParagraphMetadata = const {};
+    DocumentBlock? pendingParagraphBlock;
 
     int wordsOfJesusDepth = 0;
     int translatorAdditionDepth = 0;
@@ -155,6 +159,23 @@ class ZefaniaParser extends BaseParser {
               currentChapter != null) {
             final verseNum =
                 int.tryParse(_attributeValue(event, 'vnumber') ?? '') ?? 1;
+            if (pendingParagraphBlock != null) {
+              // Zefania paragraph markers are not always rich, but when the
+              // source exposes them we preserve the verse boundary so the
+              // reader can stay document-driven across formats.
+              currentChapter.blocks.add(
+                DocumentBlock(
+                  kind: pendingParagraphBlock.kind,
+                  text: currentParagraphText.trim(),
+                  metadata: {
+                    ...pendingParagraphBlock.metadata,
+                    'beforeVerse': verseNum.toString(),
+                  },
+                ),
+              );
+              pendingParagraphBlock = null;
+              currentParagraphText = '';
+            }
             currentVerse = _createVerse(
               verseNum: verseNum,
               chapterNum: currentChapter.num,
@@ -170,6 +191,22 @@ class ZefaniaParser extends BaseParser {
             currentXrefText = '';
             currentXrefTarget = _attributeValue(event, 'fscope') ??
                 _attributeValue(event, 'target');
+          } else if (event.name == 'BR' &&
+              currentBook != null &&
+              currentChapter != null &&
+              currentVerse == null) {
+            insideParagraph = true;
+            currentParagraphText = '';
+            currentParagraphMetadata = _paragraphMetadataFromEvent(event);
+            pendingParagraphBlock = DocumentBlock(
+              kind: _paragraphKindFromMetadata(currentParagraphMetadata),
+              text: '',
+              metadata: currentParagraphMetadata,
+            );
+            if (event.isSelfClosing) {
+              insideParagraph = false;
+              currentParagraphMetadata = const {};
+            }
           } else if (event.name == 'STYLE' && currentVerse != null) {
             final styleContext = _styleContextFromEvent(event);
             styleStack.add(styleContext);
@@ -249,6 +286,9 @@ class ZefaniaParser extends BaseParser {
             insideXref = false;
             currentXrefText = '';
             currentXrefTarget = null;
+          } else if (event.name == 'BR') {
+            insideParagraph = false;
+            currentParagraphMetadata = const {};
           } else if (event.name == 'STYLE' && styleStack.isNotEmpty) {
             final styleContext = styleStack.removeLast();
             if (styleContext.wordsOfJesus && wordsOfJesusDepth > 0) {
@@ -273,6 +313,11 @@ class ZefaniaParser extends BaseParser {
             currentNoteText = _appendText(currentNoteText, cleaned);
           } else if (insideXref && currentVerse != null) {
             currentXrefText = _appendText(currentXrefText, cleaned);
+          } else if (insideParagraph &&
+              currentBook != null &&
+              currentChapter != null &&
+              currentVerse == null) {
+            currentParagraphText = _appendText(currentParagraphText, cleaned);
           } else if (currentVerse != null) {
             currentVerse = _appendVerseText(
               currentVerse,
@@ -523,6 +568,30 @@ class ZefaniaParser extends BaseParser {
   String _bookTitleFromEvent(
       XmlStartElementEvent event, String fallbackBookId) {
     return _attributeValue(event, 'bname') ?? _getBookName(fallbackBookId);
+  }
+
+  Map<String, String> _paragraphMetadataFromEvent(XmlStartElementEvent event) {
+    final metadata = <String, String>{};
+    final art = _attributeValue(event, 'art');
+    if (art != null && art.isNotEmpty) {
+      metadata['art'] = art;
+    }
+    final type = _attributeValue(event, 'type');
+    if (type != null && type.isNotEmpty) {
+      metadata['type'] = type;
+    }
+    return metadata;
+  }
+
+  DocumentBlockKind _paragraphKindFromMetadata(Map<String, String> metadata) {
+    final art = metadata['art']?.toLowerCase() ?? '';
+    final type = metadata['type']?.toLowerCase() ?? '';
+    if (art.contains('q') ||
+        art.contains('poetry') ||
+        type.contains('poetry')) {
+      return DocumentBlockKind.poetry;
+    }
+    return DocumentBlockKind.paragraph;
   }
 
   BibleStyleContext _styleContextFromEvent(XmlStartElementEvent event) {
