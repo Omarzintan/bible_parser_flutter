@@ -100,6 +100,18 @@ const _usfxRedLetter = '''<?xml version="1.0" encoding="utf-8"?>
   </book>
 </usfx>''';
 
+/// USFX stanza break via <b> between verse groups.
+const _usfxStanzaBreak = '''<?xml version="1.0" encoding="utf-8"?>
+<usfx xmlns="http://www.bibletechnologies.net/2003/USFX/namespace">
+  <book id="PSA">
+    <c id="1">
+      <v id="1">Blessed is the man.</v>
+      <b />
+      <v id="2">But his delight is in the law.</v>
+    </c>
+  </book>
+</usfx>''';
+
 /// USFX section heading via <s1> before the first verse.
 const _usfxHeading = '''<?xml version="1.0" encoding="utf-8"?>
 <usfx xmlns="http://www.bibletechnologies.net/2003/USFX/namespace">
@@ -242,6 +254,66 @@ const _osisTitle = '''<?xml version="1.0" encoding="utf-8"?>
     </div>
   </osisText>
 </osis>''';
+
+/// OSIS stanza break via empty <l /> inside <lg>.
+const _osisStanzaBreak = '''<?xml version="1.0" encoding="utf-8"?>
+<osis xmlns="http://www.bibletechnologies.net/2003/OSIS/namespace">
+  <osisText osisIDWork="test">
+    <div type="book" osisID="Ps">
+      <chapter osisID="Ps.1">
+        <lg>
+          <l>Blessed is the man.</l>
+          <l />
+          <l>But his delight is in the law.</l>
+        </lg>
+        <verse osisID="Ps.1.1">Blessed is the man.</verse>
+        <verse osisID="Ps.1.2">But his delight is in the law.</verse>
+      </chapter>
+    </div>
+  </osisText>
+</osis>''';
+
+/// OSIS non-Jesus quote speaker attribution via <q who="Yahweh">.
+const _osisQuoteWho = '''<?xml version="1.0" encoding="utf-8"?>
+<osis xmlns="http://www.bibletechnologies.net/2003/OSIS/namespace">
+  <osisText osisIDWork="test">
+    <div type="book" osisID="Isa">
+      <chapter osisID="Isa.1">
+        <verse osisID="Isa.1.1"><q who="Yahweh">I have nourished and brought up children.</q></verse>
+      </chapter>
+    </div>
+  </osisText>
+</osis>''';
+
+/// OSIS table rows via <table><row><cell>.
+const _osisTable = '''<?xml version="1.0" encoding="utf-8"?>
+<osis xmlns="http://www.bibletechnologies.net/2003/OSIS/namespace">
+  <osisText osisIDWork="test">
+    <div type="book" osisID="Gen">
+      <chapter osisID="Gen.1">
+        <table type="x-study">
+          <row type="label">
+            <cell role="label">Day</cell>
+            <cell role="value">One</cell>
+          </row>
+          <row>
+            <cell role="label">Light</cell>
+            <cell role="value">Created</cell>
+          </row>
+        </table>
+        <verse osisID="Gen.1.1">In the beginning God created.</verse>
+      </chapter>
+    </div>
+  </osisText>
+</osis>''';
+
+/// USFX non-Jesus quote speaker attribution via <q who="...">.
+const _usfxQuoteWho = '''<?xml version="1.0" encoding="utf-8"?>
+<usfx xmlns="http://www.bibletechnologies.net/2003/USFX/namespace">
+  <book id="ISA"><c id="1">
+    <v id="1"><q who="Yahweh" level="1">I have nourished and brought up children.</q></v>
+  </c></book>
+</usfx>''';
 
 /// USFX inline emphasis via <em>.
 const _usfxEmphasis = '''<?xml version="1.0" encoding="utf-8"?>
@@ -534,6 +606,34 @@ void main() {
           reason: 'Expected a heading block from <s1>');
       expect(headings.first.text, contains('Creation'));
     });
+
+    test('preserves non-Jesus speaker attribution in span metadata via <q who="...">', () async {
+      final book = await _parseFirstBook(_usfxQuoteWho, 'USFX');
+      final verse = _firstVerse(book!);
+
+      expect(verse!.spans, isNotEmpty);
+      final quoteSpans = verse.spans
+          .where((s) => s.metadata['quoteWho'] != null)
+          .toList();
+
+      expect(quoteSpans, isNotEmpty,
+          reason: 'Expected spans with quoteWho metadata from <q who="Yahweh">');
+      expect(quoteSpans.first.metadata['quoteWho'], equals('Yahweh'));
+    });
+
+    test('preserves stanza break as chapter block with stanzaBreak metadata', () async {
+      final book = await _parseFirstBook(_usfxStanzaBreak, 'USFX');
+
+      expect(book, isNotNull);
+      final chapter = book!.chapters.first;
+      final stanzaBlocks = chapter.blocks
+          .where((b) => b.metadata['stanzaBreak'] == 'true')
+          .toList();
+
+      expect(stanzaBlocks, isNotEmpty,
+          reason: 'Expected a block with stanzaBreak=true from <b>');
+      expect(stanzaBlocks.first.metadata['sourceTag'], equals('b'));
+    });
   });
 
   // -------------------------------------------------------------------------
@@ -657,6 +757,54 @@ void main() {
       expect(headings, isNotEmpty,
           reason: 'Expected a heading block from <title>');
       expect(headings.first.text, contains('Creation'));
+    });
+
+    test('preserves stanza break block with stanzaBreak metadata from empty <l />', () async {
+      final book = await _parseFirstBook(_osisStanzaBreak, 'OSIS');
+
+      expect(book, isNotNull);
+      final chapter = book!.chapters.first;
+      final stanzaBlocks = chapter.blocks
+          .where((b) => b.metadata['stanzaBreak'] == 'true')
+          .toList();
+
+      expect(stanzaBlocks, isNotEmpty,
+          reason: 'Expected a block with stanzaBreak=true from empty <l />');
+    });
+
+    test('preserves non-Jesus speaker attribution in span metadata via <q who="...">', () async {
+      final book = await _parseFirstBook(_osisQuoteWho, 'OSIS');
+      final verse = _firstVerse(book!);
+
+      expect(verse!.spans, isNotEmpty);
+      final quoteSpans = verse.spans
+          .where((s) => s.metadata['quoteWho'] != null)
+          .toList();
+
+      expect(quoteSpans, isNotEmpty,
+          reason: 'Expected spans with quoteWho metadata from <q who="Yahweh">');
+      expect(quoteSpans.first.metadata['quoteWho'], equals('Yahweh'));
+    });
+
+    test('preserves OSIS table rows as structured chapter blocks', () async {
+      final book = await _parseFirstBook(_osisTable, 'OSIS');
+
+      expect(book, isNotNull);
+      final chapter = book!.chapters.first;
+      final tableBlocks = chapter.blocks
+          .where((b) => b.metadata['sourceTag'] == 'row')
+          .toList();
+
+      expect(tableBlocks, hasLength(2),
+          reason: 'Expected one chapter block per OSIS table row');
+      expect(tableBlocks.first.text, equals('Day | One'));
+      expect(tableBlocks.first.metadata['tableType'], equals('x-study'));
+      expect(tableBlocks.first.metadata['rowType'], equals('label'));
+      expect(tableBlocks.first.metadata['cellCount'], equals('2'));
+      expect(tableBlocks.first.metadata['cellTexts'], equals('Day\tOne'));
+      expect(tableBlocks.first.metadata['rowIndex'], equals('1'));
+      expect(tableBlocks.last.text, equals('Light | Created'));
+      expect(tableBlocks.last.metadata['rowIndex'], equals('2'));
     });
   });
 

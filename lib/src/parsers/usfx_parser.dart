@@ -115,6 +115,7 @@ class UsfxParser extends BaseParser {
     bool insideBdTag = false;
     bool insideItTag = false;
     final List<int?> quoteLevels = <int?>[];
+    final List<String?> quoteWhoStack = <String?>[];
     final List<bool> quoteLineStarts = <bool>[];
     Map<String, String>? currentWordMetadata;
 
@@ -293,7 +294,11 @@ class UsfxParser extends BaseParser {
             pendingChapterParagraphBlock = DocumentBlock(
               kind: DocumentBlockKind.paragraph,
               text: '',
-              metadata: const {'sourceTag': 'b', 'style': 'b'},
+              metadata: const {
+                'sourceTag': 'b',
+                'style': 'b',
+                'stanzaBreak': 'true',
+              },
             );
           } else if (event.name == 'wj' && currentVerse != null) {
             wordsOfJesusDepth++;
@@ -316,6 +321,7 @@ class UsfxParser extends BaseParser {
           } else if (event.name == 'q' && currentVerse != null) {
             quoteLevels
                 .add(int.tryParse(_attributeValue(event, 'level') ?? ''));
+            quoteWhoStack.add(_attributeValue(event, 'who'));
             quoteLineStarts.add(true);
           } else if (event.name == 'w' && currentVerse != null) {
             currentWordMetadata = _wordMetadataFromEvent(event);
@@ -526,6 +532,7 @@ class UsfxParser extends BaseParser {
             insideItTag = false;
           } else if (event.name == 'q' && quoteLevels.isNotEmpty) {
             quoteLevels.removeLast();
+            if (quoteWhoStack.isNotEmpty) quoteWhoStack.removeLast();
             if (quoteLineStarts.isNotEmpty) {
               quoteLineStarts.removeLast();
             }
@@ -600,6 +607,7 @@ class UsfxParser extends BaseParser {
                 wordsOfJesusDepth: wordsOfJesusDepth,
                 translatorAdditionDepth: translatorAdditionDepth,
                 quoteLevels: quoteLevels,
+                quoteWhoStack: quoteWhoStack,
                 quoteLineStarts: quoteLineStarts,
                 wordMetadata: currentWordMetadata,
                 pendingFootnoteMarkers: pendingFootnoteMarkers,
@@ -642,6 +650,7 @@ class UsfxParser extends BaseParser {
     bool insideBdTag = false;
     bool insideItTag = false;
     final List<int?> quoteLevels = <int?>[];
+    final List<String?> quoteWhoStack = <String?>[];
     final List<bool> quoteLineStarts = <bool>[];
     Map<String, String>? currentWordMetadata;
 
@@ -743,6 +752,7 @@ class UsfxParser extends BaseParser {
           } else if (event.name == 'q' && currentVerse != null) {
             quoteLevels
                 .add(int.tryParse(_attributeValue(event, 'level') ?? ''));
+            quoteWhoStack.add(_attributeValue(event, 'who'));
             quoteLineStarts.add(true);
           } else if (event.name == 'w' && currentVerse != null) {
             currentWordMetadata = _wordMetadataFromEvent(event);
@@ -846,6 +856,7 @@ class UsfxParser extends BaseParser {
             insideItTag = false;
           } else if (event.name == 'q' && quoteLevels.isNotEmpty) {
             quoteLevels.removeLast();
+            if (quoteWhoStack.isNotEmpty) quoteWhoStack.removeLast();
             if (quoteLineStarts.isNotEmpty) {
               quoteLineStarts.removeLast();
             }
@@ -894,6 +905,7 @@ class UsfxParser extends BaseParser {
                 wordsOfJesusDepth: wordsOfJesusDepth,
                 translatorAdditionDepth: translatorAdditionDepth,
                 quoteLevels: quoteLevels,
+                quoteWhoStack: quoteWhoStack,
                 quoteLineStarts: quoteLineStarts,
                 wordMetadata: currentWordMetadata,
                 pendingFootnoteMarkers: pendingFootnoteMarkers,
@@ -1050,6 +1062,7 @@ class UsfxParser extends BaseParser {
     required int wordsOfJesusDepth,
     required int translatorAdditionDepth,
     required List<int?> quoteLevels,
+    required List<String?> quoteWhoStack,
     required List<bool> quoteLineStarts,
     required Map<String, String>? wordMetadata,
     required List<String> pendingFootnoteMarkers,
@@ -1067,6 +1080,12 @@ class UsfxParser extends BaseParser {
     }
     if (quoteLevels.isNotEmpty && quoteLevels.last != null) {
       metadata['quoteLevel'] = quoteLevels.last.toString();
+    }
+    if (quoteWhoStack.isNotEmpty) {
+      final who = quoteWhoStack.lastWhere((w) => w != null, orElse: () => null);
+      if (who != null && who.isNotEmpty) {
+        metadata['quoteWho'] = who;
+      }
     }
     if (quoteLineStarts.isNotEmpty && quoteLineStarts.last) {
       metadata['lineStart'] = 'true';

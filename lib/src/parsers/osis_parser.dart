@@ -105,6 +105,9 @@ class OsisParser extends BaseParser {
     bool insideParagraph = false;
     bool insideListItem = false;
     bool insideBlockLine = false;
+    bool insideTable = false;
+    bool insideTableRow = false;
+    bool insideTableCell = false;
     bool currentBlockLineHasText = false;
 
     String currentTitleText = '';
@@ -127,10 +130,16 @@ class OsisParser extends BaseParser {
     String currentParagraphText = '';
     int currentParagraphEmptyLineCount = 0;
     String currentListItemText = '';
+    String currentTableCellText = '';
     Map<String, String> currentParagraphMetadata = const {};
     Map<String, String> currentListItemMetadata = const {};
+    Map<String, String> currentTableMetadata = const {};
+    Map<String, String> currentTableRowMetadata = const {};
+    Map<String, String> currentTableCellMetadata = const {};
     DocumentBlock? pendingParagraphBlock;
     final List<Map<String, String>> listMetadataStack = <Map<String, String>>[];
+    final List<String> currentTableRowCells = <String>[];
+    var currentTableRowIndex = 0;
 
     int translatorAdditionDepth = 0;
     int wordsOfJesusDepth = 0;
@@ -138,6 +147,7 @@ class OsisParser extends BaseParser {
     final List<VerseSpanKind?> hiKinds = [];
     final List<int?> quoteLevels = <int?>[];
     final List<bool> jesusQuoteStack = <bool>[];
+    final List<String?> quoteWhoStack = <String?>[];
     final List<bool> quoteLineStarts = <bool>[];
     final List<int?> lineLevels = <int?>[];
     final List<Map<String, String>> sectionDivMetadataStack =
@@ -201,6 +211,8 @@ class OsisParser extends BaseParser {
                     if (currentParagraphEmptyLineCount > 0)
                       'emptyLineCount':
                           currentParagraphEmptyLineCount.toString(),
+                    if (currentParagraphEmptyLineCount > 0)
+                      'stanzaBreak': 'true',
                     'beforeVerse': _readVerseNumber(event).toString(),
                   },
                 ),
@@ -331,6 +343,41 @@ class OsisParser extends BaseParser {
               ..._itemMetadataFromEvent(event),
               'sourceTag': 'item',
             };
+          } else if (event.name == 'table' &&
+              currentBook != null &&
+              currentVerse == null) {
+            insideTable = true;
+            currentTableRowIndex = 0;
+            currentTableMetadata = {
+              ..._currentSectionMetadata(sectionDivMetadataStack),
+              ..._tableMetadataFromEvent(event),
+              'sourceTag': 'table',
+            };
+          } else if (event.name == 'row' &&
+              currentBook != null &&
+              currentVerse == null &&
+              insideTable) {
+            insideTableRow = true;
+            currentTableRowCells.clear();
+            currentTableRowIndex++;
+            currentTableRowMetadata = {
+              ...currentTableMetadata,
+              ..._tableRowMetadataFromEvent(event),
+              'sourceTag': 'row',
+              'rowIndex': currentTableRowIndex.toString(),
+            };
+          } else if (event.name == 'cell' &&
+              currentBook != null &&
+              currentVerse == null &&
+              insideTableRow) {
+            insideTableCell = true;
+            currentTableCellText = '';
+            currentTableCellMetadata = {
+              ...currentTableRowMetadata,
+              ..._tableCellMetadataFromEvent(event),
+              'sourceTag': 'cell',
+              'cellIndex': (currentTableRowCells.length + 1).toString(),
+            };
           } else if (event.name == 'div' &&
               currentBook != null &&
               !_isBookStart(event)) {
@@ -359,6 +406,7 @@ class OsisParser extends BaseParser {
                 (_attributeValue(event, 'who') ?? '').contains('Jesus');
             quoteLevels.add(quoteLevel);
             jesusQuoteStack.add(isJesusQuote);
+            quoteWhoStack.add(_attributeValue(event, 'who'));
             quoteLineStarts.add(true);
             if (isJesusQuote) {
               wordsOfJesusDepth++;
@@ -567,6 +615,8 @@ class OsisParser extends BaseParser {
                       if (currentParagraphEmptyLineCount > 0)
                         'emptyLineCount':
                             currentParagraphEmptyLineCount.toString(),
+                      if (currentParagraphEmptyLineCount > 0)
+                        'stanzaBreak': 'true',
                     },
                   ),
                 );
@@ -595,6 +645,50 @@ class OsisParser extends BaseParser {
             insideListItem = false;
             currentListItemText = '';
             currentListItemMetadata = const {};
+          } else if (event.name == 'cell' &&
+              currentBook != null &&
+              currentVerse == null &&
+              insideTableRow) {
+            currentTableRowCells.add(currentTableCellText.trim());
+            insideTableCell = false;
+            currentTableCellText = '';
+            currentTableCellMetadata = const {};
+          } else if (event.name == 'row' &&
+              currentBook != null &&
+              currentVerse == null &&
+              insideTable) {
+            if (insideTableRow && currentTableRowCells.isNotEmpty) {
+              final rowText = currentTableRowCells
+                  .where((cell) => cell.isNotEmpty)
+                  .join(' | ');
+              final rowMetadata = {
+                ...currentTableRowMetadata,
+                'cellCount': currentTableRowCells.length.toString(),
+                'cellTexts': currentTableRowCells.join('\t'),
+              };
+              final block = DocumentBlock(
+                kind: DocumentBlockKind.paragraph,
+                text: rowText,
+                metadata: rowMetadata,
+              );
+              if (currentChapter == null) {
+                currentBook.introductionBlocks.add(block);
+              } else {
+                currentChapter.blocks.add(block);
+              }
+            }
+            insideTableRow = false;
+            currentTableRowCells.clear();
+            currentTableRowMetadata = const {};
+          } else if (event.name == 'table' && currentBook != null) {
+            insideTable = false;
+            insideTableRow = false;
+            insideTableCell = false;
+            currentTableMetadata = const {};
+            currentTableRowMetadata = const {};
+            currentTableCellMetadata = const {};
+            currentTableCellText = '';
+            currentTableRowCells.clear();
           } else if (event.name == 'list' && currentBook != null) {
             if (listMetadataStack.isNotEmpty) {
               listMetadataStack.removeLast();
@@ -612,6 +706,8 @@ class OsisParser extends BaseParser {
                       if (currentParagraphEmptyLineCount > 0)
                         'emptyLineCount':
                             currentParagraphEmptyLineCount.toString(),
+                      if (currentParagraphEmptyLineCount > 0)
+                        'stanzaBreak': 'true',
                     },
                   ),
                 );
@@ -642,6 +738,7 @@ class OsisParser extends BaseParser {
             }
           } else if (event.name == 'q' && quoteLevels.isNotEmpty) {
             final wasJesusQuote = jesusQuoteStack.removeLast();
+            quoteWhoStack.removeLast();
             quoteLevels.removeLast();
             if (quoteLineStarts.isNotEmpty) {
               quoteLineStarts.removeLast();
@@ -669,6 +766,8 @@ class OsisParser extends BaseParser {
             currentHeadText = _appendText(currentHeadText, cleaned);
           } else if (insideSpeaker) {
             currentSpeakerText = _appendText(currentSpeakerText, cleaned);
+          } else if (insideTableCell && currentVerse == null) {
+            currentTableCellText = _appendText(currentTableCellText, cleaned);
           } else if (insideListItem && currentVerse == null) {
             currentListItemText = _appendText(currentListItemText, cleaned);
           } else if (insideParagraph && currentVerse == null) {
@@ -701,6 +800,7 @@ class OsisParser extends BaseParser {
                 quoteLevels: quoteLevels,
                 lineLevels: lineLevels,
                 quoteLineStarts: quoteLineStarts,
+                quoteWhoStack: quoteWhoStack,
                 wordMetadata: currentWordMetadata,
                 pendingFootnoteMarkers: pendingFootnoteMarkers,
                 pendingReferenceMarkers: pendingReferenceMarkers,
@@ -746,6 +846,7 @@ class OsisParser extends BaseParser {
     final List<VerseSpanKind?> hiKinds = [];
     final List<int?> quoteLevels = <int?>[];
     final List<bool> jesusQuoteStack = <bool>[];
+    final List<String?> quoteWhoStack = <String?>[];
     final List<bool> quoteLineStarts = <bool>[];
     final List<int?> lineLevels = <int?>[];
     Map<String, String>? currentWordMetadata;
@@ -808,6 +909,7 @@ class OsisParser extends BaseParser {
                 (_attributeValue(event, 'who') ?? '').contains('Jesus');
             quoteLevels.add(quoteLevel);
             jesusQuoteStack.add(isJesusQuote);
+            quoteWhoStack.add(_attributeValue(event, 'who'));
             quoteLineStarts.add(true);
             if (isJesusQuote) {
               wordsOfJesusDepth++;
@@ -907,6 +1009,7 @@ class OsisParser extends BaseParser {
             }
           } else if (event.name == 'q' && quoteLevels.isNotEmpty) {
             final wasJesusQuote = jesusQuoteStack.removeLast();
+            quoteWhoStack.removeLast();
             quoteLevels.removeLast();
             if (quoteLineStarts.isNotEmpty) {
               quoteLineStarts.removeLast();
@@ -953,6 +1056,7 @@ class OsisParser extends BaseParser {
                 quoteLevels: quoteLevels,
                 lineLevels: lineLevels,
                 quoteLineStarts: quoteLineStarts,
+                quoteWhoStack: quoteWhoStack,
                 wordMetadata: currentWordMetadata,
                 pendingFootnoteMarkers: pendingFootnoteMarkers,
                 pendingReferenceMarkers: pendingReferenceMarkers,
@@ -1170,6 +1274,7 @@ class OsisParser extends BaseParser {
     required List<int?> quoteLevels,
     required List<int?> lineLevels,
     required List<bool> quoteLineStarts,
+    required List<String?> quoteWhoStack,
     required Map<String, String>? wordMetadata,
     required List<String> pendingFootnoteMarkers,
     required List<String> pendingReferenceMarkers,
@@ -1188,6 +1293,12 @@ class OsisParser extends BaseParser {
       metadata['quoteLevel'] = quoteLevels.last.toString();
     } else if (lineLevels.isNotEmpty && lineLevels.last != null) {
       metadata['quoteLevel'] = lineLevels.last.toString();
+    }
+    if (quoteWhoStack.isNotEmpty) {
+      final who = quoteWhoStack.lastWhere((w) => w != null, orElse: () => null);
+      if (who != null && !who.contains('Jesus')) {
+        metadata['quoteWho'] = who;
+      }
     }
     if (quoteLineStarts.isNotEmpty && quoteLineStarts.last) {
       metadata['lineStart'] = 'true';
@@ -1267,6 +1378,41 @@ class OsisParser extends BaseParser {
     final level = _attributeValue(event, 'level');
     if (level != null && level.isNotEmpty) {
       metadata['itemLevel'] = level;
+    }
+    return metadata;
+  }
+
+  Map<String, String> _tableMetadataFromEvent(XmlStartElementEvent event) {
+    final metadata = <String, String>{};
+    final type = _attributeValue(event, 'type');
+    if (type != null && type.isNotEmpty) {
+      metadata['tableType'] = type;
+    }
+    final subType = _attributeValue(event, 'subType');
+    if (subType != null && subType.isNotEmpty) {
+      metadata['tableSubType'] = subType;
+    }
+    return metadata;
+  }
+
+  Map<String, String> _tableRowMetadataFromEvent(XmlStartElementEvent event) {
+    final metadata = <String, String>{};
+    final type = _attributeValue(event, 'type');
+    if (type != null && type.isNotEmpty) {
+      metadata['rowType'] = type;
+    }
+    return metadata;
+  }
+
+  Map<String, String> _tableCellMetadataFromEvent(XmlStartElementEvent event) {
+    final metadata = <String, String>{};
+    final role = _attributeValue(event, 'role');
+    if (role != null && role.isNotEmpty) {
+      metadata['cellRole'] = role;
+    }
+    final type = _attributeValue(event, 'type');
+    if (type != null && type.isNotEmpty) {
+      metadata['cellType'] = type;
     }
     return metadata;
   }

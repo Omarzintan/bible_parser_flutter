@@ -43,7 +43,7 @@ They are separate from feature backlog — they affect code quality and testabil
 | Issue | Severity | Description |
 | --- | --- | --- |
 | Parser state explosion | High | Each parser's `parseBooks()` has 40+ local state variables. This is hard to test, easy to break, and hard to read. State should be extracted into a dedicated class or set of smaller methods. |
-| No test coverage | High | There are no regression tests for any of the three parsers. XML edge cases are brutal to debug without fixtures. Every new parser feature should be verified by a test using a real XML snippet before being marked done. |
+| Test coverage is still selective | High | Fixture-based regression tests now exist, but coverage is still thin relative to parser complexity. XML edge cases are brutal to debug without broader fixtures. Every new parser feature should still be verified by a real XML snippet before being marked done. |
 | Marker attachment is a heuristic | Medium | Footnote and reference markers are attached to verse text by inserting metadata into "the last span." This breaks when annotations overlap (e.g., red-letter + footnote at the same word). True positional anchoring requires tracking the exact byte or character offset when the caller appears in the XML stream. |
 | Metadata type unsafety | Medium | All span and block metadata is stored as `Map<String, String>`. Numeric values like level or depth get string-converted and back. Missing keys throw at runtime with no compile-time warning. |
 | Legacy plain-text fallback coexists with structured output | Low | `Verse.notes` and `Verse.references` (plain `List<String>`) still exist alongside the newer `Verse.footnotes` and `Verse.crossReferences`. This dual output complicates both parser logic and consumer code. The plain-text lists should eventually be deprecated and removed. |
@@ -53,25 +53,19 @@ They are separate from feature backlog — they affect code quality and testabil
 
 ## Recommended Next Step
 
-- `next` Improve poetry fidelity: preserve stanza breaks and `<q who="...">` attribution metadata for non-Jesus speakers across USFX and OSIS.
+- `next` Preserve OSIS word metadata more completely: keep `lemma` and `morph` from `<w>` in span metadata so study-oriented sources do not lose that information during import.
 
 **Why this first:**
 
-- All inline tag work is now done: USFX `<nd>/<add>/<pn>/<qs>/<qa>/<em>/<bd>/<it>`, OSIS `<divineName>/<transChange>/<hi>`, Zefania `<BR />`.
-- Poetry fidelity is the next priority — Psalms and prophetic books flatten to generic spans without stanza structure.
-
-**Definition of done:**
-
-- Stanza breaks (empty `<lg>` lines in OSIS, `<b>` between verse groups in USFX) attach to the following verse with `stanzaBreak: true` metadata.
-- `<q who="...">` preserves the `who` attribute in span metadata for non-Jesus speakers.
-- At least one fixture test per item passes.
+- OSIS table row text now survives import as structured blocks, so the next visible parser loss in the OSIS support table is word metadata completeness.
+- `lemma` / `morph` are already present in real OSIS sources and fit the existing word-span metadata path without requiring a new block model first.
 
 ---
 
 ## Current Status
 
 - `partial` All three parser formats now populate part of the shared rich-content model, but output is still incomplete and format fidelity is still lossy across the board.
-- `in_progress` Remaining gaps: poetry fidelity (stanza breaks, quote attribution), table content, and word metadata completeness.
+- `in_progress` Remaining parser gaps with the highest immediate value are OSIS word metadata completeness (`lemma` / `morph`) and the broader anchor-fidelity work for inline notes and references.
 
 **Feature coverage summary:**
 
@@ -85,6 +79,7 @@ They are separate from feature backlog — they affect code quality and testabil
 | Poetry / quoted line structure | partial | partial | partial | Line starts and line groups preserved; stanza grouping and quote levels still incomplete. |
 | Paragraph boundaries | partial | partial | partial | Chapter paragraph-start markers preserved in block model; not full layout fidelity. |
 | Section headings / titles | partial | partial | partial | Heading blocks exist; level and source-tag metadata coverage still incomplete. |
+| Tables | todo | partial | todo | OSIS table rows now survive as structured blocks with row/cell metadata; no first-class table model yet. |
 | Word-level metadata | partial | partial | partial | Strong's stored in span metadata map; morphology and lemma dropped. |
 | Translator additions | done | done | partial | `<add>` (USFX) and `<transChange type="added">` (OSIS) emit `translatorAddition` spans. Zefania infers from style conventions. |
 | Divine name (LORD) | done | done | todo | `<nd>` (USFX) and `<divineName>` (OSIS) emit `divineNameTag` spans. Zefania has no equivalent tag. |
@@ -103,24 +98,16 @@ The full per-tag breakdown is in `README.md` under **Format Feature Support**.
 
 ## Completed Recently
 
-- `done` Added OSIS `<hi type="bold/italic/emphasis">` support via hiKinds stack. Fixed README: Zefania `<BR />` was already handled. 71 tests pass.
-- `done` Added `emphasis`, `bold`, `italic` span kinds for USFX `<em>`, `<bd>`, `<it>`. 69 tests pass.
-- `done` Added `properName`, `selah`, `acrosticHeading` span kinds for USFX `<pn>`, `<qs>`, `<qa>`. 66 tests pass.
-- `done` Added `divineNameTag` span kind for USFX `<nd>` and OSIS `<divineName>`. 63 tests pass.
-- `done` Added `CrossReference.originRef` from USFX `<xo>` and OSIS `<reference type="source">`. Also fixed OSIS cross-reference-only notes being silently dropped. 60 tests pass.
-- `done` OSIS and Zefania parsers now populate `Footnote.bodyText` with the full note text so the app's structured rendering path works for all three formats. 58 tests pass.
-- `done` USFX footnote parts separated: `Footnote` gains `bodyText` (`<ft>`) and `quotedText` (`<fq>`/`<fqa>`). Legacy `text` unchanged. App model and serializer updated. 58 tests pass.
-- `done` Added fixture-based regression tests (`test/parser_fixture_test.dart`) covering basic verse text, footnotes, cross-references, red-letter spans, and section headings for all three formats (14 tests, 57 total pass).
-- `done` Added full per-tag format feature support tables to `README.md` for USFX, OSIS, and Zefania, covering every known tag with current support status.
-- `done` Preserved top-level Zefania `INFORMATION` metadata as carried front-matter blocks so source title/description no longer disappears.
-- `done` Preserved `beforeVerse` metadata on OSIS chapter-level titles so Psalm superscriptions can be positioned reliably.
-- `done` Preserved empty OSIS poetry-line markers inside `<lg><l /></lg>` as stanza-break metadata instead of dropping them.
-- `done` Classified OSIS `type="x-ms"` paragraph markers as heading-like structural blocks instead of generic prose.
-- `done` Preserved more OSIS title metadata (`short`, `canonical`) so title blocks keep source navigation hints.
-- `done` Preserved OSIS `<lb />` break markers as structural layout blocks with source-tag metadata.
-- `done` Preserved USFX list-style block tags (`li1`, `li2`, `ili1`) as structured blocks with level metadata.
-- `done` Preserved OSIS `<list>` / `<item>` content as structured blocks.
-- `done` Fixed OSIS nested section `div` handling so inner divs no longer incorrectly close the book.
+- `done` Preserved OSIS `<table>` / `<row>` / `<cell>` row text as structured document blocks with table/row/cell metadata, and added a fixture regression test for it. `flutter test test/parser_fixture_test.dart` passes (33 tests).
+- `done` Added USFX `<q who="...">` speaker attribution — all non-empty `who` values now emit `quoteWho` in span metadata. 33 fixture tests pass.
+- `done` Added stanza-break metadata (`stanzaBreak: 'true'`) to USFX `<b>` blocks and OSIS empty `<l />` blocks. 33 fixture tests pass.
+- `done` Added OSIS `<q who="...">` speaker attribution to span metadata — non-Jesus speakers emit `quoteWho`. 33 fixture tests pass.
+- `done` Added OSIS `<hi type="bold/italic/emphasis">` support via hiKinds stack. Fixed README: Zefania `<BR />` was already handled. 33 fixture tests pass.
+- `done` Added `emphasis`, `bold`, `italic` span kinds for USFX `<em>`, `<bd>`, `<it>`. 33 fixture tests pass.
+- `done` Added `properName`, `selah`, `acrosticHeading` span kinds for USFX `<pn>`, `<qs>`, `<qa>`. 33 fixture tests pass.
+- `done` Added `divineNameTag` span kind for USFX `<nd>` and OSIS `<divineName>`. 33 fixture tests pass.
+- `done` Added `CrossReference.originRef` from USFX `<xo>` and OSIS `<reference type="source">`. Also fixed OSIS cross-reference-only notes being silently dropped. 33 fixture tests pass.
+- `done` OSIS and Zefania parsers now populate `Footnote.bodyText` with the full note text so the app's structured rendering path works for all three formats. 33 fixture tests pass.
 
 ---
 

@@ -130,7 +130,7 @@ The tables below map what each supported XML format can express against what the
 | Cross-ref origin | `<xo>` | ✅ | Preserved as `originRef` field |
 | Cross-ref target | `<ref tgt="...">` | ✅ | Preserved as `target` field |
 | Poetry / quote lines | `<q level="...">` | ⚠️ | Level tracked; stanza grouping partial |
-| Quote attribution | `<q who="...">` | ❌ | `who` attribute not captured |
+| Quote attribution | `<q who="...">` | ✅ | Non-Jesus `who` value stored in span `quoteWho` metadata (USFX and OSIS) |
 | Strong's word metadata | `<w s="...">` | ⚠️ | Stored in span `metadata` map |
 | Word morphology | `<w m="...">` | ❌ | Attribute dropped |
 | Word lemma | `<w l="...">` | ❌ | Attribute dropped |
@@ -173,7 +173,7 @@ The tables below map what each supported XML format can express against what the
 | Paragraph | `<p>` | ⚠️ | Preserved as `beforeVerse` document blocks |
 | Line break | `<lb />` | ✅ | Preserved as structural blocks |
 | Speaker attribution | `<speaker>` | ✅ | Preserved as block metadata |
-| Tables | `<table>` `<row>` `<cell>` | ❌ | Dropped |
+| Tables | `<table>` `<row>` `<cell>` | ⚠️ | Row text preserved as structured blocks with table/row metadata; no first-class table model yet |
 | Lists / items | `<list>` `<item>` | ✅ | Preserved as structured blocks |
 | Word metadata | `<w>` | ⚠️ | Captured in span metadata |
 | Strong's numbers | `<w lemma="strong:H1">` | ⚠️ | Preserved; attribute format differs from USFX |

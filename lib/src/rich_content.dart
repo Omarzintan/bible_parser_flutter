@@ -78,6 +78,8 @@ enum DocumentBlockKind {
   heading,
   tocLabel,
   poetry,
+  table,    // <table> container — text is plain join of all cell content
+  tableRow, // <row> — one row; cells stored as tab-joined string in metadata['cells']
 }
 
 class DocumentBlock {
