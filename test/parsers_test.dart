@@ -796,9 +796,11 @@ void main() {
       final blocks = chapter.blocks;
       expect(blocks, hasLength(2));
       expect(blocks.first.kind, equals(DocumentBlockKind.paragraph));
+      expect(blocks.first.metadata['sourceTag'], equals('BR'));
       expect(blocks.first.metadata['beforeVerse'], equals('1'));
       expect(blocks.first.metadata['art'], equals('p'));
       expect(blocks.last.kind, equals(DocumentBlockKind.poetry));
+      expect(blocks.last.metadata['sourceTag'], equals('BR'));
       expect(blocks.last.metadata['beforeVerse'], equals('3'));
       expect(blocks.last.metadata['art'], equals('q1'));
     });

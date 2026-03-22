@@ -685,7 +685,7 @@ class ZefaniaParser extends BaseParser {
   }
 
   Map<String, String> _paragraphMetadataFromEvent(XmlStartElementEvent event) {
-    final metadata = <String, String>{};
+    final metadata = <String, String>{'sourceTag': 'BR'};
     final art = _attributeValue(event, 'art');
     if (art != null && art.isNotEmpty) {
       metadata['art'] = art;
