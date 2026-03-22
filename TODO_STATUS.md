@@ -8,19 +8,25 @@ Status meanings:
 - `partial`: some support exists, but output is incomplete or lossy
 - `todo`: not implemented yet
 
+## Operating Instructions
+- Update this file whenever a meaningful parser task starts or finishes.
+- Before making parser changes, add the exact active slice to `Current Status`.
+- After finishing the change, move that slice out of `in_progress` immediately and record the result as `done`.
+- Keep `Current Status` disciplined:
+  - only list truly active or still-unresolved parser work
+  - do not leave finished parser slices there
+  - do not use it for broad long-term vision that belongs in backlog sections
+- Keep `Current Status` short enough to scan quickly.
+- Keep `Priority Backlog` for longer-lived parser goals and unfinished categories.
+- If more than one line says roughly the same thing, collapse them into one clearer line.
+- When a parser slice is verified, add or update a focused test before marking it done.
+- After a meaningful verified parser slice, create a focused commit.
+
 ## Current Status
 
-- `done` USFX now preserves `<b>` break markers as source-tagged document blocks, so those layout breaks no longer disappear before the reader can choose how to render them.
-- `done` Zefania paragraph-style `BR` blocks now keep `sourceTag` metadata too, so those layout markers line up better with the richer source-tag handling already present in USFX and OSIS.
-- `done` OSIS now preserves `speaker` elements as structured heading blocks with source metadata, so speaker labels survive parsing instead of being flattened away before the reader can use them.
-- `done` OSIS now preserves `<lg>` / `<l>` line-group poetry as both chapter-level poetry blocks and verse-level line-start metadata, so more poetic structure survives instead of flattening into prose.
-- `done` OSIS now preserves pre-chapter intro paragraphs and `head` blocks as structured intro/chapter content, and Zefania now preserves source metadata on `PROLOG` and `CAPTION` blocks so more non-USFX layout survives parsing.
-- `done` USFX now preserves more ignored front-matter and section tags such as `imt1`, `ip`, `mt1`, `is1`, `cl`, `s1`, and `d` as structured document blocks with source-tag metadata instead of dropping them before the app can render them.
 - `partial` Phase 1 shared rich-content model types now exist in code, and all three main parser formats now populate part of them, but output is still incomplete and format fidelity is still lossy.
-- `in_progress` Rich parser work is now active across all main app formats: USFX, OSIS, and Zefania all preserve some structured spans, notes, references, and front-matter content.
-- `in_progress` All three main parser formats now emit chapter paragraph-start blocks where their source files expose paragraph markers, and they now preserve more source-driven poetry line starts as span metadata, but the coverage is still lossy and depends on what each XML source actually contains.
-- `in_progress` The next parser slice should focus on remaining non-verse layout tags beyond titles, paragraphs, line groups, and speaker labels, especially where source files can still expose richer sectional structure than the shared model currently keeps.
-- `in_progress` The next parser slice should focus on remaining non-verse layout tags beyond titles, paragraphs, line groups, speaker labels, and simple break markers, especially where source files can still expose richer sectional structure than the shared model currently keeps.
+- `in_progress` USFX, OSIS, and Zefania now all preserve some structured spans, notes, references, front matter, headings, paragraph starts, and layout metadata, but the output is still incomplete and source fidelity is still lossy.
+- `in_progress` The active parser gap is remaining non-verse layout structure beyond the current title, paragraph, line-group, speaker, caption, and simple break handling, especially where source files expose richer sectional tags than the shared model keeps.
 
 | Feature | USFX | OSIS | Zefania | Notes |
 |---|---|---|---|---|
