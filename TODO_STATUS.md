@@ -53,26 +53,26 @@ They are separate from feature backlog — they affect code quality and testabil
 
 ## Recommended Next Step
 
-- `next` Finish USFX intro paragraph support: preserve `<ip>`, `<imt>`, `<is>` intro tags and `<io1>`/`<io2>` outline entries as book-level introduction blocks, and `<cd>` as chapter-level blocks.
+- `next` Add OSIS `<hi>` inline formatting support and Zefania `<BR />` line-break support.
 
 **Why this first:**
 
-- `<nd>` (divine name) and `<add>` / `<transChange>` (translator addition) are now done for USFX and OSIS with fixture tests.
-- Intro paragraphs are the next highest-value lossy area — full book introductions are completely dropped right now.
+- USFX inline formatting is fully done (`<nd>`, `<add>`, `<pn>`, `<qs>`, `<qa>`, `<em>`, `<bd>`, `<it>`).
+- OSIS uses `<hi type="...">` for the same semantic content — missing it means inline formatting silently drops for OSIS sources.
+- Zefania `<BR />` is a one-liner that removes the last `❌` from the Zefania table.
 
 **Definition of done:**
 
-- `<ip>`, `<imt>`, `<is>` tags produce structured `introduction` or `heading` blocks at book level.
-- `<io1>` / `<io2>` produce list-style introduction outline blocks.
-- `<cd>` produces a chapter-level description block.
-- At least one fixture test per tag passes.
+- OSIS `<hi type="bold">` → `bold`, `<hi type="italic">` → `italic`, `<hi type="emphasis">` → `emphasis` span kinds.
+- Zefania `<BR />` emits a span with `lineStart` metadata.
+- Fixture tests pass for both.
 
 ---
 
 ## Current Status
 
 - `partial` All three parser formats now populate part of the shared rich-content model, but output is still incomplete and format fidelity is still lossy across the board.
-- `in_progress` Remaining gaps include non-verse layout structures — Selah markers, table content, proper name spans, emphasis/bold/italic tags, USFX intro paragraphs — that are still dropped or flattened.
+- `in_progress` Remaining gaps: OSIS `<hi>` inline formatting, Zefania `<BR />`, table content, and poetry fidelity improvements.
 
 **Feature coverage summary:**
 
@@ -89,7 +89,10 @@ They are separate from feature backlog — they affect code quality and testabil
 | Word-level metadata | partial | partial | partial | Strong's stored in span metadata map; morphology and lemma dropped. |
 | Translator additions | done | done | partial | `<add>` (USFX) and `<transChange type="added">` (OSIS) emit `translatorAddition` spans. Zefania infers from style conventions. |
 | Divine name (LORD) | done | done | todo | `<nd>` (USFX) and `<divineName>` (OSIS) emit `divineNameTag` spans. Zefania has no equivalent tag. |
-| Inline formatting spans | partial | partial | partial | Canonical span output exists for wj/add/nd/divineName; emphasis/bold/italic/pn/qs still not modeled. |
+| Proper name | done | todo | todo | `<pn>` (USFX) emits `properName` span. OSIS has no standard equivalent. |
+| Selah / music cue | done | todo | todo | `<qs>` (USFX) emits `selah` span. |
+| Acrostic heading | done | todo | todo | `<qa>` (USFX) emits `acrosticHeading` span. |
+| Inline emphasis/bold/italic | done | todo | todo | USFX `<em>`, `<bd>`, `<it>` emit `emphasis`, `bold`, `italic` spans. OSIS uses `<hi type="...">` — not yet modeled. |
 | Introductions / front matter | partial | partial | partial | Book-level intro blocks exist in all three; Bible-level front matter still incomplete. |
 | Structured notes model | partial | partial | partial | Structured objects coexist with legacy plain-text lists; still lossy. |
 | Lossless round-trip | todo | todo | todo | Parser is optimized for reading, not preservation. |
@@ -101,7 +104,9 @@ The full per-tag breakdown is in `README.md` under **Format Feature Support**.
 
 ## Completed Recently
 
-- `done` Added `divineNameTag` span kind for USFX `<nd>` and OSIS `<divineName>`. Added `translatorAddition` fixture test confirming USFX `<add>` was already working. 63 tests pass.
+- `done` Added `emphasis`, `bold`, `italic` span kinds for USFX `<em>`, `<bd>`, `<it>`. 69 tests pass.
+- `done` Added `properName`, `selah`, `acrosticHeading` span kinds for USFX `<pn>`, `<qs>`, `<qa>`. 66 tests pass.
+- `done` Added `divineNameTag` span kind for USFX `<nd>` and OSIS `<divineName>`. 63 tests pass.
 - `done` Added `CrossReference.originRef` from USFX `<xo>` and OSIS `<reference type="source">`. Also fixed OSIS cross-reference-only notes being silently dropped. 60 tests pass.
 - `done` OSIS and Zefania parsers now populate `Footnote.bodyText` with the full note text so the app's structured rendering path works for all three formats. 58 tests pass.
 - `done` USFX footnote parts separated: `Footnote` gains `bodyText` (`<ft>`) and `quotedText` (`<fq>`/`<fqa>`). Legacy `text` unchanged. App model and serializer updated. 58 tests pass.
