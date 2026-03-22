@@ -53,26 +53,25 @@ They are separate from feature backlog — they affect code quality and testabil
 
 ## Recommended Next Step
 
-- `next` Add OSIS `<hi>` inline formatting support and Zefania `<BR />` line-break support.
+- `next` Improve poetry fidelity: preserve stanza breaks and `<q who="...">` attribution metadata for non-Jesus speakers across USFX and OSIS.
 
 **Why this first:**
 
-- USFX inline formatting is fully done (`<nd>`, `<add>`, `<pn>`, `<qs>`, `<qa>`, `<em>`, `<bd>`, `<it>`).
-- OSIS uses `<hi type="...">` for the same semantic content — missing it means inline formatting silently drops for OSIS sources.
-- Zefania `<BR />` is a one-liner that removes the last `❌` from the Zefania table.
+- All inline tag work is now done: USFX `<nd>/<add>/<pn>/<qs>/<qa>/<em>/<bd>/<it>`, OSIS `<divineName>/<transChange>/<hi>`, Zefania `<BR />`.
+- Poetry fidelity is the next priority — Psalms and prophetic books flatten to generic spans without stanza structure.
 
 **Definition of done:**
 
-- OSIS `<hi type="bold">` → `bold`, `<hi type="italic">` → `italic`, `<hi type="emphasis">` → `emphasis` span kinds.
-- Zefania `<BR />` emits a span with `lineStart` metadata.
-- Fixture tests pass for both.
+- Stanza breaks (empty `<lg>` lines in OSIS, `<b>` between verse groups in USFX) attach to the following verse with `stanzaBreak: true` metadata.
+- `<q who="...">` preserves the `who` attribute in span metadata for non-Jesus speakers.
+- At least one fixture test per item passes.
 
 ---
 
 ## Current Status
 
 - `partial` All three parser formats now populate part of the shared rich-content model, but output is still incomplete and format fidelity is still lossy across the board.
-- `in_progress` Remaining gaps: OSIS `<hi>` inline formatting, Zefania `<BR />`, table content, and poetry fidelity improvements.
+- `in_progress` Remaining gaps: poetry fidelity (stanza breaks, quote attribution), table content, and word metadata completeness.
 
 **Feature coverage summary:**
 
@@ -92,7 +91,7 @@ They are separate from feature backlog — they affect code quality and testabil
 | Proper name | done | todo | todo | `<pn>` (USFX) emits `properName` span. OSIS has no standard equivalent. |
 | Selah / music cue | done | todo | todo | `<qs>` (USFX) emits `selah` span. |
 | Acrostic heading | done | todo | todo | `<qa>` (USFX) emits `acrosticHeading` span. |
-| Inline emphasis/bold/italic | done | todo | todo | USFX `<em>`, `<bd>`, `<it>` emit `emphasis`, `bold`, `italic` spans. OSIS uses `<hi type="...">` — not yet modeled. |
+| Inline emphasis/bold/italic | done | done | todo | USFX `<em>/<bd>/<it>` and OSIS `<hi type="bold/italic/emphasis">` all emit matching span kinds. |
 | Introductions / front matter | partial | partial | partial | Book-level intro blocks exist in all three; Bible-level front matter still incomplete. |
 | Structured notes model | partial | partial | partial | Structured objects coexist with legacy plain-text lists; still lossy. |
 | Lossless round-trip | todo | todo | todo | Parser is optimized for reading, not preservation. |
@@ -104,6 +103,7 @@ The full per-tag breakdown is in `README.md` under **Format Feature Support**.
 
 ## Completed Recently
 
+- `done` Added OSIS `<hi type="bold/italic/emphasis">` support via hiKinds stack. Fixed README: Zefania `<BR />` was already handled. 71 tests pass.
 - `done` Added `emphasis`, `bold`, `italic` span kinds for USFX `<em>`, `<bd>`, `<it>`. 69 tests pass.
 - `done` Added `properName`, `selah`, `acrosticHeading` span kinds for USFX `<pn>`, `<qs>`, `<qa>`. 66 tests pass.
 - `done` Added `divineNameTag` span kind for USFX `<nd>` and OSIS `<divineName>`. 63 tests pass.
