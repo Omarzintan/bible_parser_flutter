@@ -146,7 +146,7 @@ The tables below map what each supported XML format can express against what the
 | Proper name | `<pn>` | ✅ | Preserved as `properName` span kind |
 | Selah / music cue | `<qs>` | ✅ | Preserved as `selah` span kind |
 | Acrostic heading | `<qa>` | ✅ | Preserved as `acrosticHeading` span kind |
-| Inline emphasis | `<em>` `<bd>` `<it>` | ❌ | Merged into plain text |
+| Inline emphasis | `<em>` `<bd>` `<it>` | ✅ | Preserved as `emphasis`, `bold`, `italic` span kinds |
 
 ### OSIS
 
@@ -161,6 +161,7 @@ The tables below map what each supported XML format can express against what the
 | Cross-references | `<note type="crossReference">` | ⚠️ | Structured; cross-ref-only notes (no plain text) handled |
 | Cross-ref origin | `<reference type="source">` | ✅ | Preserved as `originRef` on `CrossReference` |
 | Reference targets | `<reference osisRef="...">` | ⚠️ | Preserved when present |
+| Inline formatting | `<hi type="bold/italic/emphasis">` | ✅ | Preserved as `bold`, `italic`, `emphasis` span kinds |
 | Book title | `<title type="main">` | ✅ | Preserved as introduction block |
 | Section heading | `<title type="section">` | ⚠️ | Captured as heading blocks |
 | Running head | `<title type="runningHead">` | ❌ | Dropped |
@@ -198,7 +199,7 @@ The tables below map what each supported XML format can express against what the
 | Words of Jesus | (via `<STYLE>`) | ⚠️ | Inferred from style metadata; not an explicit tag |
 | Translator additions | (via `<STYLE>`) | ⚠️ | Inferred from italic/add-style conventions |
 | Paragraph | `<PARA>` | ✅ | Preserved as document block |
-| Line break | `<BR />` | ❌ | Dropped |
+| Line break | `<BR />` | ✅ | Preserved as a `beforeVerse` document block with source metadata |
 | Grammar metadata | `<gr>` | ⚠️ | Some style metadata preserved |
 
 ## Practical Limits

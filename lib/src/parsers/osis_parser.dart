@@ -135,6 +135,7 @@ class OsisParser extends BaseParser {
     int translatorAdditionDepth = 0;
     int wordsOfJesusDepth = 0;
     bool insideDivineNameTag = false;
+    final List<VerseSpanKind?> hiKinds = [];
     final List<int?> quoteLevels = <int?>[];
     final List<bool> jesusQuoteStack = <bool>[];
     final List<bool> quoteLineStarts = <bool>[];
@@ -366,6 +367,14 @@ class OsisParser extends BaseParser {
             translatorAdditionDepth++;
           } else if (event.name == 'divineName' && currentVerse != null) {
             insideDivineNameTag = true;
+          } else if (event.name == 'hi' && currentVerse != null) {
+            final type = _attributeValue(event, 'type')?.toLowerCase() ?? '';
+            hiKinds.add(switch (type) {
+              'bold' => VerseSpanKind.bold,
+              'italic' => VerseSpanKind.italic,
+              'emphasis' => VerseSpanKind.emphasis,
+              _ => null,
+            });
           } else if (event.name == 'w' && currentVerse != null) {
             currentWordMetadata = _wordMetadataFromEvent(event);
           }
@@ -645,6 +654,8 @@ class OsisParser extends BaseParser {
             translatorAdditionDepth--;
           } else if (event.name == 'divineName') {
             insideDivineNameTag = false;
+          } else if (event.name == 'hi' && hiKinds.isNotEmpty) {
+            hiKinds.removeLast();
           } else if (event.name == 'w') {
             currentWordMetadata = null;
           }
@@ -680,6 +691,9 @@ class OsisParser extends BaseParser {
                 lineLevels: lineLevels,
                 wordMetadata: currentWordMetadata,
                 insideDivineNameTag: insideDivineNameTag,
+                hiKind: hiKinds.isNotEmpty
+                    ? hiKinds.lastWhere((k) => k != null, orElse: () => null)
+                    : null,
               ),
               metadata: _currentSpanMetadata(
                 wordsOfJesusDepth: wordsOfJesusDepth,
@@ -729,6 +743,7 @@ class OsisParser extends BaseParser {
     int translatorAdditionDepth = 0;
     int wordsOfJesusDepth = 0;
     bool insideDivineNameTag = false;
+    final List<VerseSpanKind?> hiKinds = [];
     final List<int?> quoteLevels = <int?>[];
     final List<bool> jesusQuoteStack = <bool>[];
     final List<bool> quoteLineStarts = <bool>[];
@@ -801,6 +816,14 @@ class OsisParser extends BaseParser {
             translatorAdditionDepth++;
           } else if (event.name == 'divineName' && currentVerse != null) {
             insideDivineNameTag = true;
+          } else if (event.name == 'hi' && currentVerse != null) {
+            final type = _attributeValue(event, 'type')?.toLowerCase() ?? '';
+            hiKinds.add(switch (type) {
+              'bold' => VerseSpanKind.bold,
+              'italic' => VerseSpanKind.italic,
+              'emphasis' => VerseSpanKind.emphasis,
+              _ => null,
+            });
           } else if (event.name == 'w' && currentVerse != null) {
             currentWordMetadata = _wordMetadataFromEvent(event);
           }
@@ -896,6 +919,8 @@ class OsisParser extends BaseParser {
             translatorAdditionDepth--;
           } else if (event.name == 'divineName') {
             insideDivineNameTag = false;
+          } else if (event.name == 'hi' && hiKinds.isNotEmpty) {
+            hiKinds.removeLast();
           } else if (event.name == 'w') {
             currentWordMetadata = null;
           }
@@ -918,6 +943,9 @@ class OsisParser extends BaseParser {
                 lineLevels: lineLevels,
                 wordMetadata: currentWordMetadata,
                 insideDivineNameTag: insideDivineNameTag,
+                hiKind: hiKinds.isNotEmpty
+                    ? hiKinds.lastWhere((k) => k != null, orElse: () => null)
+                    : null,
               ),
               metadata: _currentSpanMetadata(
                 wordsOfJesusDepth: wordsOfJesusDepth,
@@ -1118,9 +1146,11 @@ class OsisParser extends BaseParser {
     required List<int?> lineLevels,
     required Map<String, String>? wordMetadata,
     bool insideDivineNameTag = false,
+    VerseSpanKind? hiKind,
   }) {
     if (wordsOfJesusDepth > 0) return VerseSpanKind.wordsOfJesus;
     if (insideDivineNameTag) return VerseSpanKind.divineNameTag;
+    if (hiKind != null) return hiKind;
     if (translatorAdditionDepth > 0) return VerseSpanKind.translatorAddition;
     if (quoteLevels.isNotEmpty || lineLevels.isNotEmpty) {
       return quoteLevels.any((level) => level != null) ||

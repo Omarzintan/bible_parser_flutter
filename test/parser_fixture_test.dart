@@ -194,6 +194,30 @@ const _osisDivineName = '''<?xml version="1.0" encoding="utf-8"?>
   </osisText>
 </osis>''';
 
+/// OSIS bold text via <hi type="bold">.
+const _osisHiBold = '''<?xml version="1.0" encoding="utf-8"?>
+<osis xmlns="http://www.bibletechnologies.net/2003/OSIS/namespace">
+  <osisText osisIDWork="test">
+    <div type="book" osisID="Gen">
+      <chapter osisID="Gen.1">
+        <verse osisID="Gen.1.1">Thus says <hi type="bold">the LORD</hi>.</verse>
+      </chapter>
+    </div>
+  </osisText>
+</osis>''';
+
+/// OSIS italic text via <hi type="italic">.
+const _osisHiItalic = '''<?xml version="1.0" encoding="utf-8"?>
+<osis xmlns="http://www.bibletechnologies.net/2003/OSIS/namespace">
+  <osisText osisIDWork="test">
+    <div type="book" osisID="Gen">
+      <chapter osisID="Gen.1">
+        <verse osisID="Gen.1.1">The book of <hi type="italic">Genesis</hi>.</verse>
+      </chapter>
+    </div>
+  </osisText>
+</osis>''';
+
 /// OSIS red-letter text via <q who="Jesus">.
 const _osisRedLetter = '''<?xml version="1.0" encoding="utf-8"?>
 <osis xmlns="http://www.bibletechnologies.net/2003/OSIS/namespace">
@@ -601,6 +625,24 @@ void main() {
       expect(redSpans, isNotEmpty,
           reason: 'Expected wordsOfJesus span from <q who="Jesus">');
       expect(redSpans.first.text, contains('Blessed'));
+    });
+
+    test('preserves bold spans via <hi type="bold">', () async {
+      final book = await _parseFirstBook(_osisHiBold, 'OSIS');
+      final verse = _firstVerse(book!);
+      final spans = verse!.spans.where((s) => s.kind == VerseSpanKind.bold);
+      expect(spans, isNotEmpty,
+          reason: 'Expected at least one bold span from <hi type="bold">');
+      expect(spans.first.text, contains('the LORD'));
+    });
+
+    test('preserves italic spans via <hi type="italic">', () async {
+      final book = await _parseFirstBook(_osisHiItalic, 'OSIS');
+      final verse = _firstVerse(book!);
+      final spans = verse!.spans.where((s) => s.kind == VerseSpanKind.italic);
+      expect(spans, isNotEmpty,
+          reason: 'Expected at least one italic span from <hi type="italic">');
+      expect(spans.first.text, contains('Genesis'));
     });
 
     test('preserves chapter title as heading block', () async {
