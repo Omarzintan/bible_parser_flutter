@@ -275,6 +275,33 @@ class OsisParser extends BaseParser {
               text: '',
               metadata: currentParagraphMetadata,
             );
+          } else if (event.name == 'lb' &&
+              currentBook != null &&
+              currentVerse == null) {
+            final breakMetadata = {
+              ..._currentSectionMetadata(sectionDivMetadataStack),
+              'sourceTag': 'lb',
+              'style': 'lb',
+            };
+            if (currentChapter == null) {
+              currentBook.introductionBlocks.add(
+                DocumentBlock(
+                  kind: DocumentBlockKind.paragraph,
+                  text: '',
+                  metadata: breakMetadata,
+                ),
+              );
+            } else {
+              // OSIS line-break markers are source layout cues. Preserve them
+              // ahead of the next verse boundary so the reader can choose
+              // whether to render them as spacing, line breaks, or section
+              // separators later.
+              pendingParagraphBlock = DocumentBlock(
+                kind: DocumentBlockKind.paragraph,
+                text: '',
+                metadata: breakMetadata,
+              );
+            }
           } else if (event.name == 'list' &&
               currentBook != null &&
               currentVerse == null) {

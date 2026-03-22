@@ -169,6 +169,20 @@ void main() {
   </osisText>
 </osis>
 ''';
+    final sampleOsisLineBreakXml = '''
+<?xml version="1.0" encoding="UTF-8"?>
+<osis xmlns="http://www.bibletechnologies.net/2003/OSIS/namespace">
+  <osisText osisIDWork="TEST">
+    <div type="book" osisID="John">
+      <chapter osisID="John.1">
+        <verse osisID="John.1.1">In the beginning was the Word.</verse>
+        <lb />
+        <verse osisID="John.1.2">He was in the beginning with God.</verse>
+      </chapter>
+    </div>
+  </osisText>
+</osis>
+''';
     test('OsisParser can parse sample XML', () async {
       final parser = OsisParser(sampleOsisXml);
 
@@ -423,6 +437,22 @@ void main() {
       expect(chapterItem.metadata['listType'], equals('poetry'));
       expect(chapterItem.metadata['itemLevel'], equals('2'));
       expect(chapterItem.metadata['sectionType'], equals('section'));
+    });
+
+    test('OsisParser preserves line-break markers as layout blocks', () async {
+      final parser = OsisParser(sampleOsisLineBreakXml);
+
+      final chapter = (await parser.parseBooks().toList()).first.chapters.first;
+      expect(
+        chapter.blocks.any(
+          (block) =>
+              block.kind == DocumentBlockKind.paragraph &&
+              block.metadata['sourceTag'] == 'lb' &&
+              block.metadata['style'] == 'lb' &&
+              block.metadata['beforeVerse'] == '2',
+        ),
+        isTrue,
+      );
     });
   });
 
