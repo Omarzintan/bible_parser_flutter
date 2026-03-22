@@ -60,6 +60,16 @@ const _usfxFootnote = '''<?xml version="1.0" encoding="utf-8"?>
   </book>
 </usfx>''';
 
+/// USFX footnote with both <ft> body text and <fq> quoted text.
+const _usfxFootnoteWithQuote = '''<?xml version="1.0" encoding="utf-8"?>
+<usfx xmlns="http://www.bibletechnologies.net/2003/USFX/namespace">
+  <book id="GEN">
+    <c id="1">
+      <v id="1">God said<f caller="a"><fr>1:3 </fr><ft>Or </ft><fq>Let there be light</fq><ft>, meaning...</ft></f> the word.</v>
+    </c>
+  </book>
+</usfx>''';
+
 /// USFX cross-reference with <ref tgt="..."> target.
 const _usfxCrossRef = '''<?xml version="1.0" encoding="utf-8"?>
 <usfx xmlns="http://www.bibletechnologies.net/2003/USFX/namespace">
@@ -235,7 +245,9 @@ void main() {
       expect(verse!.footnotes, hasLength(1));
 
       final fn = verse.footnotes.first;
-      // <ft> body text must survive.
+      // <ft> body text must survive in both the structured field and text fallback.
+      expect(fn.bodyText, isNotNull);
+      expect(fn.bodyText, contains('creation footnote'));
       expect(fn.text, contains('creation footnote'));
       // <fr> origin reference goes to the label field.
       expect(fn.label, isNotNull);
@@ -245,6 +257,20 @@ void main() {
 
       // Legacy plain-text list is also populated for backwards compatibility.
       expect(verse.notes, hasLength(1));
+    });
+
+    test('preserves quoted text from <fq> as a separate field', () async {
+      final book = await _parseFirstBook(_usfxFootnoteWithQuote, 'USFX');
+      final verse = _firstVerse(book!);
+
+      expect(verse!.footnotes, hasLength(1));
+
+      final fn = verse.footnotes.first;
+      // <fq> quoted text must land in quotedText, not be lost.
+      expect(fn.quotedText, isNotNull);
+      expect(fn.quotedText, contains('Let there be light'));
+      // Combined text fallback must still contain all non-fr content.
+      expect(fn.text, contains('Let there be light'));
     });
 
     test('preserves cross-reference with target', () async {

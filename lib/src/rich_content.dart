@@ -32,15 +32,29 @@ class CrossReference {
 }
 
 class Footnote {
+  /// Backwards-compatible merged body text (all non-origin text joined).
   final String text;
   final String? marker;
+
+  /// Origin reference from `<fr>` (e.g. "1:1 "). Same as label; kept for
+  /// backwards compatibility — prefer [label] or [bodyText] in new code.
   final String? label;
+
+  /// Main footnote body from `<ft>`. Null when the source does not use
+  /// explicit `<ft>` tagging (OSIS, Zefania, plain USFX footnotes).
+  final String? bodyText;
+
+  /// Quoted text from `<fq>` / `<fqa>`. Null when not present in source.
+  final String? quotedText;
+
   final List<CrossReference> references;
 
   const Footnote({
     required this.text,
     this.marker,
     this.label,
+    this.bodyText,
+    this.quotedText,
     this.references = const [],
   });
 }

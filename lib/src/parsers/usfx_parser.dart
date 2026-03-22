@@ -98,6 +98,8 @@ class UsfxParser extends BaseParser {
 
     bool insideFootnote = false;
     bool insideFootnoteLabel = false;
+    bool insideFootnoteBody = false;
+    bool insideFootnoteQuote = false;
     bool insideCrossReference = false;
     bool insideHeading = false;
     bool insideParagraph = false;
@@ -111,6 +113,8 @@ class UsfxParser extends BaseParser {
 
     String currentFootnoteText = '';
     String currentFootnoteLabel = '';
+    String currentFootnoteBodyText = '';
+    String currentFootnoteQuoteText = '';
     String? currentFootnoteMarker;
 
     String currentReferenceText = '';
@@ -208,9 +212,16 @@ class UsfxParser extends BaseParser {
             insideFootnote = true;
             currentFootnoteText = '';
             currentFootnoteLabel = '';
+            currentFootnoteBodyText = '';
+            currentFootnoteQuoteText = '';
             currentFootnoteMarker = _attributeValue(event, 'caller');
           } else if (event.name == 'fr' && insideFootnote) {
             insideFootnoteLabel = true;
+          } else if (event.name == 'ft' && insideFootnote) {
+            insideFootnoteBody = true;
+          } else if ((event.name == 'fq' || event.name == 'fqa') &&
+              insideFootnote) {
+            insideFootnoteQuote = true;
           } else if (event.name == 'x' && currentVerse != null) {
             insideCrossReference = true;
             currentReferenceText = '';
@@ -315,6 +326,12 @@ class UsfxParser extends BaseParser {
                   label: currentFootnoteLabel.isEmpty
                       ? null
                       : currentFootnoteLabel,
+                  bodyText: currentFootnoteBodyText.isEmpty
+                      ? null
+                      : currentFootnoteBodyText,
+                  quotedText: currentFootnoteQuoteText.isEmpty
+                      ? null
+                      : currentFootnoteQuoteText,
                 ),
               );
               currentVerse = _attachInlineMarker(
@@ -326,11 +343,19 @@ class UsfxParser extends BaseParser {
             }
             insideFootnote = false;
             insideFootnoteLabel = false;
+            insideFootnoteBody = false;
+            insideFootnoteQuote = false;
             currentFootnoteText = '';
             currentFootnoteLabel = '';
+            currentFootnoteBodyText = '';
+            currentFootnoteQuoteText = '';
             currentFootnoteMarker = null;
           } else if (event.name == 'fr') {
             insideFootnoteLabel = false;
+          } else if (event.name == 'ft') {
+            insideFootnoteBody = false;
+          } else if (event.name == 'fq' || event.name == 'fqa') {
+            insideFootnoteQuote = false;
           } else if (event.name == 'x') {
             if (currentVerse != null && currentReferenceText.isNotEmpty) {
               final referenceMarker = _normalizeAnnotationMarker(
@@ -468,7 +493,16 @@ class UsfxParser extends BaseParser {
             if (insideFootnoteLabel) {
               currentFootnoteLabel = _appendText(currentFootnoteLabel, cleaned);
             } else {
+              // Always accumulate combined text for backwards compat.
               currentFootnoteText = _appendText(currentFootnoteText, cleaned);
+              // Also route to the specific part accumulator.
+              if (insideFootnoteBody) {
+                currentFootnoteBodyText =
+                    _appendText(currentFootnoteBodyText, cleaned);
+              } else if (insideFootnoteQuote) {
+                currentFootnoteQuoteText =
+                    _appendText(currentFootnoteQuoteText, cleaned);
+              }
             }
           } else if (insideCrossReference && currentVerse != null) {
             currentReferenceText = _appendText(currentReferenceText, cleaned);
@@ -538,6 +572,8 @@ class UsfxParser extends BaseParser {
 
     bool insideFootnote = false;
     bool insideFootnoteLabel = false;
+    bool insideFootnoteBody = false;
+    bool insideFootnoteQuote = false;
     bool insideCrossReference = false;
     int wordsOfJesusDepth = 0;
     int translatorAdditionDepth = 0;
@@ -547,6 +583,8 @@ class UsfxParser extends BaseParser {
 
     String currentFootnoteText = '';
     String currentFootnoteLabel = '';
+    String currentFootnoteBodyText = '';
+    String currentFootnoteQuoteText = '';
     String? currentFootnoteMarker;
 
     String currentReferenceText = '';
@@ -596,9 +634,16 @@ class UsfxParser extends BaseParser {
             insideFootnote = true;
             currentFootnoteText = '';
             currentFootnoteLabel = '';
+            currentFootnoteBodyText = '';
+            currentFootnoteQuoteText = '';
             currentFootnoteMarker = _attributeValue(event, 'caller');
           } else if (event.name == 'fr' && insideFootnote) {
             insideFootnoteLabel = true;
+          } else if (event.name == 'ft' && insideFootnote) {
+            insideFootnoteBody = true;
+          } else if ((event.name == 'fq' || event.name == 'fqa') &&
+              insideFootnote) {
+            insideFootnoteQuote = true;
           } else if (event.name == 'x' && currentVerse != null) {
             insideCrossReference = true;
             currentReferenceText = '';
@@ -636,6 +681,12 @@ class UsfxParser extends BaseParser {
                   label: currentFootnoteLabel.isEmpty
                       ? null
                       : currentFootnoteLabel,
+                  bodyText: currentFootnoteBodyText.isEmpty
+                      ? null
+                      : currentFootnoteBodyText,
+                  quotedText: currentFootnoteQuoteText.isEmpty
+                      ? null
+                      : currentFootnoteQuoteText,
                 ),
               );
               currentVerse = _attachInlineMarker(
@@ -647,11 +698,19 @@ class UsfxParser extends BaseParser {
             }
             insideFootnote = false;
             insideFootnoteLabel = false;
+            insideFootnoteBody = false;
+            insideFootnoteQuote = false;
             currentFootnoteText = '';
             currentFootnoteLabel = '';
+            currentFootnoteBodyText = '';
+            currentFootnoteQuoteText = '';
             currentFootnoteMarker = null;
           } else if (event.name == 'fr') {
             insideFootnoteLabel = false;
+          } else if (event.name == 'ft') {
+            insideFootnoteBody = false;
+          } else if (event.name == 'fq' || event.name == 'fqa') {
+            insideFootnoteQuote = false;
           } else if (event.name == 'x') {
             if (currentVerse != null && currentReferenceText.isNotEmpty) {
               final referenceMarker = _normalizeAnnotationMarker(
@@ -697,7 +756,16 @@ class UsfxParser extends BaseParser {
             if (insideFootnoteLabel) {
               currentFootnoteLabel = _appendText(currentFootnoteLabel, cleaned);
             } else {
+              // Always accumulate combined text for backwards compat.
               currentFootnoteText = _appendText(currentFootnoteText, cleaned);
+              // Also route to the specific part accumulator.
+              if (insideFootnoteBody) {
+                currentFootnoteBodyText =
+                    _appendText(currentFootnoteBodyText, cleaned);
+              } else if (insideFootnoteQuote) {
+                currentFootnoteQuoteText =
+                    _appendText(currentFootnoteQuoteText, cleaned);
+              }
             }
           } else if (insideCrossReference) {
             currentReferenceText = _appendText(currentReferenceText, cleaned);
