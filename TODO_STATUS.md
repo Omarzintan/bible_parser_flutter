@@ -53,18 +53,19 @@ They are separate from feature backlog — they affect code quality and testabil
 
 ## Recommended Next Step
 
-- `next` Separate OSIS and Zefania note content into `bodyText` when it is the sole note content, and investigate whether real source files expose `xo`/`xot` (cross-ref origin) that should be preserved as a field on `CrossReference`.
+- `next` Add `originRef` to `CrossReference` for USFX `<xo>` and OSIS `<reference type="source">` origin-verse tags, then surface it in the app's cross-reference display.
 
 **Why this first:**
 
-- Footnote parts are now separated for USFX. OSIS/Zefania note text still goes only to `text`; `bodyText` would let consumers use the same code path for all formats.
-- `CrossReference.xo` / origin reference is the next parallel gap — same problem as `fr` was for footnotes.
+- `Footnote.bodyText` is now populated for all three formats; the parallel gap on `CrossReference` is the origin-verse ref (`xo`).
+- USFX `<xo>` and OSIS `<reference type="source">` carry the origin verse for a cross-reference block; they are currently merged into the label string or dropped.
 
 **Definition of done:**
 
-- OSIS/Zefania `Footnote.bodyText` is populated when the note has no structural sub-tags (i.e. `bodyText = text` as a convenience).
-- `CrossReference` gains an `originRef` field for USFX `<xo>` and OSIS `<reference type="source">`.
-- At least one fixture test per change passes.
+- `CrossReference` gains an `originRef` field.
+- USFX parser sets it from `<xo>` text; OSIS parser sets it from `<reference type="source">` text.
+- At least one fixture test per format passes.
+- App-side `BibleCrossReference` is updated to match and round-trips through JSON.
 
 ---
 
@@ -99,6 +100,7 @@ The full per-tag breakdown is in `README.md` under **Format Feature Support**.
 
 ## Completed Recently
 
+- `done` OSIS and Zefania parsers now populate `Footnote.bodyText` with the full note text so the app's structured rendering path works for all three formats. 58 tests pass.
 - `done` USFX footnote parts separated: `Footnote` gains `bodyText` (`<ft>`) and `quotedText` (`<fq>`/`<fqa>`). Legacy `text` unchanged. App model and serializer updated. 58 tests pass.
 - `done` Added fixture-based regression tests (`test/parser_fixture_test.dart`) covering basic verse text, footnotes, cross-references, red-letter spans, and section headings for all three formats (14 tests, 57 total pass).
 - `done` Added full per-tag format feature support tables to `README.md` for USFX, OSIS, and Zefania, covering every known tag with current support status.
