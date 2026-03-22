@@ -786,24 +786,30 @@ void main() {
       expect(quoteSpans.first.metadata['quoteWho'], equals('Yahweh'));
     });
 
-    test('preserves OSIS table rows as structured chapter blocks', () async {
+    test('preserves OSIS tables as table and tableRow blocks', () async {
       final book = await _parseFirstBook(_osisTable, 'OSIS');
 
       expect(book, isNotNull);
       final chapter = book!.chapters.first;
+      final tableContainers = chapter.blocks
+          .where((b) => b.kind == DocumentBlockKind.table)
+          .toList();
       final tableBlocks = chapter.blocks
-          .where((b) => b.metadata['sourceTag'] == 'row')
+          .where((b) => b.kind == DocumentBlockKind.tableRow)
           .toList();
 
+      expect(tableContainers, hasLength(1),
+          reason: 'Expected one table container block');
+      expect(tableContainers.first.metadata['rowCount'], equals('2'));
       expect(tableBlocks, hasLength(2),
           reason: 'Expected one chapter block per OSIS table row');
-      expect(tableBlocks.first.text, equals('Day | One'));
+      expect(tableBlocks.first.text, equals('Day One'));
       expect(tableBlocks.first.metadata['tableType'], equals('x-study'));
       expect(tableBlocks.first.metadata['rowType'], equals('label'));
       expect(tableBlocks.first.metadata['cellCount'], equals('2'));
-      expect(tableBlocks.first.metadata['cellTexts'], equals('Day\tOne'));
+      expect(tableBlocks.first.metadata['cells'], equals('Day\tOne'));
       expect(tableBlocks.first.metadata['rowIndex'], equals('1'));
-      expect(tableBlocks.last.text, equals('Light | Created'));
+      expect(tableBlocks.last.text, equals('Light Created'));
       expect(tableBlocks.last.metadata['rowIndex'], equals('2'));
     });
   });

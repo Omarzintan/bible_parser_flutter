@@ -139,6 +139,7 @@ class OsisParser extends BaseParser {
     DocumentBlock? pendingParagraphBlock;
     final List<Map<String, String>> listMetadataStack = <Map<String, String>>[];
     final List<String> currentTableRowCells = <String>[];
+    final List<DocumentBlock> currentTableRows = <DocumentBlock>[];
     var currentTableRowIndex = 0;
 
     int translatorAdditionDepth = 0;
@@ -348,6 +349,7 @@ class OsisParser extends BaseParser {
               currentVerse == null) {
             insideTable = true;
             currentTableRowIndex = 0;
+            currentTableRows.clear();
             currentTableMetadata = {
               ..._currentSectionMetadata(sectionDivMetadataStack),
               ..._tableMetadataFromEvent(event),
@@ -660,27 +662,44 @@ class OsisParser extends BaseParser {
             if (insideTableRow && currentTableRowCells.isNotEmpty) {
               final rowText = currentTableRowCells
                   .where((cell) => cell.isNotEmpty)
-                  .join(' | ');
+                  .join(' ');
               final rowMetadata = {
                 ...currentTableRowMetadata,
                 'cellCount': currentTableRowCells.length.toString(),
-                'cellTexts': currentTableRowCells.join('\t'),
+                'cells': currentTableRowCells.join('\t'),
               };
-              final block = DocumentBlock(
-                kind: DocumentBlockKind.paragraph,
-                text: rowText,
-                metadata: rowMetadata,
+              currentTableRows.add(
+                DocumentBlock(
+                  kind: DocumentBlockKind.tableRow,
+                  text: rowText,
+                  metadata: rowMetadata,
+                ),
               );
-              if (currentChapter == null) {
-                currentBook.introductionBlocks.add(block);
-              } else {
-                currentChapter.blocks.add(block);
-              }
             }
             insideTableRow = false;
             currentTableRowCells.clear();
             currentTableRowMetadata = const {};
           } else if (event.name == 'table' && currentBook != null) {
+            if (insideTable && currentTableRows.isNotEmpty) {
+              final tableBlock = DocumentBlock(
+                kind: DocumentBlockKind.table,
+                text: currentTableRows
+                    .map((row) => row.text)
+                    .where((text) => text.isNotEmpty)
+                    .join(' '),
+                metadata: {
+                  ...currentTableMetadata,
+                  'rowCount': currentTableRows.length.toString(),
+                },
+              );
+              if (currentChapter == null) {
+                currentBook.introductionBlocks.add(tableBlock);
+                currentBook.introductionBlocks.addAll(currentTableRows);
+              } else {
+                currentChapter.blocks.add(tableBlock);
+                currentChapter.blocks.addAll(currentTableRows);
+              }
+            }
             insideTable = false;
             insideTableRow = false;
             insideTableCell = false;
@@ -689,6 +708,7 @@ class OsisParser extends BaseParser {
             currentTableCellMetadata = const {};
             currentTableCellText = '';
             currentTableRowCells.clear();
+            currentTableRows.clear();
           } else if (event.name == 'list' && currentBook != null) {
             if (listMetadataStack.isNotEmpty) {
               listMetadataStack.removeLast();
