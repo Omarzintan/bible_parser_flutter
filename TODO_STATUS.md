@@ -24,6 +24,7 @@ Status meanings:
 
 ## Completed Recently
 
+- `done` Preserved top-level Zefania `INFORMATION` metadata as carried front-matter blocks with `scope: bible` so source title/description metadata no longer disappears completely.
 - `done` Preserved `beforeVerse` metadata on OSIS chapter-level titles that appear before verse 1, so Psalm superscriptions and similar source titles can be positioned more reliably by the reader.
 - `done` Preserved empty OSIS poetry-line markers inside `<lg><l /></lg>` blocks by recording stanza-break metadata instead of dropping those layout cues entirely.
 - `done` Classified OSIS paragraph markers like `type="x-ms"` as heading-like structural blocks instead of generic prose, so major section markers from real files survive with better semantics.
@@ -37,7 +38,7 @@ Status meanings:
 
 - `partial` Phase 1 shared rich-content model types now exist in code, and all three main parser formats now populate part of them, but output is still incomplete and format fidelity is still lossy.
 - `in_progress` USFX, OSIS, and Zefania now all preserve some structured spans, notes, references, front matter, headings, paragraph starts, and layout metadata, but the output is still incomplete and source fidelity is still lossy.
-- `in_progress` The active parser gap is remaining non-verse layout structure beyond the current title, paragraph, list, line-group, speaker, caption, simple break, nested section, basic list-item, line-break, title-metadata, major-section paragraph, empty poetry-line, and chapter-title placement handling, especially where source files expose richer sectional tags than the shared model keeps.
+- `in_progress` The active parser gap is remaining non-verse layout structure beyond the current title, paragraph, list, line-group, speaker, caption, simple break, nested section, basic list-item, line-break, title-metadata, major-section paragraph, empty poetry-line, chapter-title placement, and carried Zefania `INFORMATION` handling, especially where source files expose richer sectional tags than the shared model keeps.
 
 | Feature | USFX | OSIS | Zefania | Notes |
 |---|---|---|---|---|

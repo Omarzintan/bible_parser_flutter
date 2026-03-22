@@ -102,6 +102,8 @@ class ZefaniaParser extends BaseParser {
     bool insideNote = false;
     bool insideXref = false;
     bool insideParagraph = false;
+    bool insideInformation = false;
+    String? currentInformationTag;
 
     String currentPrologText = '';
     String currentCaptionText = '';
@@ -111,10 +113,12 @@ class ZefaniaParser extends BaseParser {
     String? currentXrefTarget;
     String? currentXrefMarker;
     String currentParagraphText = '';
+    String currentInformationText = '';
     Map<String, String> currentPrologMetadata = const {};
     Map<String, String> currentCaptionMetadata = const {};
     Map<String, String> currentParagraphMetadata = const {};
     DocumentBlock? pendingParagraphBlock;
+    final List<DocumentBlock> pendingBibleInformationBlocks = <DocumentBlock>[];
 
     int wordsOfJesusDepth = 0;
     int translatorAdditionDepth = 0;
@@ -147,10 +151,26 @@ class ZefaniaParser extends BaseParser {
               introductionBlocks: <DocumentBlock>[],
             );
 
+            if (pendingBibleInformationBlocks.isNotEmpty) {
+              // Zefania places Bible-level metadata before the first book.
+              // Until the shared model gets true Bible-level front matter,
+              // carry these blocks onto the first book so that metadata does
+              // not disappear between parse and render.
+              currentBook.introductionBlocks.addAll(
+                List<DocumentBlock>.from(pendingBibleInformationBlocks),
+              );
+              pendingBibleInformationBlocks.clear();
+            }
+
             final bookTitle = _attributeValue(event, 'bname');
             if (bookTitle != null && bookTitle.isNotEmpty) {
               currentBook.tocLabels.add(TocLabel(text: bookTitle, level: 1));
             }
+          } else if (event.name == 'INFORMATION') {
+            insideInformation = true;
+          } else if (insideInformation) {
+            currentInformationTag = event.name;
+            currentInformationText = '';
           } else if (event.name == 'CHAPTER' && currentBook != null) {
             final chapterNum =
                 int.tryParse(_attributeValue(event, 'cnumber') ?? '') ?? 1;
@@ -249,6 +269,26 @@ class ZefaniaParser extends BaseParser {
             currentBook = null;
             currentChapter = null;
             currentVerse = null;
+          } else if (event.name == 'INFORMATION') {
+            insideInformation = false;
+            currentInformationTag = null;
+            currentInformationText = '';
+          } else if (insideInformation && currentInformationTag == event.name) {
+            final text = currentInformationText.trim();
+            if (text.isNotEmpty) {
+              pendingBibleInformationBlocks.add(
+                DocumentBlock(
+                  kind: _informationBlockKind(event.name),
+                  text: text,
+                  metadata: {
+                    'sourceTag': event.name,
+                    'scope': 'bible',
+                  },
+                ),
+              );
+            }
+            currentInformationTag = null;
+            currentInformationText = '';
           } else if (event.name == 'CHAPTER' &&
               currentBook != null &&
               currentChapter != null) {
@@ -359,7 +399,10 @@ class ZefaniaParser extends BaseParser {
           final cleaned = _normalizeInlineText(event.value);
           if (cleaned.isEmpty) continue;
 
-          if (insideProlog && currentBook != null) {
+          if (insideInformation && currentInformationTag != null) {
+            currentInformationText =
+                _appendText(currentInformationText, cleaned);
+          } else if (insideProlog && currentBook != null) {
             currentPrologText = _appendText(currentPrologText, cleaned);
           } else if (insideCaption &&
               currentBook != null &&
@@ -719,6 +762,17 @@ class ZefaniaParser extends BaseParser {
       }
     }
     return metadata;
+  }
+
+  DocumentBlockKind _informationBlockKind(String tagName) {
+    final normalized = tagName.toLowerCase();
+    if (normalized == 'title' || normalized == 'subject') {
+      return DocumentBlockKind.heading;
+    }
+    if (normalized == 'description' || normalized == 'rights') {
+      return DocumentBlockKind.preface;
+    }
+    return DocumentBlockKind.introduction;
   }
 
   BibleStyleContext _styleContextFromEvent(XmlStartElementEvent event) {

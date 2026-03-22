@@ -997,6 +997,21 @@ void main() {
   </BIBLEBOOK>
 </XMLBIBLE>
 ''';
+    final sampleZefaniaInformationXml = '''
+<?xml version="1.0" encoding="UTF-8"?>
+<XMLBIBLE>
+  <INFORMATION>
+    <title>Sample Bible</title>
+    <description>Sample description text.</description>
+    <language>ENG</language>
+  </INFORMATION>
+  <BIBLEBOOK bnumber="43" bname="John" bsname="JHN">
+    <CHAPTER cnumber="1">
+      <VERS vnumber="1">In the beginning was the Word.</VERS>
+    </CHAPTER>
+  </BIBLEBOOK>
+</XMLBIBLE>
+''';
 
     test('ZefaniaParser can parse sample XML', () async {
       final parser = ZefaniaParser(sampleZefaniaXml);
@@ -1125,6 +1140,42 @@ void main() {
               block.metadata['sourceTag'] == 'CAPTION' &&
               block.metadata['vref'] == '1' &&
               block.metadata['type'] == 'outline',
+        ),
+        isTrue,
+      );
+    });
+
+    test('ZefaniaParser preserves top-level INFORMATION metadata', () async {
+      final parser = ZefaniaParser(sampleZefaniaInformationXml);
+
+      final john = (await parser.parseBooks().toList()).first;
+      expect(
+        john.introductionBlocks.any(
+          (block) =>
+              block.kind == DocumentBlockKind.heading &&
+              block.text.contains('Sample Bible') &&
+              block.metadata['sourceTag'] == 'title' &&
+              block.metadata['scope'] == 'bible',
+        ),
+        isTrue,
+      );
+      expect(
+        john.introductionBlocks.any(
+          (block) =>
+              block.kind == DocumentBlockKind.preface &&
+              block.text.contains('Sample description text.') &&
+              block.metadata['sourceTag'] == 'description' &&
+              block.metadata['scope'] == 'bible',
+        ),
+        isTrue,
+      );
+      expect(
+        john.introductionBlocks.any(
+          (block) =>
+              block.kind == DocumentBlockKind.introduction &&
+              block.text.contains('ENG') &&
+              block.metadata['sourceTag'] == 'language' &&
+              block.metadata['scope'] == 'bible',
         ),
         isTrue,
       );
