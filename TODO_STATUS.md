@@ -53,19 +53,18 @@ They are separate from feature backlog — they affect code quality and testabil
 
 ## Recommended Next Step
 
-- `next` Add `originRef` to `CrossReference` for USFX `<xo>` and OSIS `<reference type="source">` origin-verse tags, then surface it in the app's cross-reference display.
+- `next` Improve inline tag support: preserve `<nd>` (divine name / LORD) and `<add>` (translator addition) as distinct span kinds in USFX, verify OSIS `<transChange type="added">` is already working, and add fixture tests for each.
 
 **Why this first:**
 
-- `Footnote.bodyText` is now populated for all three formats; the parallel gap on `CrossReference` is the origin-verse ref (`xo`).
-- USFX `<xo>` and OSIS `<reference type="source">` carry the origin verse for a cross-reference block; they are currently merged into the label string or dropped.
+- `CrossReference.originRef` is done. The next highest-value lossy area is inline semantic tags that currently collapse to plain text.
+- `<nd>` (divine name) and `<add>` (translator addition) appear frequently in OT/NT and have distinct visual conventions in print Bibles.
 
 **Definition of done:**
 
-- `CrossReference` gains an `originRef` field.
-- USFX parser sets it from `<xo>` text; OSIS parser sets it from `<reference type="source">` text.
-- At least one fixture test per format passes.
-- App-side `BibleCrossReference` is updated to match and round-trips through JSON.
+- `<nd>` text is preserved as a `divineNameTag` (or similar) span kind.
+- `<add>` / `<transChange type="added">` text is preserved as `translatorAddition` span kind consistently across USFX and OSIS.
+- At least one fixture test per tag passes.
 
 ---
 
@@ -100,6 +99,7 @@ The full per-tag breakdown is in `README.md` under **Format Feature Support**.
 
 ## Completed Recently
 
+- `done` Added `CrossReference.originRef` from USFX `<xo>` and OSIS `<reference type="source">`. Also fixed OSIS cross-reference-only notes being silently dropped. 60 tests pass.
 - `done` OSIS and Zefania parsers now populate `Footnote.bodyText` with the full note text so the app's structured rendering path works for all three formats. 58 tests pass.
 - `done` USFX footnote parts separated: `Footnote` gains `bodyText` (`<ft>`) and `quotedText` (`<fq>`/`<fqa>`). Legacy `text` unchanged. App model and serializer updated. 58 tests pass.
 - `done` Added fixture-based regression tests (`test/parser_fixture_test.dart`) covering basic verse text, footnotes, cross-references, red-letter spans, and section headings for all three formats (14 tests, 57 total pass).
