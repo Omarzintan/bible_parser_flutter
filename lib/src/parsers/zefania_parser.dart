@@ -111,6 +111,8 @@ class ZefaniaParser extends BaseParser {
     String? currentXrefTarget;
     String? currentXrefMarker;
     String currentParagraphText = '';
+    Map<String, String> currentPrologMetadata = const {};
+    Map<String, String> currentCaptionMetadata = const {};
     Map<String, String> currentParagraphMetadata = const {};
     DocumentBlock? pendingParagraphBlock;
 
@@ -160,11 +162,19 @@ class ZefaniaParser extends BaseParser {
           } else if (event.name == 'PROLOG' && currentBook != null) {
             insideProlog = true;
             currentPrologText = '';
+            currentPrologMetadata = _blockMetadataFromEvent(
+              event,
+              sourceTag: 'PROLOG',
+            );
           } else if (event.name == 'CAPTION' &&
               currentBook != null &&
               currentChapter != null) {
             insideCaption = true;
             currentCaptionText = '';
+            currentCaptionMetadata = _blockMetadataFromEvent(
+              event,
+              sourceTag: 'CAPTION',
+            );
           } else if (event.name == 'VERS' &&
               currentBook != null &&
               currentChapter != null) {
@@ -251,11 +261,13 @@ class ZefaniaParser extends BaseParser {
                 DocumentBlock(
                   kind: DocumentBlockKind.introduction,
                   text: text,
+                  metadata: currentPrologMetadata,
                 ),
               );
             }
             insideProlog = false;
             currentPrologText = '';
+            currentPrologMetadata = const {};
           } else if (event.name == 'CAPTION' &&
               currentBook != null &&
               currentChapter != null) {
@@ -265,11 +277,13 @@ class ZefaniaParser extends BaseParser {
                 DocumentBlock(
                   kind: DocumentBlockKind.heading,
                   text: text,
+                  metadata: currentCaptionMetadata,
                 ),
               );
             }
             insideCaption = false;
             currentCaptionText = '';
+            currentCaptionMetadata = const {};
           } else if (event.name == 'VERS' &&
               currentBook != null &&
               currentChapter != null &&
@@ -692,6 +706,19 @@ class ZefaniaParser extends BaseParser {
       return DocumentBlockKind.poetry;
     }
     return DocumentBlockKind.paragraph;
+  }
+
+  Map<String, String> _blockMetadataFromEvent(
+    XmlStartElementEvent event, {
+    required String sourceTag,
+  }) {
+    final metadata = <String, String>{'sourceTag': sourceTag};
+    for (final attribute in event.attributes) {
+      if (attribute.value.isNotEmpty) {
+        metadata[attribute.name] = attribute.value;
+      }
+    }
+    return metadata;
   }
 
   BibleStyleContext _styleContextFromEvent(XmlStartElementEvent event) {

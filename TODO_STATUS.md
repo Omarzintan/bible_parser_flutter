@@ -10,11 +10,12 @@ Status meanings:
 
 ## Current Status
 
+- `done` OSIS now preserves pre-chapter intro paragraphs and `head` blocks as structured intro/chapter content, and Zefania now preserves source metadata on `PROLOG` and `CAPTION` blocks so more non-USFX layout survives parsing.
 - `done` USFX now preserves more ignored front-matter and section tags such as `imt1`, `ip`, `mt1`, `is1`, `cl`, `s1`, and `d` as structured document blocks with source-tag metadata instead of dropping them before the app can render them.
 - `partial` Phase 1 shared rich-content model types now exist in code, and all three main parser formats now populate part of them, but output is still incomplete and format fidelity is still lossy.
 - `in_progress` Rich parser work is now active across all main app formats: USFX, OSIS, and Zefania all preserve some structured spans, notes, references, and front-matter content.
 - `in_progress` All three main parser formats now emit chapter paragraph-start blocks where their source files expose paragraph markers, and they now preserve more source-driven poetry line starts as span metadata, but the coverage is still lossy and depends on what each XML source actually contains.
-- `in_progress` The next parser-formatting slice is expanding comparable front-matter and section-layout coverage in OSIS and Zefania so document mode depends less on USFX-specific richness.
+- `in_progress` The next parser slice should focus on richer non-verse layout tags beyond titles and simple paragraphs, especially where OSIS or Zefania can expose more poetic or sectional structure than the shared model currently keeps.
 
 | Feature | USFX | OSIS | Zefania | Notes |
 |---|---|---|---|---|
@@ -25,11 +26,11 @@ Status meanings:
 | Red-letter text | partial | partial | partial | Zefania can now infer red-letter style from style metadata where the source uses that convention. |
 | Poetry / quoted line structure | partial | partial | partial | All three formats now preserve more source-driven poetry/quote line starts, but coverage is still incomplete and not lossless. |
 | Paragraph boundaries | partial | partial | partial | All three now preserve chapter paragraph-start markers in the shared block model when the source exposes them, but this is still not full layout fidelity. |
-| Section headings / titles | partial | partial | partial | All three formats now preserve some headings/titles as introduction or chapter blocks. |
+| Section headings / titles | partial | partial | partial | All three formats now preserve more heading/title blocks, including source-tag metadata in several front-matter cases, but coverage is still incomplete. |
 | Word-level metadata | partial | partial | partial | Zefania can now preserve some style/`gr` metadata, though it is less explicit than USFX/OSIS word markup. |
 | Translator additions | partial | partial | partial | Zefania can now infer translator-addition spans from italic/add-style conventions where present. |
 | Inline formatting spans | partial | partial | partial | Canonical span output exists in all three formats for some semantics, but broader style coverage is still not modeled. |
-| Introductions / front matter | partial | partial | partial | Zefania now preserves `PROLOG`/`CAPTION` content alongside the existing USFX and OSIS front-matter support. |
+| Introductions / front matter | partial | partial | partial | OSIS now preserves pre-chapter intro paragraphs and Zefania preserves `PROLOG`/`CAPTION` metadata alongside the existing USFX front-matter support. |
 | Structured notes model | partial | partial | partial | Structured note/reference objects now exist in all three formats, but still coexist with legacy plain-text lists and remain lossy. |
 | Lossless round-trip friendliness | todo | todo | todo | Current parser is optimized for reading, not preservation. |
 | Format-fidelity target | todo | todo | todo | The long-term goal is to preserve as much meaningful structure as practical across all supported formats. |

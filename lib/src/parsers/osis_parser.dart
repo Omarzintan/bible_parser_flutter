@@ -98,12 +98,15 @@ class OsisParser extends BaseParser {
     Verse? currentVerse;
 
     bool insideTitle = false;
+    bool insideHead = false;
     bool insideNote = false;
     bool insideReference = false;
     bool insideParagraph = false;
 
     String currentTitleText = '';
     String? currentTitleType;
+    String currentHeadText = '';
+    Map<String, String> currentHeadMetadata = const {};
 
     String currentNoteText = '';
     String? currentNoteLabel;
@@ -205,6 +208,12 @@ class OsisParser extends BaseParser {
             insideTitle = true;
             currentTitleText = '';
             currentTitleType = _attributeValue(event, 'type');
+          } else if (event.name == 'head' &&
+              currentBook != null &&
+              currentVerse == null) {
+            insideHead = true;
+            currentHeadText = '';
+            currentHeadMetadata = _headMetadataFromEvent(event);
           } else if (event.name == 'note' && currentVerse != null) {
             insideNote = true;
             currentNoteText = '';
@@ -219,11 +228,13 @@ class OsisParser extends BaseParser {
             currentReferenceMarker = _attributeValue(event, 'n');
           } else if (event.name == 'p' &&
               currentBook != null &&
-              currentChapter != null &&
               currentVerse == null) {
             insideParagraph = true;
             currentParagraphText = '';
-            currentParagraphMetadata = _paragraphMetadataFromEvent(event);
+            currentParagraphMetadata = {
+              ..._paragraphMetadataFromEvent(event),
+              'sourceTag': 'p',
+            };
             pendingParagraphBlock = DocumentBlock(
               kind: _paragraphKindFromMetadata(currentParagraphMetadata),
               text: '',
@@ -279,6 +290,10 @@ class OsisParser extends BaseParser {
                   DocumentBlock(
                     kind: _titleBlockKind(currentTitleType),
                     text: titleText,
+                    metadata: {
+                      'sourceTag': 'title',
+                      if (currentTitleType != null) 'type': currentTitleType,
+                    },
                   ),
                 );
               } else {
@@ -286,6 +301,10 @@ class OsisParser extends BaseParser {
                   DocumentBlock(
                     kind: DocumentBlockKind.heading,
                     text: titleText,
+                    metadata: {
+                      'sourceTag': 'title',
+                      if (currentTitleType != null) 'type': currentTitleType,
+                    },
                   ),
                 );
               }
@@ -293,6 +312,27 @@ class OsisParser extends BaseParser {
             insideTitle = false;
             currentTitleText = '';
             currentTitleType = null;
+          } else if (event.name == 'head' && currentBook != null) {
+            final headText = currentHeadText.trim();
+            if (headText.isNotEmpty) {
+              final block = DocumentBlock(
+                kind:
+                    _headBlockKind(currentHeadMetadata, currentChapter == null),
+                text: headText,
+                metadata: {
+                  ...currentHeadMetadata,
+                  'sourceTag': 'head',
+                },
+              );
+              if (currentChapter == null) {
+                currentBook.introductionBlocks.add(block);
+              } else {
+                currentChapter.blocks.add(block);
+              }
+            }
+            insideHead = false;
+            currentHeadText = '';
+            currentHeadMetadata = const {};
           } else if (event.name == 'note') {
             if (currentVerse != null && currentNoteText.isNotEmpty) {
               final noteMarker = _normalizeAnnotationMarker(
@@ -347,7 +387,23 @@ class OsisParser extends BaseParser {
             currentReferenceText = '';
             currentReferenceTarget = null;
             currentReferenceMarker = null;
-          } else if (event.name == 'p') {
+          } else if (event.name == 'p' && currentBook != null) {
+            if (currentChapter == null && pendingParagraphBlock != null) {
+              final introText = currentParagraphText.trim();
+              if (introText.isNotEmpty) {
+                currentBook.introductionBlocks.add(
+                  DocumentBlock(
+                    kind: _introBlockKindFromMetadata(
+                      pendingParagraphBlock.metadata,
+                    ),
+                    text: introText,
+                    metadata: pendingParagraphBlock.metadata,
+                  ),
+                );
+              }
+              pendingParagraphBlock = null;
+              currentParagraphText = '';
+            }
             insideParagraph = false;
             currentParagraphMetadata = const {};
           } else if (event.name == 'q' && quoteLevels.isNotEmpty) {
@@ -371,9 +427,9 @@ class OsisParser extends BaseParser {
 
           if (insideTitle) {
             currentTitleText = _appendText(currentTitleText, cleaned);
-          } else if (insideParagraph &&
-              currentChapter != null &&
-              currentVerse == null) {
+          } else if (insideHead) {
+            currentHeadText = _appendText(currentHeadText, cleaned);
+          } else if (insideParagraph && currentVerse == null) {
             currentParagraphText = _appendText(currentParagraphText, cleaned);
           } else if (insideReference) {
             currentReferenceText = _appendText(currentReferenceText, cleaned);
@@ -873,6 +929,42 @@ class OsisParser extends BaseParser {
       return DocumentBlockKind.poetry;
     }
     return DocumentBlockKind.paragraph;
+  }
+
+  Map<String, String> _headMetadataFromEvent(XmlStartElementEvent event) {
+    final metadata = <String, String>{};
+    final type = _attributeValue(event, 'type');
+    if (type != null && type.isNotEmpty) {
+      metadata['type'] = type;
+    }
+    final subType = _attributeValue(event, 'subType');
+    if (subType != null && subType.isNotEmpty) {
+      metadata['subType'] = subType;
+    }
+    return metadata;
+  }
+
+  DocumentBlockKind _headBlockKind(
+    Map<String, String> metadata,
+    bool isIntroductionContext,
+  ) {
+    final combined =
+        '${metadata['type'] ?? ''} ${metadata['subType'] ?? ''}'.toLowerCase();
+    if (combined.contains('preface')) return DocumentBlockKind.preface;
+    if (combined.contains('intro') && isIntroductionContext) {
+      return DocumentBlockKind.introduction;
+    }
+    return DocumentBlockKind.heading;
+  }
+
+  DocumentBlockKind _introBlockKindFromMetadata(Map<String, String> metadata) {
+    final combined =
+        '${metadata['type'] ?? ''} ${metadata['subType'] ?? ''}'.toLowerCase();
+    if (combined.contains('preface')) return DocumentBlockKind.preface;
+    if (_paragraphKindFromMetadata(metadata) == DocumentBlockKind.poetry) {
+      return DocumentBlockKind.poetry;
+    }
+    return DocumentBlockKind.introduction;
   }
 
   String _generatedMarker(int index) {

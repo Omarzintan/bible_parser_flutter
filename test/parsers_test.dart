@@ -83,6 +83,21 @@ void main() {
   </osisText>
 </osis>
 ''';
+    final sampleOsisIntroBlocksXml = '''
+<?xml version="1.0" encoding="UTF-8"?>
+<osis xmlns="http://www.bibletechnologies.net/2003/OSIS/namespace">
+  <osisText osisIDWork="TEST">
+    <div type="book" osisID="John">
+      <head type="major">Book Head</head>
+      <p type="preface">This is the book preface.</p>
+      <chapter osisID="John.1">
+        <head subType="x-section">Section Head</head>
+        <verse osisID="John.1.1">In the beginning was the Word.</verse>
+      </chapter>
+    </div>
+  </osisText>
+</osis>
+''';
     test('OsisParser can parse sample XML', () async {
       final parser = OsisParser(sampleOsisXml);
 
@@ -195,6 +210,42 @@ void main() {
       expect(poetrySpans.first.metadata['lineStart'], equals('true'));
       expect(poetrySpans.first.metadata['quoteLevel'], equals('2'));
       expect(poetrySpans.last.metadata['lineStart'], equals('true'));
+    });
+
+    test('OsisParser preserves intro paragraphs and head blocks', () async {
+      final parser = OsisParser(sampleOsisIntroBlocksXml);
+
+      final john = (await parser.parseBooks().toList()).first;
+      expect(
+        john.introductionBlocks.any(
+          (block) =>
+              block.kind == DocumentBlockKind.heading &&
+              block.text.contains('Book Head') &&
+              block.metadata['sourceTag'] == 'head' &&
+              block.metadata['type'] == 'major',
+        ),
+        isTrue,
+      );
+      expect(
+        john.introductionBlocks.any(
+          (block) =>
+              block.kind == DocumentBlockKind.preface &&
+              block.text.contains('book preface') &&
+              block.metadata['sourceTag'] == 'p' &&
+              block.metadata['type'] == 'preface',
+        ),
+        isTrue,
+      );
+      expect(
+        john.chapters.first.blocks.any(
+          (block) =>
+              block.kind == DocumentBlockKind.heading &&
+              block.text.contains('Section Head') &&
+              block.metadata['sourceTag'] == 'head' &&
+              block.metadata['subType'] == 'x-section',
+        ),
+        isTrue,
+      );
     });
   });
 
@@ -570,6 +621,18 @@ void main() {
   </BIBLEBOOK>
 </XMLBIBLE>
 ''';
+    final sampleZefaniaBlockMetadataXml = '''
+<?xml version="1.0" encoding="UTF-8"?>
+<XMLBIBLE>
+  <BIBLEBOOK bnumber="43" bname="John" bsname="JHN">
+    <PROLOG type="preface">This is the preface to John.</PROLOG>
+    <CHAPTER cnumber="1">
+      <CAPTION vref="1" type="outline">The Witness</CAPTION>
+      <VERS vnumber="1">In the beginning was the Word.</VERS>
+    </CHAPTER>
+  </BIBLEBOOK>
+</XMLBIBLE>
+''';
 
     test('ZefaniaParser can parse sample XML', () async {
       final parser = ZefaniaParser(sampleZefaniaXml);
@@ -672,6 +735,33 @@ void main() {
       expect(poetrySpans, hasLength(2));
       expect(poetrySpans.first.metadata['lineStart'], equals('true'));
       expect(poetrySpans.last.metadata['lineStart'], equals('true'));
+    });
+
+    test('ZefaniaParser preserves source metadata for intro blocks', () async {
+      final parser = ZefaniaParser(sampleZefaniaBlockMetadataXml);
+
+      final john = (await parser.parseBooks().toList()).first;
+      expect(
+        john.introductionBlocks.any(
+          (block) =>
+              block.kind == DocumentBlockKind.introduction &&
+              block.text.contains('preface to John') &&
+              block.metadata['sourceTag'] == 'PROLOG' &&
+              block.metadata['type'] == 'preface',
+        ),
+        isTrue,
+      );
+      expect(
+        john.chapters.first.blocks.any(
+          (block) =>
+              block.kind == DocumentBlockKind.heading &&
+              block.text.contains('The Witness') &&
+              block.metadata['sourceTag'] == 'CAPTION' &&
+              block.metadata['vref'] == '1' &&
+              block.metadata['type'] == 'outline',
+        ),
+        isTrue,
+      );
     });
   });
 }
