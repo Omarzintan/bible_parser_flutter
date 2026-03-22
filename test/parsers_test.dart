@@ -521,13 +521,16 @@ void main() {
   <book id="FRT">
     <imt1>General Preface</imt1>
     <ip>This is preface paragraph text.</ip>
+    <ili1>Preface list item</ili1>
   </book>
   <book id="JHN">
     <mt1>The Gospel According to John</mt1>
     <is1>Prologue</is1>
+    <li1>Intro outline item</li1>
     <cl>Chapter One</cl>
     <c id="1">
       <s1>The Eternal Word</s1>
+      <li2>Indented section item</li2>
       <d>A Psalm-style line</d>
       <v id="1">In the beginning was the Word.</v>
     </c>
@@ -715,6 +718,16 @@ void main() {
         ),
         isTrue,
       );
+      expect(
+        preface.introductionBlocks.any(
+          (block) =>
+              block.kind == DocumentBlockKind.paragraph &&
+              block.text.contains('Preface list item') &&
+              block.metadata['sourceTag'] == 'ili1' &&
+              block.level == 1,
+        ),
+        isTrue,
+      );
 
       final john = books.last;
       expect(
@@ -739,6 +752,16 @@ void main() {
       expect(
         john.introductionBlocks.any(
           (block) =>
+              block.kind == DocumentBlockKind.paragraph &&
+              block.text.contains('Intro outline item') &&
+              block.metadata['sourceTag'] == 'li1' &&
+              block.level == 1,
+        ),
+        isTrue,
+      );
+      expect(
+        john.introductionBlocks.any(
+          (block) =>
               block.kind == DocumentBlockKind.heading &&
               block.text.contains('Chapter One') &&
               block.metadata['sourceTag'] == 'cl',
@@ -752,6 +775,16 @@ void main() {
               block.text.contains('The Eternal Word') &&
               block.metadata['sourceTag'] == 's1' &&
               block.level == 1,
+        ),
+        isTrue,
+      );
+      expect(
+        john.chapters.first.blocks.any(
+          (block) =>
+              block.kind == DocumentBlockKind.paragraph &&
+              block.text.contains('Indented section item') &&
+              block.metadata['sourceTag'] == 'li2' &&
+              block.level == 2,
         ),
         isTrue,
       );

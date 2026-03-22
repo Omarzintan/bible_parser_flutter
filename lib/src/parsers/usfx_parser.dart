@@ -921,7 +921,7 @@ class UsfxParser extends BaseParser {
 
   bool _isStructuredBlockTag(String tagName) {
     return RegExp(
-      r'^(imt\d*|mt\d*|mte\d*|is\d*|ipi?|im|imi|iot|io\d*|ie|ms\d*|s\d*|sp|cl|cd|d)$',
+      r'^(imt\d*|mt\d*|mte\d*|is\d*|ipi?|im|imi|iot|io\d*|ie|ili?\d*|li\d*|ms\d*|s\d*|sp|cl|cd|d)$',
       caseSensitive: false,
     ).hasMatch(tagName);
   }
@@ -947,6 +947,13 @@ class UsfxParser extends BaseParser {
       return isPreface
           ? DocumentBlockKind.preface
           : DocumentBlockKind.introduction;
+    }
+    if (normalized.startsWith('li') || normalized.startsWith('ili')) {
+      // USFX list markers carry meaningful document structure, but the shared
+      // model does not yet expose a first-class list block. Preserve them as
+      // paragraph-like blocks with source metadata so the app can render them
+      // differently without losing the original tag and nesting level.
+      return DocumentBlockKind.paragraph;
     }
     if (normalized == 'd') {
       return DocumentBlockKind.poetry;
