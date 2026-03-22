@@ -1,328 +1,316 @@
-# Bible Parser Todo Status
+# Bible Parser — Todo Status
 
-## Goal
-Track parser work needed to move from plain-text extraction to a richer Bible-data model that can power a proper Bible app.
+## Purpose
 
-Status meanings:
-- `done`: implemented and verified in current code
-- `partial`: some support exists, but output is incomplete or lossy
-- `todo`: not implemented yet
+Track parser work needed to move from plain-text extraction to a richer Bible-data model.
 
-## Operating Instructions
-- Update this file whenever a meaningful parser task starts or finishes.
-- Before making parser changes, add the exact active slice to `Current Status`.
-- After finishing the change, move that slice out of `in_progress` immediately and record the result as `done`.
-- Keep `Current Status` disciplined:
-  - only list truly active or still-unresolved parser work
-  - do not leave finished parser slices there
-  - do not use it for broad long-term vision that belongs in backlog sections
-- Keep `Current Status` short enough to scan quickly.
-- Keep `Priority Backlog` for longer-lived parser goals and unfinished categories.
-- If more than one line says roughly the same thing, collapse them into one clearer line.
-- When a parser slice is verified, add or update a focused test before marking it done.
-- After a meaningful verified parser slice, create a focused commit.
+**Status meanings:**
 
-## Completed Recently
+- `done` — implemented and verified in current code
+- `partial` — some support exists, but output is incomplete or lossy
+- `in_progress` — actively being worked right now
+- `next` — highest-value immediate follow-up
+- `todo` — valuable but not yet the immediate next task
+- `blocked` — cannot move safely without another prerequisite
 
-- `done` Refreshed the public parser README so it now describes the current partial rich-content parser, shared model direction, practical limits, and the direct-parsing / repository-caching usage paths more honestly.
-- `done` Preserved top-level Zefania `INFORMATION` metadata as carried front-matter blocks with `scope: bible` so source title/description metadata no longer disappears completely.
-- `done` Preserved `beforeVerse` metadata on OSIS chapter-level titles that appear before verse 1, so Psalm superscriptions and similar source titles can be positioned more reliably by the reader.
-- `done` Preserved empty OSIS poetry-line markers inside `<lg><l /></lg>` blocks by recording stanza-break metadata instead of dropping those layout cues entirely.
-- `done` Classified OSIS paragraph markers like `type="x-ms"` as heading-like structural blocks instead of generic prose, so major section markers from real files survive with better semantics.
-- `done` Preserved more OSIS title metadata such as `short` and `canonical` so title blocks now keep source navigation/layout hints that real OSIS files already expose.
-- `done` Preserved OSIS `<lb />` break markers as structured layout blocks with source-tag metadata instead of dropping those source line breaks before the reader can use them.
-- `done` Preserved USFX list-style block tags such as `li1`, `li2`, and `ili1` as structured blocks with source-tag and level metadata instead of flattening those list sections away.
-- `done` Preserved OSIS non-verse `<list>` / `<item>` content as structured blocks with list, item, section, and source-tag metadata instead of flattening those list sections away.
-- `done` Fixed OSIS nested section `div` handling so inner `div` blocks no longer incorrectly close the book, and titles/paragraphs inside those sections now preserve section metadata for downstream rendering.
+**Agent rule — required before ending any work session:**
+
+1. Move completed work into `Completed Recently`.
+2. Update `Current Status` to reflect what is actually in the code right now.
+3. Set `Recommended Next Step` to ONE concrete next task.
+4. Trim `Completed Recently` to the last 10 entries — older history lives in `git log`.
+5. Remove any `Current Status` line that is no longer true.
+6. Update `CONTEXT.md` only if a structural decision changed (new model shape, new parser architecture, fixed caveat). Do not update it for routine task completion.
+
+If you skip this step the next agent will start from stale information.
+
+**Operating rules:**
+
+- Before making parser changes, add the active slice to `Current Status`.
+- After finishing, move it to `Completed Recently` immediately — do not leave it in current status.
+- Keep `Current Status` short enough to scan in under 30 seconds.
+- Keep `Recommended Next Step` to ONE item only — replace it when priorities shift.
+- When a parser slice is verified, add or update a focused test before marking done.
+- After a verified slice, create a focused commit.
+
+---
+
+## Known Technical Debt
+
+These are structural issues that will slow down future parser work if not addressed.
+They are separate from feature backlog — they affect code quality and testability.
+
+| Issue | Severity | Description |
+| --- | --- | --- |
+| Parser state explosion | High | Each parser's `parseBooks()` has 40+ local state variables. This is hard to test, easy to break, and hard to read. State should be extracted into a dedicated class or set of smaller methods. |
+| No test coverage | High | There are no regression tests for any of the three parsers. XML edge cases are brutal to debug without fixtures. Every new parser feature should be verified by a test using a real XML snippet before being marked done. |
+| Marker attachment is a heuristic | Medium | Footnote and reference markers are attached to verse text by inserting metadata into "the last span." This breaks when annotations overlap (e.g., red-letter + footnote at the same word). True positional anchoring requires tracking the exact byte or character offset when the caller appears in the XML stream. |
+| Metadata type unsafety | Medium | All span and block metadata is stored as `Map<String, String>`. Numeric values like level or depth get string-converted and back. Missing keys throw at runtime with no compile-time warning. |
+| Legacy plain-text fallback coexists with structured output | Low | `Verse.notes` and `Verse.references` (plain `List<String>`) still exist alongside the newer `Verse.footnotes` and `Verse.crossReferences`. This dual output complicates both parser logic and consumer code. The plain-text lists should eventually be deprecated and removed. |
+| Zefania style inference is fragile | Low | Zefania has no explicit red-letter or translator-addition tags. The parser infers span kinds from `<STYLE type="...">` name patterns. Different source files may use different naming conventions, so this will silently break on new files. |
+
+---
+
+## Recommended Next Step
+
+- `next` Add structured footnote parts (`fr` / `ft` / `fq` as separate fields on `Footnote`) and the missing USFX intro paragraph tags (`ip`, `imt`, `is`).
+
+**Why this first:**
+
+- Fixture tests now exist, so parser internals can be changed safely.
+- Footnote part separation is the highest-value lossy area identified in both TODO files.
+- USFX intro paragraphs are the next most common silently-dropped tag in real source files.
+
+**Definition of done:**
+
+- `Footnote` gains `originRef` (`fr`), `bodyText` (`ft`), and `quotedText` (`fq`) fields alongside the existing `text` fallback.
+- USFX `<ip>`, `<imt>`, `<is>` tags are preserved as book-level introduction blocks.
+- At least one new fixture test per change is added to `parser_fixture_test.dart` and passes.
+- App-side `bible_models.dart` is updated to match if the `Footnote` shape changes.
+
+---
 
 ## Current Status
 
-- `partial` Phase 1 shared rich-content model types now exist in code, and all three main parser formats now populate part of them, but output is still incomplete and format fidelity is still lossy.
-- `in_progress` USFX, OSIS, and Zefania now all preserve some structured spans, notes, references, front matter, headings, paragraph starts, and layout metadata, but the output is still incomplete and source fidelity is still lossy.
-- `in_progress` The active parser gap is remaining non-verse layout structure beyond the current title, paragraph, list, line-group, speaker, caption, simple break, nested section, basic list-item, line-break, title-metadata, major-section paragraph, empty poetry-line, chapter-title placement, and carried Zefania `INFORMATION` handling, especially where source files expose richer sectional tags than the shared model keeps.
+- `partial` All three parser formats now populate part of the shared rich-content model, but output is still incomplete and format fidelity is still lossy across the board.
+- `in_progress` The active gap is the remaining non-verse layout structures — intro paragraphs, quote attribution, divine name, Selah markers, table content, and several inline formatting kinds — that the parsers still drop or flatten.
+- `done` Fixture-based regression tests added (`test/parser_fixture_test.dart`): 14 new tests covering basic verse text, footnotes, cross-references, red-letter spans, and section headings across all three formats. All 57 tests pass.
+
+**Feature coverage summary:**
 
 | Feature | USFX | OSIS | Zefania | Notes |
-|---|---|---|---|---|
-| Book/chapter/verse parsing | done | done | done | Core extraction works in all three parsers. |
+| --- | --- | --- | --- | --- |
+| Book / chapter / verse parsing | done | done | done | Core extraction works in all three formats. |
 | Auto format detection | done | done | done | Detection exists in `BibleParser`. |
-| Footnotes | partial | partial | partial | All three formats now preserve plain strings plus basic structured footnotes, but still do not capture every nested note detail. |
-| Cross references | partial | partial | partial | All three formats now preserve plain strings plus basic structured cross references. |
-| Red-letter text | partial | partial | partial | Zefania can now infer red-letter style from style metadata where the source uses that convention. |
-| Poetry / quoted line structure | partial | partial | partial | USFX, OSIS, and Zefania now preserve more source-driven poetry/quote line starts, including OSIS line groups, but coverage is still incomplete and not lossless. |
-| Paragraph boundaries | partial | partial | partial | All three now preserve chapter paragraph-start markers in the shared block model when the source exposes them, but this is still not full layout fidelity. |
-| Section headings / titles | partial | partial | partial | All three formats now preserve more heading/title blocks, including source-tag metadata in several front-matter cases, but coverage is still incomplete. |
-| Word-level metadata | partial | partial | partial | Zefania can now preserve some style/`gr` metadata, though it is less explicit than USFX/OSIS word markup. |
-| Translator additions | partial | partial | partial | Zefania can now infer translator-addition spans from italic/add-style conventions where present. |
-| Inline formatting spans | partial | partial | partial | Canonical span output exists in all three formats for some semantics, but broader style coverage is still not modeled. |
-| Introductions / front matter | partial | partial | partial | OSIS now preserves pre-chapter intro paragraphs and Zefania preserves `PROLOG`/`CAPTION` metadata alongside the existing USFX front-matter support. |
-| Structured notes model | partial | partial | partial | Structured note/reference objects now exist in all three formats, but still coexist with legacy plain-text lists and remain lossy. |
-| Lossless round-trip friendliness | todo | todo | todo | Current parser is optimized for reading, not preservation. |
-| Format-fidelity target | todo | todo | todo | The long-term goal is to preserve as much meaningful structure as practical across all supported formats. |
-| Shared rich-content model types | done | done | done | Canonical rich-content types now exist; parser behavior still needs to populate them. |
+| Footnotes | partial | partial | partial | Structured `Footnote` objects exist but nested parts like `fr` / `ft` / `fq` are not separated. |
+| Cross-references | partial | partial | partial | Structured `CrossReference` objects exist; multiple refs and targets are partially preserved. |
+| Red-letter text | partial | partial | partial | USFX `<wj>` and OSIS `<q who="Jesus">` tracked; Zefania infers from style metadata. |
+| Poetry / quoted line structure | partial | partial | partial | Line starts and line groups preserved; stanza grouping and quote levels still incomplete. |
+| Paragraph boundaries | partial | partial | partial | Chapter paragraph-start markers preserved in block model; not full layout fidelity. |
+| Section headings / titles | partial | partial | partial | Heading blocks exist; level and source-tag metadata coverage still incomplete. |
+| Word-level metadata | partial | partial | partial | Strong's stored in span metadata map; morphology and lemma dropped. |
+| Translator additions | partial | partial | partial | `<add>` and `<transChange>` tracked; Zefania infers from style conventions. |
+| Inline formatting spans | partial | partial | partial | Canonical span output exists for some semantics; broader style coverage not modeled. |
+| Introductions / front matter | partial | partial | partial | Book-level intro blocks exist in all three; Bible-level front matter still incomplete. |
+| Structured notes model | partial | partial | partial | Structured objects coexist with legacy plain-text lists; still lossy. |
+| Lossless round-trip | todo | todo | todo | Parser is optimized for reading, not preservation. |
+| Shared rich-content model types | done | done | done | `VerseSpan`, `Footnote`, `CrossReference`, `TocLabel`, `DocumentBlock` all exist. |
 
-## Priority Backlog
+The full per-tag breakdown is in `README.md` under **Format Feature Support**.
 
-### 1. Footnotes
-Status: `partial`
+---
 
-What exists now:
-- USFX `<f>` content is appended into `Verse.notes`.
-- USFX also creates basic `Footnote` objects with marker, label, and text.
+## Completed Recently
 
-What is missing:
-- Preserve footnote caller/marker.
-- Preserve nested note parts such as `fr`, `ft`, and nested references.
-- Avoid flattening everything into one opaque string.
+- `done` Added fixture-based regression tests (`test/parser_fixture_test.dart`) covering basic verse text, footnotes, cross-references, red-letter spans, and section headings for all three formats (14 tests, 57 total pass).
+- `done` Added full per-tag format feature support tables to `README.md` for USFX, OSIS, and Zefania, covering every known tag with current support status.
+- `done` Preserved top-level Zefania `INFORMATION` metadata as carried front-matter blocks so source title/description no longer disappears.
+- `done` Preserved `beforeVerse` metadata on OSIS chapter-level titles so Psalm superscriptions can be positioned reliably.
+- `done` Preserved empty OSIS poetry-line markers inside `<lg><l /></lg>` as stanza-break metadata instead of dropping them.
+- `done` Classified OSIS `type="x-ms"` paragraph markers as heading-like structural blocks instead of generic prose.
+- `done` Preserved more OSIS title metadata (`short`, `canonical`) so title blocks keep source navigation hints.
+- `done` Preserved OSIS `<lb />` break markers as structural layout blocks with source-tag metadata.
+- `done` Preserved USFX list-style block tags (`li1`, `li2`, `ili1`) as structured blocks with level metadata.
+- `done` Preserved OSIS `<list>` / `<item>` content as structured blocks.
+- `done` Fixed OSIS nested section `div` handling so inner divs no longer incorrectly close the book.
 
-Recommended next output shape:
-- Introduce a structured footnote model per verse.
-- Keep the plain string list only as a compatibility fallback if needed.
+---
 
-### 2. Red-Letter Text
-Status: `partial`
+## Remaining Work
 
-Why it matters:
-- Many Bible readers want the words of Jesus styled differently.
-- Local example XML already contains the source markers.
+### A. Add test coverage (highest priority)
 
-Observed source markers:
-- USFX: `<wj>`
-- OSIS: `<q who="Jesus">`
+What needs to happen:
 
-Recommended next output shape:
-- Add verse-level inline spans or tokens with a `wordsOfJesus` / `redLetter` style flag.
-- Keep `Verse.text` as a flattened text projection for search and simple UI.
+- Add a `test/` directory with fixture-based parser tests.
+- Cover at minimum: footnotes, cross-references, red-letter text, and section headings for each format.
+- Use real or realistic XML snippets as test inputs, not mocked data.
+- Add a regression test whenever a new parser feature is added.
 
-### 3. Cross-References
-Status: `partial`
+What "done" means:
 
-What exists now:
-- USFX captures text from `<x>`.
-- USFX also creates basic `CrossReference` objects, including `ref tgt="..."` targets when present.
+- `flutter test` runs successfully with at least three tests per parser format.
+- New parser changes can be verified without manually running the full app.
 
-What is missing:
-- Preserve target refs such as `tgt="EZK.10.1"`.
-- Preserve multiple references separately.
-- Normalize references into a structured shape instead of a single flattened string.
+### B. Finish structured footnotes
 
-### 4. Poetry and Quote Structure
-Status: `partial`
+What needs to happen:
 
-Why it matters:
-- Psalms, prophets, beatitudes, and many discourse sections render badly when flattened.
+- Preserve footnote parts as separate fields: `fr` (origin reference), `ft` (body text), `fq` / `fqa` (quoted text).
+- Keep nested references inside footnotes structurally.
+- Preserve the caller marker position so the app knows where in the verse text the marker belongs.
+- Stop relying on `Verse.notes` (plain string list) as the primary output.
 
-Observed source markers:
-- USFX: `<q level="...">`
-- OSIS: quote structures, including `who="Jesus"` in some files
+What "done" means:
 
-Recommended next output shape:
-- Add paragraph/block metadata or inline block tokens.
-- Preserve quote level / indentation information.
+- A verse with multiple footnotes preserves each as a distinct `Footnote` object with separate parts.
+- A footnote with a nested reference keeps that reference structurally, not as merged text.
+- The parser still exposes a plain-text fallback for compatibility only.
 
-### 5. Word-Level Metadata
-Status: `partial`
+### C. Finish structured cross-references
 
-Why it matters:
-- Strong's numbers, lexicon links, and advanced study tools depend on this.
+What needs to happen:
 
-Observed source markers:
-- USFX: `<w s="H7225">beginning</w>`
+- Preserve every cross-reference target (`tgt="EZK.10.1"`, `osisRef="..."`) when the source provides one.
+- Keep multiple references as separate objects, not one flattened string.
+- Preserve the visible marker or label tied to the reference.
+- Preserve `xo` (origin verse) as a field on the reference object.
 
-Recommended next output shape:
-- Add inline tokens for words with optional source metadata.
+What "done" means:
 
-### 6. Translator Additions and Formatting
-Status: `partial`
+- Each cross-reference survives as its own `CrossReference` object with label, marker, and target.
+- Targets like `JHN.1.1` or `EZK.10.1` are preserved reliably across USFX and OSIS.
 
-Observed source markers:
-- USFX: `<add>`
-- likely other formatting tags depending on source file
+### D. Improve inline note and reference anchor placement
 
-Recommended next output shape:
-- Preserve semantic styles in spans instead of collapsing them into plain text.
+What needs to happen:
 
-### 7. Introductions and Front Matter
-Status: `partial`
+- Track the XML position where a footnote caller or reference marker appears in the verse stream.
+- Place the inline marker on the exact span or word boundary the XML specifies, not heuristically on the last span.
+- Reduce cases where overlapping semantics (red-letter text + footnote) cause the marker to detach.
 
-Why it matters:
-- Real Bible XML files include prefaces, toc labels, headings, and book-level front matter.
-- That content is useful in a serious Bible app and is currently being dropped.
+What "done" means:
 
-Observed source markers:
-- USFX: `FRT`, `h`, `toc`, and related intro/front-matter tags
-- OSIS: `title` and other section/front-matter structures
+- Inline note and reference letters render beside the correct words consistently enough to stop relying on fallback ordering.
 
-Recommended next output shape:
-- Add first-class parser output for introduction/front-matter content instead of treating everything as book/chapter/verse only.
+### E. Finish red-letter text support
 
-What exists now:
-- USFX preserves basic `toc` labels and pre-chapter heading/paragraph blocks as structured content.
-- OSIS preserves book titles as introduction blocks and chapter titles as chapter blocks.
-- Zefania preserves `PROLOG` as introduction blocks and `CAPTION` as chapter heading blocks.
+What needs to happen:
 
-What is missing:
-- More complete source coverage
-- Better distinction between Bible-level and book-level front matter
-- Matching support in OSIS and Zefania
-
-### 8. Full Format Fidelity
-Status: `todo`
-
-Goal:
-- Preserve as much meaningful structure from USFX, OSIS, and Zefania as practical, then normalize it into shared parser/app concepts.
-
-Important constraint:
-- Full fidelity is a program of work, not a one-step feature.
-- The parser should not expose every source tag directly to the UI; it should map source tags into canonical concepts first.
-
-## Remaining Work, Written Out
-
-### Parser: What is still left to add
-
-#### A. Finish structured footnotes
-What still needs to happen:
-- Preserve the real footnote caller location, not just the final text value.
-- Keep nested footnote parts separate where the source distinguishes them, such as:
-  - reference prefix
-  - note body
-  - nested references
-  - optional labels or markers
-- Preserve note order exactly as it appears in the source.
-- Stop relying on plain `Verse.notes` as the main output shape.
-
-What "done" should mean:
-- A verse with multiple notes keeps them as distinct structured note objects.
-- A note with nested references keeps those references structurally.
-- The parser still exposes a plain-text fallback only for compatibility.
-
-#### B. Finish structured cross-references
-What still needs to happen:
-- Preserve every cross-reference target when the source provides one.
-- Keep multiple references separate instead of flattening them into one string.
-- Preserve any visible marker or label tied to the reference.
-- Keep reference ordering stable so the app can render them in the right place.
-
-What "done" should mean:
-- Each cross-reference survives as its own object with label, marker, and target when present.
-- Reference targets like `JHN.1.1` or `EZK.10.1` are preserved reliably across formats.
-
-#### C. Improve inline note/reference anchors
-What still needs to happen:
-- Preserve anchor positions more accurately for inline notes and references.
-- Reduce cases where the parser has to guess the attachment point.
-- Keep the marker on the exact span or boundary it belongs to when the XML makes that possible.
-
-What "done" should mean:
-- Inline note letters and reference letters can be rendered beside the right words more consistently.
-- The parser output is stable enough that the app does not need to guess marker placement as often.
-
-#### D. Finish red-letter support
-What still needs to happen:
-- Preserve words-of-Jesus spans everywhere the source marks them.
+- Preserve words-of-Jesus spans wherever the source marks them in all three formats.
 - Avoid losing red-letter boundaries when they overlap with quote structure or line structure.
-- Keep the output in one canonical span model instead of source-specific tag handling leaking outward.
+- Keep output in one canonical `wordsOfJesus` span kind, not leaking source-specific tag names outward.
 
-What "done" should mean:
-- USFX and OSIS preserve red-letter spans reliably.
+What "done" means:
+
+- USFX `<wj>` and OSIS `<q who="Jesus">` preserve red-letter spans reliably.
 - Zefania preserves them where the source style conventions clearly encode them.
 
-#### E. Finish poetry, quote, and line structure
-What still needs to happen:
-- Preserve quote nesting and quote level more consistently.
-- Preserve stanza breaks, line starts, and indentation cues more fully.
-- Preserve more non-verse poetry blocks instead of collapsing them into generic paragraph blocks.
-- Distinguish prose paragraphs from poetic lines more consistently.
+### F. Finish poetry, quote, and line structure
 
-What "done" should mean:
-- Psalms, prophetic poetry, sayings, and beatitude-style content no longer flatten into generic prose when the source provides line structure.
+What needs to happen:
+
+- Preserve quote nesting level more consistently (`<q level="...">`, `<l level="...">`).
+- Preserve stanza breaks, line starts, and indentation cues more fully.
+- Distinguish prose paragraphs from poetic lines — the app should not have to guess from plain text.
+
+What "done" means:
+
+- Psalms, prophetic poetry, beatitudes, and discourse sections no longer flatten into generic prose when the source provides line structure.
 - The app can tell the difference between prose, poetry, and quoted line groups from parser data alone.
 
-#### F. Finish paragraph and break handling
-What still needs to happen:
-- Preserve more paragraph starts, paragraph breaks, blank lines, and minor break markers.
-- Make `beforeVerse` placement more consistent across supported formats.
-- Reduce cases where layout markers are retained only as generic paragraph blocks without enough meaning.
+### G. Finish paragraph and break handling
 
-What "done" should mean:
-- Document mode can follow source paragraph flow with less UI-side guessing.
-- Paragraph-like layout survives consistently in USFX, OSIS, and Zefania.
+What needs to happen:
 
-#### G. Finish introductions and front matter
-What still needs to happen:
-- Preserve more Bible-level front matter, not only book-level content.
-- Preserve prefaces, introductions, titles, section labels, and table-of-contents labels more completely.
-- Distinguish Bible-level front matter from book-level introduction content.
-- Keep stronger source metadata so the app can render these sections differently later.
+- Preserve more paragraph starts, paragraph breaks, and minor break markers across all three formats.
+- Make `beforeVerse` placement consistent — which verse a block attaches to should not vary by format.
+- Reduce cases where layout markers survive only as generic paragraph blocks without enough semantic meaning.
 
-What "done" should mean:
-- Preface and introduction content is no longer dropped for the common source structures used by the supported files.
-- The shared model can represent Bible-level and book-level front matter separately.
+What "done" means:
 
-#### H. Finish section and non-verse layout blocks
-What still needs to happen:
-- Preserve more section markers beyond the current title/head/list/break coverage.
-- Capture more metadata from section-like containers where the source uses nested layout tags.
-- Reduce cases where meaningful source structure is mapped into one generic heading or paragraph block.
+- Document mode in the reader can follow source paragraph flow with less UI-side guessing.
+- Paragraph layout survives consistently across USFX, OSIS, and Zefania.
 
-What "done" should mean:
-- More non-verse layout survives parsing as distinct structured blocks.
-- The reader can render more source structure without heuristics based on plain text.
+### H. Add missing USFX intro paragraph support
 
-#### I. Finish word-level metadata
-What still needs to happen:
-- Preserve Strong's or similar word metadata more reliably.
-- Keep the metadata attached to the exact inline span or token it belongs to.
-- Avoid dropping metadata when the word also participates in other styling like red-letter or additions.
+What needs to happen:
 
-What "done" should mean:
+- Preserve `<ip>`, `<imt>`, `<is>` intro paragraph tags as book-level introduction blocks.
+- Preserve `<io1>` / `<io2>` intro outline entries as structured content.
+- Preserve `<cd>` chapter descriptions as chapter-level blocks.
+
+What "done" means:
+
+- Full USFX book introductions (not only `<h>` and `<toc>`) are available as structured blocks.
+
+### I. Add missing inline tag support (divine name, proper names, Selah, emphasis)
+
+What needs to happen:
+
+- Preserve `<nd>` (divine name / LORD) as a distinct span kind instead of merging into plain text.
+- Preserve `<pn>` (proper name) as a distinct span kind.
+- Preserve `<qs>` (Selah / music cue) as a structured block or span.
+- Preserve `<em>`, `<bd>`, `<it>` as inline formatting spans.
+
+What "done" means:
+
+- These semantics survive in the shared model with their own kind values so the app can render them distinctly.
+
+### J. Finish word-level metadata
+
+What needs to happen:
+
+- Preserve Strong's numbers more reliably (`<w s="H7225">` in USFX, `<w lemma="strong:H1">` in OSIS).
+- Preserve morphology (`<w m="...">`) and lemma (`<w l="...">`) fields alongside the Strong's number.
+- Keep all metadata attached to the exact inline span or word it belongs to.
+
+What "done" means:
+
 - Word-level metadata survives in a structured way suitable for future study features.
+- A word that is both red-letter and has a Strong's number retains both attributes without either being dropped.
 
-#### J. Finish translator additions and semantic formatting
-What still needs to happen:
-- Preserve additions, italics-like semantic additions, and related formatting as structured span kinds.
-- Avoid collapsing all non-normal styling into plain text.
-- Keep enough metadata so the app can render additions differently if desired.
+### K. Finish translator additions and semantic formatting
 
-What "done" should mean:
+What needs to happen:
+
+- Preserve `<add>` (USFX) and `<transChange type="added">` (OSIS) as `translatorAddition` spans reliably.
+- Preserve other semantic inline formatting as distinct span kinds rather than collapsing to plain text.
+- Confirm which Zefania `<STYLE>` type values encode additions in the real source files used by this project.
+
+What "done" means:
+
 - Translator-added words and similar source semantics survive consistently in the span model.
 
-#### K. Reduce format lossiness overall
-What still needs to happen:
-- Review the real source files for USFX, OSIS, and Zefania and identify remaining dropped tags.
-- Add focused regression tests for each meaningful structure that is currently lost.
-- Decide which remaining source tags should map to existing canonical concepts and which need new shared model support.
+### L. Reduce overall format lossiness
 
-What "done" should mean:
+What needs to happen:
+
+- Audit the real USFX, OSIS, and Zefania source files to identify remaining dropped tags.
+- Add focused regression tests for each meaningful structure that is currently silently lost.
+- Decide which remaining source tags map to existing canonical concepts and which need new shared model support.
+- Add OSIS table support (`<table>` / `<row>` / `<cell>`).
+
+What "done" means:
+
 - Parser output is intentionally normalized, not accidentally lossy.
-- Remaining unsupported tags are known and documented instead of being silently dropped by default.
+- Remaining unsupported tags are documented, not silently dropped.
 
-### Parser: Recommended remaining implementation order
-1. Finish note/reference structure and anchor fidelity.
-2. Finish poetry, line, paragraph, and break fidelity.
-3. Finish introductions, front matter, and section-layout coverage.
-4. Finish word metadata and translator-addition fidelity.
-5. Audit remaining dropped tags format by format and add focused tests.
+### M. Phase 2 canonical model (longer-term)
 
-## Suggested Implementation Order
-1. Expand the `Verse` model so it can hold structured inline spans and structured annotations.
-2. Add first-class support for introduction/front-matter content so the parser is no longer limited to book/chapter/verse only.
-3. Add feature tests with real XML snippets for:
-   - USFX footnotes
-   - USFX preface/front matter
-   - USFX `<wj>`
-   - OSIS `<q who="Jesus">`
-   - OSIS titles/front matter
-   - USFX `<w s="...">`
-   - USFX `<q level="...">`
-4. Upgrade the USFX parser first, because it already handles notes/references and local app assets use it heavily.
-5. Upgrade the OSIS parser second for red-letter, title, and note/reference semantics.
-6. Improve Zefania style coverage only after you confirm which style conventions appear in the real source files you care about.
-7. Only then decide how much of the richer model should be stored in `BibleRepository` and app-side databases.
+What needs to happen:
+
+- Replace single-kind `VerseSpan` with composable inline spans that can carry multiple styles at the same time (e.g., a word that is both `wordsOfJesus` and `quote`).
+- Replace separate `Footnote` / `CrossReference` shapes with a unified structured annotation model that preserves kind, caller, label, anchor, and nested parts together.
+- Expand `DocumentBlock` kinds so more section, poetry-line, stanza-break, list-item, and before-verse layout cases survive as explicit kinds rather than generic paragraphs or headings.
+
+What "done" means:
+
+- Parser-side model types can represent overlapping inline semantics without flattening into one `kind`.
+- Structured annotations preserve nested parts and anchor positions.
+- More non-verse layout maps into explicit shared block kinds.
+
+---
+
+## Recommended Implementation Order
+
+1. Add test fixtures and basic parser tests (unblocks everything else).
+2. Finish footnote and cross-reference structure and anchor fidelity.
+3. Finish red-letter text and inline tag support.
+4. Finish poetry, line, paragraph, and break fidelity.
+5. Finish introductions, front matter, and missing USFX intro paragraphs.
+6. Finish word metadata and translator-addition fidelity.
+7. Audit remaining dropped tags by format and add regression tests.
+8. Phase 2 canonical model after the above is stable.
+
+---
 
 ## App Integration Impact
-Any parser upgrade here will likely require matching updates in `basic_bible`, especially:
-- `basic_bible/lib/src/models/bible_models.dart`
-- `basic_bible/lib/src/repositories/app_bible_repository.dart`
-- `basic_bible/lib/src/services/app_database.dart`
 
-The current app can now render some rich inline formatting faithfully, but it still needs better UI for front matter and structured notes.
+Any parser model change will likely require matching updates in `basic_bible`:
+
+- `lib/src/models/bible_models.dart` — app-side model mirrors parser model
+- `lib/src/features/library/data/app_bible_repository.dart` — maps parser output to app models
+- `lib/src/services/app_database.dart` — Drift schema and converters
+
+The current app can render some rich inline formatting, but it still needs better UI for front matter and structured notes once the parser preserves them more completely.
