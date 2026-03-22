@@ -117,6 +117,21 @@ void main() {
   </osisText>
 </osis>
 ''';
+    final sampleOsisSpeakerXml = '''
+<?xml version="1.0" encoding="UTF-8"?>
+<osis xmlns="http://www.bibletechnologies.net/2003/OSIS/namespace">
+  <osisText osisIDWork="TEST">
+    <div type="book" osisID="John">
+      <chapter osisID="John.1">
+        <speaker who="Jesus">Jesus</speaker>
+        <verse osisID="John.1.1">
+          <q who="Jesus">I am the light of the world.</q>
+        </verse>
+      </chapter>
+    </div>
+  </osisText>
+</osis>
+''';
     test('OsisParser can parse sample XML', () async {
       final parser = OsisParser(sampleOsisXml);
 
@@ -293,6 +308,28 @@ void main() {
       expect(poetrySpans.first.metadata['quoteLevel'], equals('1'));
       expect(poetrySpans.last.metadata['lineStart'], equals('true'));
       expect(poetrySpans.last.metadata['quoteLevel'], equals('2'));
+    });
+
+    test('OsisParser preserves speaker blocks', () async {
+      final parser = OsisParser(sampleOsisSpeakerXml);
+
+      final chapter = (await parser.parseBooks().toList()).first.chapters.first;
+      expect(
+        chapter.blocks.any(
+          (block) =>
+              block.kind == DocumentBlockKind.heading &&
+              block.text == 'Jesus' &&
+              block.metadata['sourceTag'] == 'speaker' &&
+              block.metadata['who'] == 'Jesus',
+        ),
+        isTrue,
+      );
+
+      final verse = chapter.verses.first;
+      expect(
+        verse.spans.any((span) => span.kind == VerseSpanKind.wordsOfJesus),
+        isTrue,
+      );
     });
   });
 

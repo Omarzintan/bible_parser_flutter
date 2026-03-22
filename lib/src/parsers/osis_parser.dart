@@ -99,6 +99,7 @@ class OsisParser extends BaseParser {
 
     bool insideTitle = false;
     bool insideHead = false;
+    bool insideSpeaker = false;
     bool insideNote = false;
     bool insideReference = false;
     bool insideParagraph = false;
@@ -109,6 +110,8 @@ class OsisParser extends BaseParser {
     String? currentTitleType;
     String currentHeadText = '';
     Map<String, String> currentHeadMetadata = const {};
+    String currentSpeakerText = '';
+    Map<String, String> currentSpeakerMetadata = const {};
 
     String currentNoteText = '';
     String? currentNoteLabel;
@@ -217,6 +220,12 @@ class OsisParser extends BaseParser {
             insideHead = true;
             currentHeadText = '';
             currentHeadMetadata = _headMetadataFromEvent(event);
+          } else if (event.name == 'speaker' &&
+              currentBook != null &&
+              currentVerse == null) {
+            insideSpeaker = true;
+            currentSpeakerText = '';
+            currentSpeakerMetadata = _speakerMetadataFromEvent(event);
           } else if (event.name == 'note' && currentVerse != null) {
             insideNote = true;
             currentNoteText = '';
@@ -359,6 +368,26 @@ class OsisParser extends BaseParser {
             insideHead = false;
             currentHeadText = '';
             currentHeadMetadata = const {};
+          } else if (event.name == 'speaker' && currentBook != null) {
+            final speakerText = currentSpeakerText.trim();
+            if (speakerText.isNotEmpty) {
+              final block = DocumentBlock(
+                kind: DocumentBlockKind.heading,
+                text: speakerText,
+                metadata: {
+                  ...currentSpeakerMetadata,
+                  'sourceTag': 'speaker',
+                },
+              );
+              if (currentChapter == null) {
+                currentBook.introductionBlocks.add(block);
+              } else {
+                currentChapter.blocks.add(block);
+              }
+            }
+            insideSpeaker = false;
+            currentSpeakerText = '';
+            currentSpeakerMetadata = const {};
           } else if (event.name == 'note') {
             if (currentVerse != null && currentNoteText.isNotEmpty) {
               final noteMarker = _normalizeAnnotationMarker(
@@ -488,6 +517,8 @@ class OsisParser extends BaseParser {
             currentTitleText = _appendText(currentTitleText, cleaned);
           } else if (insideHead) {
             currentHeadText = _appendText(currentHeadText, cleaned);
+          } else if (insideSpeaker) {
+            currentSpeakerText = _appendText(currentSpeakerText, cleaned);
           } else if (insideParagraph && currentVerse == null) {
             currentParagraphText = (insideBlockLine && !currentBlockLineHasText)
                 ? _appendBlockLineText(currentParagraphText, cleaned)
@@ -1022,6 +1053,19 @@ class OsisParser extends BaseParser {
     final subType = _attributeValue(event, 'subType');
     if (subType != null && subType.isNotEmpty) {
       metadata['subType'] = subType;
+    }
+    return metadata;
+  }
+
+  Map<String, String> _speakerMetadataFromEvent(XmlStartElementEvent event) {
+    final metadata = <String, String>{};
+    final who = _attributeValue(event, 'who');
+    if (who != null && who.isNotEmpty) {
+      metadata['who'] = who;
+    }
+    final type = _attributeValue(event, 'type');
+    if (type != null && type.isNotEmpty) {
+      metadata['type'] = type;
     }
     return metadata;
   }
