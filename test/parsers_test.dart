@@ -132,6 +132,23 @@ void main() {
   </osisText>
 </osis>
 ''';
+    final sampleOsisNestedSectionXml = '''
+<?xml version="1.0" encoding="UTF-8"?>
+<osis xmlns="http://www.bibletechnologies.net/2003/OSIS/namespace">
+  <osisText osisIDWork="TEST">
+    <div type="book" osisID="John">
+      <chapter osisID="John.1">
+        <div type="section" subType="x-test-section" osisID="John.1.section.1">
+          <title type="section">Section Title</title>
+          <p type="x-p">Section intro paragraph.</p>
+          <verse osisID="John.1.1">In the beginning was the Word.</verse>
+        </div>
+        <verse osisID="John.1.2">He was in the beginning with God.</verse>
+      </chapter>
+    </div>
+  </osisText>
+</osis>
+''';
     test('OsisParser can parse sample XML', () async {
       final parser = OsisParser(sampleOsisXml);
 
@@ -330,6 +347,37 @@ void main() {
         verse.spans.any((span) => span.kind == VerseSpanKind.wordsOfJesus),
         isTrue,
       );
+    });
+
+    test('OsisParser keeps nested section divs from closing the book',
+        () async {
+      final parser = OsisParser(sampleOsisNestedSectionXml);
+
+      final books = await parser.parseBooks().toList();
+      expect(books, hasLength(1));
+
+      final chapter = books.first.chapters.first;
+      expect(chapter.verses, hasLength(2));
+      expect(chapter.verses.last.num, equals(2));
+
+      final sectionTitle = chapter.blocks.firstWhere(
+        (block) => block.text.contains('Section Title'),
+      );
+      expect(sectionTitle.metadata['sectionType'], equals('section'));
+      expect(
+        sectionTitle.metadata['sectionSubType'],
+        equals('x-test-section'),
+      );
+      expect(
+        sectionTitle.metadata['sectionOsisId'],
+        equals('John.1.section.1'),
+      );
+
+      final sectionParagraph = chapter.blocks.firstWhere(
+        (block) => block.text.contains('Section intro paragraph.'),
+      );
+      expect(sectionParagraph.metadata['sectionType'], equals('section'));
+      expect(sectionParagraph.metadata['sourceTag'], equals('p'));
     });
   });
 

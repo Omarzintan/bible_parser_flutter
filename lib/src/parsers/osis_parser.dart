@@ -130,6 +130,8 @@ class OsisParser extends BaseParser {
     final List<bool> jesusQuoteStack = <bool>[];
     final List<bool> quoteLineStarts = <bool>[];
     final List<int?> lineLevels = <int?>[];
+    final List<Map<String, String>> sectionDivMetadataStack =
+        <Map<String, String>>[];
     Map<String, String>? currentWordMetadata;
     List<String> pendingFootnoteMarkers = <String>[];
     List<String> pendingReferenceMarkers = <String>[];
@@ -158,6 +160,7 @@ class OsisParser extends BaseParser {
               tocLabels: <TocLabel>[],
               introductionBlocks: <DocumentBlock>[],
             );
+            sectionDivMetadataStack.clear();
           } else if (_isChapterStart(event) && currentBook != null) {
             final chapterNum = _readChapterNumber(event);
 
@@ -245,6 +248,7 @@ class OsisParser extends BaseParser {
             currentParagraphText = '';
             currentParagraphMetadata = {
               ..._paragraphMetadataFromEvent(event),
+              ..._currentSectionMetadata(sectionDivMetadataStack),
               'sourceTag': 'p',
             };
             pendingParagraphBlock = DocumentBlock(
@@ -259,6 +263,7 @@ class OsisParser extends BaseParser {
             currentParagraphText = '';
             currentParagraphMetadata = {
               ..._paragraphMetadataFromEvent(event),
+              ..._currentSectionMetadata(sectionDivMetadataStack),
               'sourceTag': 'lg',
             };
             pendingParagraphBlock = DocumentBlock(
@@ -266,6 +271,14 @@ class OsisParser extends BaseParser {
               text: '',
               metadata: currentParagraphMetadata,
             );
+          } else if (event.name == 'div' &&
+              currentBook != null &&
+              !_isBookStart(event)) {
+            // Nested OSIS divs often mark sections inside a book. Track their
+            // metadata separately so closing them does not incorrectly end the
+            // book, and so inner headings/paragraphs can retain section
+            // context for later rendering.
+            sectionDivMetadataStack.add(_sectionMetadataFromEvent(event));
           } else if (event.name == 'l' &&
               currentBook != null &&
               currentVerse == null &&
@@ -293,13 +306,17 @@ class OsisParser extends BaseParser {
           }
         } else if (event is XmlEndElementEvent) {
           if (event.name == 'div' && currentBook != null) {
-            if (currentChapter != null) {
-              currentBook.addChapter(currentChapter);
+            if (sectionDivMetadataStack.isNotEmpty) {
+              sectionDivMetadataStack.removeLast();
+            } else {
+              if (currentChapter != null) {
+                currentBook.addChapter(currentChapter);
+              }
+              yield currentBook;
+              currentBook = null;
+              currentChapter = null;
+              currentVerse = null;
             }
-            yield currentBook;
-            currentBook = null;
-            currentChapter = null;
-            currentVerse = null;
           } else if (event.name == 'chapter' &&
               currentBook != null &&
               currentChapter != null) {
@@ -326,6 +343,7 @@ class OsisParser extends BaseParser {
                     kind: _titleBlockKind(currentTitleType),
                     text: titleText,
                     metadata: {
+                      ..._currentSectionMetadata(sectionDivMetadataStack),
                       'sourceTag': 'title',
                       if (currentTitleType != null) 'type': currentTitleType,
                     },
@@ -337,6 +355,7 @@ class OsisParser extends BaseParser {
                     kind: DocumentBlockKind.heading,
                     text: titleText,
                     metadata: {
+                      ..._currentSectionMetadata(sectionDivMetadataStack),
                       'sourceTag': 'title',
                       if (currentTitleType != null) 'type': currentTitleType,
                     },
@@ -355,6 +374,7 @@ class OsisParser extends BaseParser {
                     _headBlockKind(currentHeadMetadata, currentChapter == null),
                 text: headText,
                 metadata: {
+                  ..._currentSectionMetadata(sectionDivMetadataStack),
                   ...currentHeadMetadata,
                   'sourceTag': 'head',
                 },
@@ -375,6 +395,7 @@ class OsisParser extends BaseParser {
                 kind: DocumentBlockKind.heading,
                 text: speakerText,
                 metadata: {
+                  ..._currentSectionMetadata(sectionDivMetadataStack),
                   ...currentSpeakerMetadata,
                   'sourceTag': 'speaker',
                 },
@@ -1068,6 +1089,34 @@ class OsisParser extends BaseParser {
       metadata['type'] = type;
     }
     return metadata;
+  }
+
+  Map<String, String> _sectionMetadataFromEvent(XmlStartElementEvent event) {
+    final metadata = <String, String>{};
+    final type = _attributeValue(event, 'type');
+    if (type != null && type.isNotEmpty) {
+      metadata['sectionType'] = type;
+    }
+    final subType = _attributeValue(event, 'subType');
+    if (subType != null && subType.isNotEmpty) {
+      metadata['sectionSubType'] = subType;
+    }
+    final osisId = _attributeValue(event, 'osisID');
+    if (osisId != null && osisId.isNotEmpty) {
+      metadata['sectionOsisId'] = osisId;
+    }
+    return metadata;
+  }
+
+  Map<String, String> _currentSectionMetadata(
+    List<Map<String, String>> sectionDivMetadataStack,
+  ) {
+    for (final metadata in sectionDivMetadataStack.reversed) {
+      if (metadata.isNotEmpty) {
+        return metadata;
+      }
+    }
+    return const {};
   }
 
   DocumentBlockKind _headBlockKind(

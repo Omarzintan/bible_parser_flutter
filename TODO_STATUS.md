@@ -22,11 +22,15 @@ Status meanings:
 - When a parser slice is verified, add or update a focused test before marking it done.
 - After a meaningful verified parser slice, create a focused commit.
 
+## Completed Recently
+
+- `done` Fixed OSIS nested section `div` handling so inner `div` blocks no longer incorrectly close the book, and titles/paragraphs inside those sections now preserve section metadata for downstream rendering.
+
 ## Current Status
 
 - `partial` Phase 1 shared rich-content model types now exist in code, and all three main parser formats now populate part of them, but output is still incomplete and format fidelity is still lossy.
 - `in_progress` USFX, OSIS, and Zefania now all preserve some structured spans, notes, references, front matter, headings, paragraph starts, and layout metadata, but the output is still incomplete and source fidelity is still lossy.
-- `in_progress` The active parser gap is remaining non-verse layout structure beyond the current title, paragraph, line-group, speaker, caption, and simple break handling, especially where source files expose richer sectional tags than the shared model keeps.
+- `in_progress` The active parser gap is remaining non-verse layout structure beyond the current title, paragraph, line-group, speaker, caption, simple break, and nested section handling, especially where source files expose richer sectional tags than the shared model keeps.
 
 | Feature | USFX | OSIS | Zefania | Notes |
 |---|---|---|---|---|
