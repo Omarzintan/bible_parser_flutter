@@ -9,6 +9,9 @@ enum VerseSpanKind {
   properName,    // <pn> in USFX — proper noun (person, place)
   selah,         // <qs> in USFX — Selah / music cue at end of poetic line
   acrosticHeading, // <qa> in USFX — acrostic heading letter (e.g. Aleph)
+  emphasis,        // <em> in USFX — general emphasis (renders italic)
+  bold,            // <bd> in USFX — bold text
+  italic,          // <it> in USFX — italic text
 }
 
 class VerseSpan {

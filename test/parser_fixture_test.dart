@@ -219,6 +219,30 @@ const _osisTitle = '''<?xml version="1.0" encoding="utf-8"?>
   </osisText>
 </osis>''';
 
+/// USFX inline emphasis via <em>.
+const _usfxEmphasis = '''<?xml version="1.0" encoding="utf-8"?>
+<usfx xmlns="http://www.bibletechnologies.net/2003/USFX/namespace">
+  <book id="GEN"><c id="1">
+    <v id="1">This is <em>very</em> important.</v>
+  </c></book>
+</usfx>''';
+
+/// USFX bold text via <bd>.
+const _usfxBold = '''<?xml version="1.0" encoding="utf-8"?>
+<usfx xmlns="http://www.bibletechnologies.net/2003/USFX/namespace">
+  <book id="GEN"><c id="1">
+    <v id="1">Thus says <bd>the LORD</bd>.</v>
+  </c></book>
+</usfx>''';
+
+/// USFX italic text via <it>.
+const _usfxItalic = '''<?xml version="1.0" encoding="utf-8"?>
+<usfx xmlns="http://www.bibletechnologies.net/2003/USFX/namespace">
+  <book id="GEN"><c id="1">
+    <v id="1">The book of <it>Genesis</it>.</v>
+  </c></book>
+</usfx>''';
+
 /// USFX proper name via <pn>.
 const _usfxProperName = '''<?xml version="1.0" encoding="utf-8"?>
 <usfx xmlns="http://www.bibletechnologies.net/2003/USFX/namespace">
@@ -402,6 +426,33 @@ void main() {
       expect(addSpans, isNotEmpty,
           reason: 'Expected at least one translatorAddition span from <add>');
       expect(addSpans.first.text, contains('without form'));
+    });
+
+    test('preserves emphasis spans via <em>', () async {
+      final book = await _parseFirstBook(_usfxEmphasis, 'USFX');
+      final verse = _firstVerse(book!);
+      final spans = verse!.spans.where((s) => s.kind == VerseSpanKind.emphasis);
+      expect(spans, isNotEmpty,
+          reason: 'Expected at least one emphasis span from <em>');
+      expect(spans.first.text, contains('very'));
+    });
+
+    test('preserves bold spans via <bd>', () async {
+      final book = await _parseFirstBook(_usfxBold, 'USFX');
+      final verse = _firstVerse(book!);
+      final spans = verse!.spans.where((s) => s.kind == VerseSpanKind.bold);
+      expect(spans, isNotEmpty,
+          reason: 'Expected at least one bold span from <bd>');
+      expect(spans.first.text, contains('the LORD'));
+    });
+
+    test('preserves italic spans via <it>', () async {
+      final book = await _parseFirstBook(_usfxItalic, 'USFX');
+      final verse = _firstVerse(book!);
+      final spans = verse!.spans.where((s) => s.kind == VerseSpanKind.italic);
+      expect(spans, isNotEmpty,
+          reason: 'Expected at least one italic span from <it>');
+      expect(spans.first.text, contains('Genesis'));
     });
 
     test('preserves proper name spans via <pn>', () async {

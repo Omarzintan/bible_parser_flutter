@@ -143,9 +143,9 @@ The tables below map what each supported XML format can express against what the
 | Chapter description | `<cd>` | ✅ | Captured as chapter-level block |
 | List items | `<li1>` `<li2>` `<li3>` | ✅ | Preserved as blocks with level metadata |
 | Intro list items | `<ili1>` `<ili2>` | ✅ | Preserved as blocks |
-| Proper name | `<pn>` | ❌ | Merged into plain text |
-| Selah / music cue | `<qs>` | ❌ | Dropped |
-| Acrostic heading | `<qa>` | ❌ | Dropped |
+| Proper name | `<pn>` | ✅ | Preserved as `properName` span kind |
+| Selah / music cue | `<qs>` | ✅ | Preserved as `selah` span kind |
+| Acrostic heading | `<qa>` | ✅ | Preserved as `acrosticHeading` span kind |
 | Inline emphasis | `<em>` `<bd>` `<it>` | ❌ | Merged into plain text |
 
 ### OSIS
