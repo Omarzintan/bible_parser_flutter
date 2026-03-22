@@ -24,6 +24,7 @@ Status meanings:
 
 ## Completed Recently
 
+- `done` Refreshed the public parser README so it now describes the current partial rich-content parser, shared model direction, practical limits, and the direct-parsing / repository-caching usage paths more honestly.
 - `done` Preserved top-level Zefania `INFORMATION` metadata as carried front-matter blocks with `scope: bible` so source title/description metadata no longer disappears completely.
 - `done` Preserved `beforeVerse` metadata on OSIS chapter-level titles that appear before verse 1, so Psalm superscriptions and similar source titles can be positioned more reliably by the reader.
 - `done` Preserved empty OSIS poetry-line markers inside `<lg><l /></lg>` blocks by recording stanza-break metadata instead of dropping those layout cues entirely.
@@ -173,6 +174,134 @@ Goal:
 Important constraint:
 - Full fidelity is a program of work, not a one-step feature.
 - The parser should not expose every source tag directly to the UI; it should map source tags into canonical concepts first.
+
+## Remaining Work, Written Out
+
+### Parser: What is still left to add
+
+#### A. Finish structured footnotes
+What still needs to happen:
+- Preserve the real footnote caller location, not just the final text value.
+- Keep nested footnote parts separate where the source distinguishes them, such as:
+  - reference prefix
+  - note body
+  - nested references
+  - optional labels or markers
+- Preserve note order exactly as it appears in the source.
+- Stop relying on plain `Verse.notes` as the main output shape.
+
+What "done" should mean:
+- A verse with multiple notes keeps them as distinct structured note objects.
+- A note with nested references keeps those references structurally.
+- The parser still exposes a plain-text fallback only for compatibility.
+
+#### B. Finish structured cross-references
+What still needs to happen:
+- Preserve every cross-reference target when the source provides one.
+- Keep multiple references separate instead of flattening them into one string.
+- Preserve any visible marker or label tied to the reference.
+- Keep reference ordering stable so the app can render them in the right place.
+
+What "done" should mean:
+- Each cross-reference survives as its own object with label, marker, and target when present.
+- Reference targets like `JHN.1.1` or `EZK.10.1` are preserved reliably across formats.
+
+#### C. Improve inline note/reference anchors
+What still needs to happen:
+- Preserve anchor positions more accurately for inline notes and references.
+- Reduce cases where the parser has to guess the attachment point.
+- Keep the marker on the exact span or boundary it belongs to when the XML makes that possible.
+
+What "done" should mean:
+- Inline note letters and reference letters can be rendered beside the right words more consistently.
+- The parser output is stable enough that the app does not need to guess marker placement as often.
+
+#### D. Finish red-letter support
+What still needs to happen:
+- Preserve words-of-Jesus spans everywhere the source marks them.
+- Avoid losing red-letter boundaries when they overlap with quote structure or line structure.
+- Keep the output in one canonical span model instead of source-specific tag handling leaking outward.
+
+What "done" should mean:
+- USFX and OSIS preserve red-letter spans reliably.
+- Zefania preserves them where the source style conventions clearly encode them.
+
+#### E. Finish poetry, quote, and line structure
+What still needs to happen:
+- Preserve quote nesting and quote level more consistently.
+- Preserve stanza breaks, line starts, and indentation cues more fully.
+- Preserve more non-verse poetry blocks instead of collapsing them into generic paragraph blocks.
+- Distinguish prose paragraphs from poetic lines more consistently.
+
+What "done" should mean:
+- Psalms, prophetic poetry, sayings, and beatitude-style content no longer flatten into generic prose when the source provides line structure.
+- The app can tell the difference between prose, poetry, and quoted line groups from parser data alone.
+
+#### F. Finish paragraph and break handling
+What still needs to happen:
+- Preserve more paragraph starts, paragraph breaks, blank lines, and minor break markers.
+- Make `beforeVerse` placement more consistent across supported formats.
+- Reduce cases where layout markers are retained only as generic paragraph blocks without enough meaning.
+
+What "done" should mean:
+- Document mode can follow source paragraph flow with less UI-side guessing.
+- Paragraph-like layout survives consistently in USFX, OSIS, and Zefania.
+
+#### G. Finish introductions and front matter
+What still needs to happen:
+- Preserve more Bible-level front matter, not only book-level content.
+- Preserve prefaces, introductions, titles, section labels, and table-of-contents labels more completely.
+- Distinguish Bible-level front matter from book-level introduction content.
+- Keep stronger source metadata so the app can render these sections differently later.
+
+What "done" should mean:
+- Preface and introduction content is no longer dropped for the common source structures used by the supported files.
+- The shared model can represent Bible-level and book-level front matter separately.
+
+#### H. Finish section and non-verse layout blocks
+What still needs to happen:
+- Preserve more section markers beyond the current title/head/list/break coverage.
+- Capture more metadata from section-like containers where the source uses nested layout tags.
+- Reduce cases where meaningful source structure is mapped into one generic heading or paragraph block.
+
+What "done" should mean:
+- More non-verse layout survives parsing as distinct structured blocks.
+- The reader can render more source structure without heuristics based on plain text.
+
+#### I. Finish word-level metadata
+What still needs to happen:
+- Preserve Strong's or similar word metadata more reliably.
+- Keep the metadata attached to the exact inline span or token it belongs to.
+- Avoid dropping metadata when the word also participates in other styling like red-letter or additions.
+
+What "done" should mean:
+- Word-level metadata survives in a structured way suitable for future study features.
+
+#### J. Finish translator additions and semantic formatting
+What still needs to happen:
+- Preserve additions, italics-like semantic additions, and related formatting as structured span kinds.
+- Avoid collapsing all non-normal styling into plain text.
+- Keep enough metadata so the app can render additions differently if desired.
+
+What "done" should mean:
+- Translator-added words and similar source semantics survive consistently in the span model.
+
+#### K. Reduce format lossiness overall
+What still needs to happen:
+- Review the real source files for USFX, OSIS, and Zefania and identify remaining dropped tags.
+- Add focused regression tests for each meaningful structure that is currently lost.
+- Decide which remaining source tags should map to existing canonical concepts and which need new shared model support.
+
+What "done" should mean:
+- Parser output is intentionally normalized, not accidentally lossy.
+- Remaining unsupported tags are known and documented instead of being silently dropped by default.
+
+### Parser: Recommended remaining implementation order
+1. Finish note/reference structure and anchor fidelity.
+2. Finish poetry, line, paragraph, and break fidelity.
+3. Finish introductions, front matter, and section-layout coverage.
+4. Finish word metadata and translator-addition fidelity.
+5. Audit remaining dropped tags format by format and add focused tests.
 
 ## Suggested Implementation Order
 1. Expand the `Verse` model so it can hold structured inline spans and structured annotations.
