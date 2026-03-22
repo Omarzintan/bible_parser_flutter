@@ -80,6 +80,16 @@ const _usfxCrossRef = '''<?xml version="1.0" encoding="utf-8"?>
   </book>
 </usfx>''';
 
+/// USFX cross-reference with <xo> origin-verse tag.
+const _usfxCrossRefWithOrigin = '''<?xml version="1.0" encoding="utf-8"?>
+<usfx xmlns="http://www.bibletechnologies.net/2003/USFX/namespace">
+  <book id="GEN">
+    <c id="1">
+      <v id="1">In the beginning.<x caller="b"><xo>1:1 </xo><ref tgt="GEN.1.2">Gen. 1:2</ref></x></v>
+    </c>
+  </book>
+</usfx>''';
+
 /// USFX red-letter text via <wj>.
 const _usfxRedLetter = '''<?xml version="1.0" encoding="utf-8"?>
 <usfx xmlns="http://www.bibletechnologies.net/2003/USFX/namespace">
@@ -135,6 +145,18 @@ const _osisCrossRef = '''<?xml version="1.0" encoding="utf-8"?>
     <div type="book" osisID="Gen">
       <chapter osisID="Gen.1">
         <verse osisID="Gen.1.1">God created.<reference osisRef="Gen.1.1">Gen 1:1</reference></verse>
+      </chapter>
+    </div>
+  </osisText>
+</osis>''';
+
+/// OSIS cross-reference note with origin-verse tag.
+const _osisCrossRefWithOrigin = '''<?xml version="1.0" encoding="utf-8"?>
+<osis xmlns="http://www.bibletechnologies.net/2003/OSIS/namespace">
+  <osisText osisIDWork="test">
+    <div type="book" osisID="Gen">
+      <chapter osisID="Gen.1">
+        <verse osisID="Gen.1.1">In the beginning.<note type="crossReference" n="a"><reference type="source">1:1</reference><reference osisRef="Gen.1.2">Gen 1:2</reference></note></verse>
       </chapter>
     </div>
   </osisText>
@@ -289,6 +311,19 @@ void main() {
       expect(verse.references, hasLength(1));
     });
 
+    test('preserves origin ref from <xo> as a separate field', () async {
+      final book = await _parseFirstBook(_usfxCrossRefWithOrigin, 'USFX');
+      final verse = _firstVerse(book!);
+
+      expect(verse!.crossReferences, hasLength(1));
+
+      final ref = verse.crossReferences.first;
+      expect(ref.target, equals('GEN.1.2'));
+      // <xo> text must land in originRef, not be lost.
+      expect(ref.originRef, isNotNull);
+      expect(ref.originRef, contains('1:1'));
+    });
+
     test('preserves red-letter spans via <wj>', () async {
       final book = await _parseFirstBook(_usfxRedLetter, 'USFX');
       final verse = _firstVerse(book!);
@@ -366,6 +401,22 @@ void main() {
 
       // Legacy plain-text list is also populated.
       expect(verse.references, hasLength(1));
+    });
+
+    test('preserves origin ref from <reference type="source"> as a separate field', () async {
+      final book = await _parseFirstBook(_osisCrossRefWithOrigin, 'OSIS');
+      final verse = _firstVerse(book!);
+
+      // The source reference must not create a CrossReference — only the target does.
+      expect(verse!.footnotes, hasLength(1));
+      final fn = verse.footnotes.first;
+      expect(fn.references, hasLength(1));
+
+      final ref = fn.references.first;
+      expect(ref.target, equals('Gen.1.2'));
+      // <reference type="source"> text must land in originRef.
+      expect(ref.originRef, isNotNull);
+      expect(ref.originRef, contains('1:1'));
     });
 
     test('preserves red-letter spans via <q who="Jesus">', () async {

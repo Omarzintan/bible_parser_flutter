@@ -120,6 +120,8 @@ class UsfxParser extends BaseParser {
     String currentReferenceText = '';
     String? currentReferenceTarget;
     String? currentReferenceMarker;
+    bool insideXoTag = false;
+    String currentXoText = '';
     List<String> pendingFootnoteMarkers = <String>[];
     List<String> pendingReferenceMarkers = <String>[];
     var nextAnnotationIndex = 0;
@@ -227,6 +229,10 @@ class UsfxParser extends BaseParser {
             currentReferenceText = '';
             currentReferenceTarget = null;
             currentReferenceMarker = _attributeValue(event, 'caller');
+            insideXoTag = false;
+            currentXoText = '';
+          } else if (event.name == 'xo' && insideCrossReference) {
+            insideXoTag = true;
           } else if (event.name == 'ref' &&
               (insideFootnote || insideCrossReference)) {
             currentReferenceTarget = _attributeValue(event, 'tgt');
@@ -356,6 +362,8 @@ class UsfxParser extends BaseParser {
             insideFootnoteBody = false;
           } else if (event.name == 'fq' || event.name == 'fqa') {
             insideFootnoteQuote = false;
+          } else if (event.name == 'xo') {
+            insideXoTag = false;
           } else if (event.name == 'x') {
             if (currentVerse != null && currentReferenceText.isNotEmpty) {
               final referenceMarker = _normalizeAnnotationMarker(
@@ -368,6 +376,8 @@ class UsfxParser extends BaseParser {
                   label: currentReferenceText,
                   target: currentReferenceTarget,
                   marker: referenceMarker,
+                  originRef:
+                      currentXoText.trim().isEmpty ? null : currentXoText.trim(),
                 ),
               );
               currentVerse = _attachInlineMarker(
@@ -378,9 +388,11 @@ class UsfxParser extends BaseParser {
               );
             }
             insideCrossReference = false;
+            insideXoTag = false;
             currentReferenceText = '';
             currentReferenceTarget = null;
             currentReferenceMarker = null;
+            currentXoText = '';
           } else if (event.name == 'toc' && currentBook != null) {
             final text = currentTocText.trim();
             if (text.isNotEmpty) {
@@ -506,6 +518,9 @@ class UsfxParser extends BaseParser {
             }
           } else if (insideCrossReference && currentVerse != null) {
             currentReferenceText = _appendText(currentReferenceText, cleaned);
+            if (insideXoTag) {
+              currentXoText = _appendText(currentXoText, cleaned);
+            }
           } else if (insideToc && currentBook != null) {
             currentTocText = _appendText(currentTocText, cleaned);
           } else if (insideHeading && currentBook != null) {
@@ -590,6 +605,8 @@ class UsfxParser extends BaseParser {
     String currentReferenceText = '';
     String? currentReferenceTarget;
     String? currentReferenceMarker;
+    bool insideXoTag = false;
+    String currentXoText = '';
     List<String> pendingFootnoteMarkers = <String>[];
     List<String> pendingReferenceMarkers = <String>[];
     var nextAnnotationIndex = 0;
@@ -649,6 +666,10 @@ class UsfxParser extends BaseParser {
             currentReferenceText = '';
             currentReferenceTarget = null;
             currentReferenceMarker = _attributeValue(event, 'caller');
+            insideXoTag = false;
+            currentXoText = '';
+          } else if (event.name == 'xo' && insideCrossReference) {
+            insideXoTag = true;
           } else if (event.name == 'ref' &&
               (insideFootnote || insideCrossReference)) {
             currentReferenceTarget = _attributeValue(event, 'tgt');
@@ -711,6 +732,8 @@ class UsfxParser extends BaseParser {
             insideFootnoteBody = false;
           } else if (event.name == 'fq' || event.name == 'fqa') {
             insideFootnoteQuote = false;
+          } else if (event.name == 'xo') {
+            insideXoTag = false;
           } else if (event.name == 'x') {
             if (currentVerse != null && currentReferenceText.isNotEmpty) {
               final referenceMarker = _normalizeAnnotationMarker(
@@ -723,6 +746,8 @@ class UsfxParser extends BaseParser {
                   label: currentReferenceText,
                   target: currentReferenceTarget,
                   marker: referenceMarker,
+                  originRef:
+                      currentXoText.trim().isEmpty ? null : currentXoText.trim(),
                 ),
               );
               currentVerse = _attachInlineMarker(
@@ -733,9 +758,11 @@ class UsfxParser extends BaseParser {
               );
             }
             insideCrossReference = false;
+            insideXoTag = false;
             currentReferenceText = '';
             currentReferenceTarget = null;
             currentReferenceMarker = null;
+            currentXoText = '';
           } else if (event.name == 'wj' && wordsOfJesusDepth > 0) {
             wordsOfJesusDepth--;
           } else if (event.name == 'add' && translatorAdditionDepth > 0) {

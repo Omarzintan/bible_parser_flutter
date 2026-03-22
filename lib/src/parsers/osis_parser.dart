@@ -122,6 +122,8 @@ class OsisParser extends BaseParser {
     String currentReferenceText = '';
     String? currentReferenceTarget;
     String? currentReferenceMarker;
+    String? currentReferenceType;
+    String currentNoteOriginRef = '';
     String currentParagraphText = '';
     int currentParagraphEmptyLineCount = 0;
     String currentListItemText = '';
@@ -252,6 +254,7 @@ class OsisParser extends BaseParser {
             currentReferenceTarget = _attributeValue(event, 'osisRef') ??
                 _attributeValue(event, 'target');
             currentReferenceMarker = _attributeValue(event, 'n');
+            currentReferenceType = _attributeValue(event, 'type');
           } else if (event.name == 'p' &&
               currentBook != null &&
               currentVerse == null) {
@@ -471,7 +474,9 @@ class OsisParser extends BaseParser {
             currentSpeakerText = '';
             currentSpeakerMetadata = const {};
           } else if (event.name == 'note') {
-            if (currentVerse != null && currentNoteText.isNotEmpty) {
+            if (currentVerse != null &&
+                (currentNoteText.isNotEmpty ||
+                    currentNoteReferences.isNotEmpty)) {
               final noteMarker = _normalizeAnnotationMarker(
                 currentNoteLabel,
                 nextGeneratedMarker,
@@ -496,35 +501,45 @@ class OsisParser extends BaseParser {
             insideNote = false;
             currentNoteText = '';
             currentNoteLabel = null;
+            currentNoteOriginRef = '';
             currentNoteReferences.clear();
           } else if (event.name == 'reference') {
             if (currentVerse != null && currentReferenceText.isNotEmpty) {
-              final referenceMarker = _normalizeAnnotationMarker(
-                currentReferenceMarker,
-                nextGeneratedMarker,
-              );
-              final crossReference = CrossReference(
-                label: currentReferenceText,
-                target: currentReferenceTarget,
-                marker: referenceMarker,
-              );
-              if (insideNote) {
-                currentNoteReferences.add(crossReference);
+              if (currentReferenceType == 'source' && insideNote) {
+                // Origin-verse tag — capture as note origin ref, not a target.
+                currentNoteOriginRef = currentReferenceText.trim();
               } else {
-                currentVerse.references.add(currentReferenceText);
-                currentVerse.crossReferences.add(crossReference);
-                currentVerse = _attachInlineMarker(
-                  currentVerse,
-                  referenceMarker,
-                  metadataKey: 'referenceMarkers',
-                  pendingMarkers: pendingReferenceMarkers,
+                final referenceMarker = _normalizeAnnotationMarker(
+                  currentReferenceMarker,
+                  nextGeneratedMarker,
                 );
+                final crossReference = CrossReference(
+                  label: currentReferenceText,
+                  target: currentReferenceTarget,
+                  marker: referenceMarker,
+                  originRef: insideNote && currentNoteOriginRef.isNotEmpty
+                      ? currentNoteOriginRef
+                      : null,
+                );
+                if (insideNote) {
+                  currentNoteReferences.add(crossReference);
+                } else {
+                  currentVerse.references.add(currentReferenceText);
+                  currentVerse.crossReferences.add(crossReference);
+                  currentVerse = _attachInlineMarker(
+                    currentVerse,
+                    referenceMarker,
+                    metadataKey: 'referenceMarkers',
+                    pendingMarkers: pendingReferenceMarkers,
+                  );
+                }
               }
             }
             insideReference = false;
             currentReferenceText = '';
             currentReferenceTarget = null;
             currentReferenceMarker = null;
+            currentReferenceType = null;
           } else if (event.name == 'p' && currentBook != null) {
             if (currentChapter == null && pendingParagraphBlock != null) {
               final introText = currentParagraphText.trim();
@@ -702,6 +717,8 @@ class OsisParser extends BaseParser {
     String currentReferenceText = '';
     String? currentReferenceTarget;
     String? currentReferenceMarker;
+    String? currentReferenceType;
+    String currentNoteOriginRef = '';
 
     int translatorAdditionDepth = 0;
     int wordsOfJesusDepth = 0;
@@ -758,6 +775,7 @@ class OsisParser extends BaseParser {
             currentReferenceTarget = _attributeValue(event, 'osisRef') ??
                 _attributeValue(event, 'target');
             currentReferenceMarker = _attributeValue(event, 'n');
+            currentReferenceType = _attributeValue(event, 'type');
           } else if (event.name == 'l' && currentVerse != null) {
             lineLevels.add(int.tryParse(_attributeValue(event, 'level') ?? ''));
             quoteLineStarts.add(true);
@@ -782,7 +800,9 @@ class OsisParser extends BaseParser {
             yield currentVerse;
             currentVerse = null;
           } else if (event.name == 'note') {
-            if (currentVerse != null && currentNoteText.isNotEmpty) {
+            if (currentVerse != null &&
+                (currentNoteText.isNotEmpty ||
+                    currentNoteReferences.isNotEmpty)) {
               final noteMarker = _normalizeAnnotationMarker(
                 currentNoteLabel,
                 nextGeneratedMarker,
@@ -807,35 +827,45 @@ class OsisParser extends BaseParser {
             insideNote = false;
             currentNoteText = '';
             currentNoteLabel = null;
+            currentNoteOriginRef = '';
             currentNoteReferences.clear();
           } else if (event.name == 'reference') {
             if (currentVerse != null && currentReferenceText.isNotEmpty) {
-              final referenceMarker = _normalizeAnnotationMarker(
-                currentReferenceMarker,
-                nextGeneratedMarker,
-              );
-              final crossReference = CrossReference(
-                label: currentReferenceText,
-                target: currentReferenceTarget,
-                marker: referenceMarker,
-              );
-              if (insideNote) {
-                currentNoteReferences.add(crossReference);
+              if (currentReferenceType == 'source' && insideNote) {
+                // Origin-verse tag — capture as note origin ref, not a target.
+                currentNoteOriginRef = currentReferenceText.trim();
               } else {
-                currentVerse.references.add(currentReferenceText);
-                currentVerse.crossReferences.add(crossReference);
-                currentVerse = _attachInlineMarker(
-                  currentVerse,
-                  referenceMarker,
-                  metadataKey: 'referenceMarkers',
-                  pendingMarkers: pendingReferenceMarkers,
+                final referenceMarker = _normalizeAnnotationMarker(
+                  currentReferenceMarker,
+                  nextGeneratedMarker,
                 );
+                final crossReference = CrossReference(
+                  label: currentReferenceText,
+                  target: currentReferenceTarget,
+                  marker: referenceMarker,
+                  originRef: insideNote && currentNoteOriginRef.isNotEmpty
+                      ? currentNoteOriginRef
+                      : null,
+                );
+                if (insideNote) {
+                  currentNoteReferences.add(crossReference);
+                } else {
+                  currentVerse.references.add(currentReferenceText);
+                  currentVerse.crossReferences.add(crossReference);
+                  currentVerse = _attachInlineMarker(
+                    currentVerse,
+                    referenceMarker,
+                    metadataKey: 'referenceMarkers',
+                    pendingMarkers: pendingReferenceMarkers,
+                  );
+                }
               }
             }
             insideReference = false;
             currentReferenceText = '';
             currentReferenceTarget = null;
             currentReferenceMarker = null;
+            currentReferenceType = null;
           } else if (event.name == 'l' && currentVerse != null) {
             if (lineLevels.isNotEmpty) {
               lineLevels.removeLast();

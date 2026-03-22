@@ -24,10 +24,15 @@ class CrossReference {
   final String? target;
   final String? marker;
 
+  /// Origin-verse reference from `<xo>` (USFX) or `<reference type="source">`
+  /// (OSIS). Null when the source does not include an explicit origin tag.
+  final String? originRef;
+
   const CrossReference({
     required this.label,
     this.target,
     this.marker,
+    this.originRef,
   });
 }
 
