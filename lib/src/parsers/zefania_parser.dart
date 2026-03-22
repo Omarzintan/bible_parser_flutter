@@ -109,6 +109,7 @@ class ZefaniaParser extends BaseParser {
     String? currentNoteLabel;
     String currentXrefText = '';
     String? currentXrefTarget;
+    String? currentXrefMarker;
     String currentParagraphText = '';
     Map<String, String> currentParagraphMetadata = const {};
     DocumentBlock? pendingParagraphBlock;
@@ -117,6 +118,15 @@ class ZefaniaParser extends BaseParser {
     int translatorAdditionDepth = 0;
     final List<BibleStyleContext> styleStack = <BibleStyleContext>[];
     final List<bool> styleLineStarts = <bool>[];
+    List<String> pendingFootnoteMarkers = <String>[];
+    List<String> pendingReferenceMarkers = <String>[];
+    var nextAnnotationIndex = 0;
+
+    String nextGeneratedMarker() {
+      final marker = _generatedMarker(nextAnnotationIndex);
+      nextAnnotationIndex++;
+      return marker;
+    }
 
     try {
       final events = await parseEvents(content).toList();
@@ -182,6 +192,9 @@ class ZefaniaParser extends BaseParser {
               chapterNum: currentChapter.num,
               bookId: currentBook.id,
             );
+            pendingFootnoteMarkers = <String>[];
+            pendingReferenceMarkers = <String>[];
+            nextAnnotationIndex = 0;
           } else if (event.name == 'NOTE' && currentVerse != null) {
             insideNote = true;
             currentNoteText = '';
@@ -192,6 +205,7 @@ class ZefaniaParser extends BaseParser {
             currentXrefText = '';
             currentXrefTarget = _attributeValue(event, 'fscope') ??
                 _attributeValue(event, 'target');
+            currentXrefMarker = _attributeValue(event, 'n');
           } else if (event.name == 'BR' &&
               currentBook != null &&
               currentChapter != null &&
@@ -264,12 +278,23 @@ class ZefaniaParser extends BaseParser {
             currentVerse = null;
           } else if (event.name == 'NOTE') {
             if (currentVerse != null && currentNoteText.isNotEmpty) {
+              final noteMarker = _normalizeAnnotationMarker(
+                currentNoteLabel,
+                nextGeneratedMarker,
+              );
               currentVerse.notes.add(currentNoteText);
               currentVerse.footnotes.add(
                 Footnote(
                   text: currentNoteText,
+                  marker: noteMarker,
                   label: currentNoteLabel,
                 ),
+              );
+              currentVerse = _attachInlineMarker(
+                currentVerse,
+                noteMarker,
+                metadataKey: 'footnoteMarkers',
+                pendingMarkers: pendingFootnoteMarkers,
               );
             }
             insideNote = false;
@@ -277,17 +302,29 @@ class ZefaniaParser extends BaseParser {
             currentNoteLabel = null;
           } else if (event.name == 'XREF') {
             if (currentVerse != null && currentXrefText.isNotEmpty) {
+              final referenceMarker = _normalizeAnnotationMarker(
+                currentXrefMarker,
+                nextGeneratedMarker,
+              );
               currentVerse.references.add(currentXrefText);
               currentVerse.crossReferences.add(
                 CrossReference(
                   label: currentXrefText,
                   target: currentXrefTarget,
+                  marker: referenceMarker,
                 ),
+              );
+              currentVerse = _attachInlineMarker(
+                currentVerse,
+                referenceMarker,
+                metadataKey: 'referenceMarkers',
+                pendingMarkers: pendingReferenceMarkers,
               );
             }
             insideXref = false;
             currentXrefText = '';
             currentXrefTarget = null;
+            currentXrefMarker = null;
           } else if (event.name == 'BR') {
             insideParagraph = false;
             currentParagraphMetadata = const {};
@@ -337,8 +374,12 @@ class ZefaniaParser extends BaseParser {
                 translatorAdditionDepth: translatorAdditionDepth,
                 styleStack: styleStack,
                 styleLineStarts: styleLineStarts,
+                pendingFootnoteMarkers: pendingFootnoteMarkers,
+                pendingReferenceMarkers: pendingReferenceMarkers,
               ),
             );
+            pendingFootnoteMarkers = <String>[];
+            pendingReferenceMarkers = <String>[];
             if (styleLineStarts.isNotEmpty) {
               styleLineStarts[styleLineStarts.length - 1] = false;
             }
@@ -365,11 +406,21 @@ class ZefaniaParser extends BaseParser {
     String? currentNoteLabel;
     String currentXrefText = '';
     String? currentXrefTarget;
+    String? currentXrefMarker;
 
     int wordsOfJesusDepth = 0;
     int translatorAdditionDepth = 0;
     final List<BibleStyleContext> styleStack = <BibleStyleContext>[];
     final List<bool> styleLineStarts = <bool>[];
+    List<String> pendingFootnoteMarkers = <String>[];
+    List<String> pendingReferenceMarkers = <String>[];
+    var nextAnnotationIndex = 0;
+
+    String nextGeneratedMarker() {
+      final marker = _generatedMarker(nextAnnotationIndex);
+      nextAnnotationIndex++;
+      return marker;
+    }
 
     try {
       final events = await parseEvents(content).toList();
@@ -391,6 +442,9 @@ class ZefaniaParser extends BaseParser {
               chapterNum: currentChapterNum,
               bookId: currentBookId,
             );
+            pendingFootnoteMarkers = <String>[];
+            pendingReferenceMarkers = <String>[];
+            nextAnnotationIndex = 0;
           } else if (event.name == 'NOTE' && currentVerse != null) {
             insideNote = true;
             currentNoteText = '';
@@ -401,6 +455,7 @@ class ZefaniaParser extends BaseParser {
             currentXrefText = '';
             currentXrefTarget = _attributeValue(event, 'fscope') ??
                 _attributeValue(event, 'target');
+            currentXrefMarker = _attributeValue(event, 'n');
           } else if (event.name == 'STYLE' && currentVerse != null) {
             final styleContext = _styleContextFromEvent(event);
             styleStack.add(styleContext);
@@ -418,12 +473,23 @@ class ZefaniaParser extends BaseParser {
             currentVerse = null;
           } else if (event.name == 'NOTE') {
             if (currentVerse != null && currentNoteText.isNotEmpty) {
+              final noteMarker = _normalizeAnnotationMarker(
+                currentNoteLabel,
+                nextGeneratedMarker,
+              );
               currentVerse.notes.add(currentNoteText);
               currentVerse.footnotes.add(
                 Footnote(
                   text: currentNoteText,
+                  marker: noteMarker,
                   label: currentNoteLabel,
                 ),
+              );
+              currentVerse = _attachInlineMarker(
+                currentVerse,
+                noteMarker,
+                metadataKey: 'footnoteMarkers',
+                pendingMarkers: pendingFootnoteMarkers,
               );
             }
             insideNote = false;
@@ -431,17 +497,29 @@ class ZefaniaParser extends BaseParser {
             currentNoteLabel = null;
           } else if (event.name == 'XREF') {
             if (currentVerse != null && currentXrefText.isNotEmpty) {
+              final referenceMarker = _normalizeAnnotationMarker(
+                currentXrefMarker,
+                nextGeneratedMarker,
+              );
               currentVerse.references.add(currentXrefText);
               currentVerse.crossReferences.add(
                 CrossReference(
                   label: currentXrefText,
                   target: currentXrefTarget,
+                  marker: referenceMarker,
                 ),
+              );
+              currentVerse = _attachInlineMarker(
+                currentVerse,
+                referenceMarker,
+                metadataKey: 'referenceMarkers',
+                pendingMarkers: pendingReferenceMarkers,
               );
             }
             insideXref = false;
             currentXrefText = '';
             currentXrefTarget = null;
+            currentXrefMarker = null;
           } else if (event.name == 'STYLE' && styleStack.isNotEmpty) {
             final styleContext = styleStack.removeLast();
             if (styleLineStarts.isNotEmpty) {
@@ -477,8 +555,12 @@ class ZefaniaParser extends BaseParser {
                 translatorAdditionDepth: translatorAdditionDepth,
                 styleStack: styleStack,
                 styleLineStarts: styleLineStarts,
+                pendingFootnoteMarkers: pendingFootnoteMarkers,
+                pendingReferenceMarkers: pendingReferenceMarkers,
               ),
             );
+            pendingFootnoteMarkers = <String>[];
+            pendingReferenceMarkers = <String>[];
             if (styleLineStarts.isNotEmpty) {
               styleLineStarts[styleLineStarts.length - 1] = false;
             }
@@ -656,6 +738,8 @@ class ZefaniaParser extends BaseParser {
     required int translatorAdditionDepth,
     required List<BibleStyleContext> styleStack,
     required List<bool> styleLineStarts,
+    required List<String> pendingFootnoteMarkers,
+    required List<String> pendingReferenceMarkers,
   }) {
     final metadata = <String, String>{};
 
@@ -671,6 +755,12 @@ class ZefaniaParser extends BaseParser {
     }
     if (styleLineStarts.isNotEmpty && styleLineStarts.last) {
       metadata['lineStart'] = 'true';
+    }
+    if (pendingFootnoteMarkers.isNotEmpty) {
+      metadata['footnoteMarkers'] = pendingFootnoteMarkers.join('|');
+    }
+    if (pendingReferenceMarkers.isNotEmpty) {
+      metadata['referenceMarkers'] = pendingReferenceMarkers.join('|');
     }
 
     return metadata;
@@ -693,6 +783,80 @@ class ZefaniaParser extends BaseParser {
       return current + next;
     }
     return '$current $next';
+  }
+
+  String _generatedMarker(int index) {
+    var value = index;
+    final buffer = StringBuffer();
+    do {
+      buffer.writeCharCode('a'.codeUnitAt(0) + (value % 26));
+      value = (value ~/ 26) - 1;
+    } while (value >= 0);
+    return buffer.toString().split('').reversed.join();
+  }
+
+  String _normalizeAnnotationMarker(
+    String? candidate,
+    String Function() fallbackBuilder,
+  ) {
+    final cleaned = candidate?.trim();
+    if (cleaned != null &&
+        cleaned.isNotEmpty &&
+        RegExp(r'^[A-Za-z0-9]+$').hasMatch(cleaned)) {
+      return cleaned.toLowerCase();
+    }
+    return fallbackBuilder();
+  }
+
+  Verse _attachInlineMarker(
+    Verse verse,
+    String marker, {
+    required String metadataKey,
+    required List<String> pendingMarkers,
+  }) {
+    if (verse.spans.isEmpty) {
+      pendingMarkers.add(marker);
+      return verse;
+    }
+
+    final spans = List<VerseSpan>.from(verse.spans);
+    final lastSpan = spans.removeLast();
+    spans.add(
+      VerseSpan(
+        text: lastSpan.text,
+        kind: lastSpan.kind,
+        metadata: _appendMarkerMetadata(lastSpan.metadata, metadataKey, marker),
+      ),
+    );
+
+    return Verse(
+      num: verse.num,
+      chapterNum: verse.chapterNum,
+      text: verse.text,
+      bookId: verse.bookId,
+      notes: verse.notes,
+      references: verse.references,
+      spans: spans,
+      footnotes: verse.footnotes,
+      crossReferences: verse.crossReferences,
+    );
+  }
+
+  Map<String, String> _appendMarkerMetadata(
+    Map<String, String> metadata,
+    String metadataKey,
+    String marker,
+  ) {
+    final markers = (metadata[metadataKey]?.split('|') ?? const <String>[])
+        .where((value) => value.isNotEmpty)
+        .toList();
+    if (!markers.contains(marker)) {
+      markers.add(marker);
+    }
+    return {
+      ...metadata,
+      metadataKey: markers.join('|'),
+    };
   }
 }
 

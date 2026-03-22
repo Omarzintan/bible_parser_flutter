@@ -22,10 +22,12 @@ class VerseSpan {
 class CrossReference {
   final String label;
   final String? target;
+  final String? marker;
 
   const CrossReference({
     required this.label,
     this.target,
+    this.marker,
   });
 }
 

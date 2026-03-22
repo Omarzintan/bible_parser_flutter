@@ -115,6 +115,16 @@ class UsfxParser extends BaseParser {
 
     String currentReferenceText = '';
     String? currentReferenceTarget;
+    String? currentReferenceMarker;
+    List<String> pendingFootnoteMarkers = <String>[];
+    List<String> pendingReferenceMarkers = <String>[];
+    var nextAnnotationIndex = 0;
+
+    String nextGeneratedMarker() {
+      final marker = _generatedMarker(nextAnnotationIndex);
+      nextAnnotationIndex++;
+      return marker;
+    }
 
     String currentHeadingText = '';
     String currentParagraphText = '';
@@ -182,6 +192,9 @@ class UsfxParser extends BaseParser {
               chapterNum: currentChapter.num,
               bookId: currentBook.id,
             );
+            pendingFootnoteMarkers = <String>[];
+            pendingReferenceMarkers = <String>[];
+            nextAnnotationIndex = 0;
           } else if (event.isSelfClosing &&
               event.name == 've' &&
               currentChapter != null &&
@@ -199,6 +212,7 @@ class UsfxParser extends BaseParser {
             insideCrossReference = true;
             currentReferenceText = '';
             currentReferenceTarget = null;
+            currentReferenceMarker = _attributeValue(event, 'caller');
           } else if (event.name == 'ref' &&
               (insideFootnote || insideCrossReference)) {
             currentReferenceTarget = _attributeValue(event, 'tgt');
@@ -268,15 +282,25 @@ class UsfxParser extends BaseParser {
             currentVerse = null;
           } else if (event.name == 'f') {
             if (currentVerse != null && currentFootnoteText.isNotEmpty) {
+              final footnoteMarker = _normalizeAnnotationMarker(
+                currentFootnoteMarker ?? currentFootnoteLabel,
+                nextGeneratedMarker,
+              );
               currentVerse.notes.add(currentFootnoteText);
               currentVerse.footnotes.add(
                 Footnote(
                   text: currentFootnoteText,
-                  marker: currentFootnoteMarker,
+                  marker: footnoteMarker,
                   label: currentFootnoteLabel.isEmpty
                       ? null
                       : currentFootnoteLabel,
                 ),
+              );
+              currentVerse = _attachInlineMarker(
+                currentVerse,
+                footnoteMarker,
+                metadataKey: 'footnoteMarkers',
+                pendingMarkers: pendingFootnoteMarkers,
               );
             }
             insideFootnote = false;
@@ -288,17 +312,29 @@ class UsfxParser extends BaseParser {
             insideFootnoteLabel = false;
           } else if (event.name == 'x') {
             if (currentVerse != null && currentReferenceText.isNotEmpty) {
+              final referenceMarker = _normalizeAnnotationMarker(
+                currentReferenceMarker,
+                nextGeneratedMarker,
+              );
               currentVerse.references.add(currentReferenceText);
               currentVerse.crossReferences.add(
                 CrossReference(
                   label: currentReferenceText,
                   target: currentReferenceTarget,
+                  marker: referenceMarker,
                 ),
+              );
+              currentVerse = _attachInlineMarker(
+                currentVerse,
+                referenceMarker,
+                metadataKey: 'referenceMarkers',
+                pendingMarkers: pendingReferenceMarkers,
               );
             }
             insideCrossReference = false;
             currentReferenceText = '';
             currentReferenceTarget = null;
+            currentReferenceMarker = null;
           } else if (event.name == 'toc' && currentBook != null) {
             final text = currentTocText.trim();
             if (text.isNotEmpty) {
@@ -417,8 +453,12 @@ class UsfxParser extends BaseParser {
                 quoteLevels: quoteLevels,
                 quoteLineStarts: quoteLineStarts,
                 wordMetadata: currentWordMetadata,
+                pendingFootnoteMarkers: pendingFootnoteMarkers,
+                pendingReferenceMarkers: pendingReferenceMarkers,
               ),
             );
+            pendingFootnoteMarkers = <String>[];
+            pendingReferenceMarkers = <String>[];
             if (quoteLineStarts.isNotEmpty) {
               quoteLineStarts[quoteLineStarts.length - 1] = false;
             }
@@ -453,6 +493,16 @@ class UsfxParser extends BaseParser {
 
     String currentReferenceText = '';
     String? currentReferenceTarget;
+    String? currentReferenceMarker;
+    List<String> pendingFootnoteMarkers = <String>[];
+    List<String> pendingReferenceMarkers = <String>[];
+    var nextAnnotationIndex = 0;
+
+    String nextGeneratedMarker() {
+      final marker = _generatedMarker(nextAnnotationIndex);
+      nextAnnotationIndex++;
+      return marker;
+    }
 
     try {
       final events = await parseEvents(content).toList();
@@ -476,6 +526,9 @@ class UsfxParser extends BaseParser {
               chapterNum: currentChapterNum,
               bookId: currentBookId,
             );
+            pendingFootnoteMarkers = <String>[];
+            pendingReferenceMarkers = <String>[];
+            nextAnnotationIndex = 0;
           } else if (event.isSelfClosing &&
               event.name == 've' &&
               currentVerse != null) {
@@ -492,6 +545,7 @@ class UsfxParser extends BaseParser {
             insideCrossReference = true;
             currentReferenceText = '';
             currentReferenceTarget = null;
+            currentReferenceMarker = _attributeValue(event, 'caller');
           } else if (event.name == 'ref' &&
               (insideFootnote || insideCrossReference)) {
             currentReferenceTarget = _attributeValue(event, 'tgt');
@@ -512,15 +566,25 @@ class UsfxParser extends BaseParser {
             currentVerse = null;
           } else if (event.name == 'f') {
             if (currentVerse != null && currentFootnoteText.isNotEmpty) {
+              final footnoteMarker = _normalizeAnnotationMarker(
+                currentFootnoteMarker ?? currentFootnoteLabel,
+                nextGeneratedMarker,
+              );
               currentVerse.notes.add(currentFootnoteText);
               currentVerse.footnotes.add(
                 Footnote(
                   text: currentFootnoteText,
-                  marker: currentFootnoteMarker,
+                  marker: footnoteMarker,
                   label: currentFootnoteLabel.isEmpty
                       ? null
                       : currentFootnoteLabel,
                 ),
+              );
+              currentVerse = _attachInlineMarker(
+                currentVerse,
+                footnoteMarker,
+                metadataKey: 'footnoteMarkers',
+                pendingMarkers: pendingFootnoteMarkers,
               );
             }
             insideFootnote = false;
@@ -532,17 +596,29 @@ class UsfxParser extends BaseParser {
             insideFootnoteLabel = false;
           } else if (event.name == 'x') {
             if (currentVerse != null && currentReferenceText.isNotEmpty) {
+              final referenceMarker = _normalizeAnnotationMarker(
+                currentReferenceMarker,
+                nextGeneratedMarker,
+              );
               currentVerse.references.add(currentReferenceText);
               currentVerse.crossReferences.add(
                 CrossReference(
                   label: currentReferenceText,
                   target: currentReferenceTarget,
+                  marker: referenceMarker,
                 ),
+              );
+              currentVerse = _attachInlineMarker(
+                currentVerse,
+                referenceMarker,
+                metadataKey: 'referenceMarkers',
+                pendingMarkers: pendingReferenceMarkers,
               );
             }
             insideCrossReference = false;
             currentReferenceText = '';
             currentReferenceTarget = null;
+            currentReferenceMarker = null;
           } else if (event.name == 'wj' && wordsOfJesusDepth > 0) {
             wordsOfJesusDepth--;
           } else if (event.name == 'add' && translatorAdditionDepth > 0) {
@@ -583,8 +659,12 @@ class UsfxParser extends BaseParser {
                 quoteLevels: quoteLevels,
                 quoteLineStarts: quoteLineStarts,
                 wordMetadata: currentWordMetadata,
+                pendingFootnoteMarkers: pendingFootnoteMarkers,
+                pendingReferenceMarkers: pendingReferenceMarkers,
               ),
             );
+            pendingFootnoteMarkers = <String>[];
+            pendingReferenceMarkers = <String>[];
             if (quoteLineStarts.isNotEmpty) {
               quoteLineStarts[quoteLineStarts.length - 1] = false;
             }
@@ -721,6 +801,8 @@ class UsfxParser extends BaseParser {
     required List<int?> quoteLevels,
     required List<bool> quoteLineStarts,
     required Map<String, String>? wordMetadata,
+    required List<String> pendingFootnoteMarkers,
+    required List<String> pendingReferenceMarkers,
   }) {
     final metadata = <String, String>{
       ...?wordMetadata,
@@ -737,6 +819,12 @@ class UsfxParser extends BaseParser {
     }
     if (quoteLineStarts.isNotEmpty && quoteLineStarts.last) {
       metadata['lineStart'] = 'true';
+    }
+    if (pendingFootnoteMarkers.isNotEmpty) {
+      metadata['footnoteMarkers'] = pendingFootnoteMarkers.join('|');
+    }
+    if (pendingReferenceMarkers.isNotEmpty) {
+      metadata['referenceMarkers'] = pendingReferenceMarkers.join('|');
     }
 
     return metadata;
@@ -771,5 +859,79 @@ class UsfxParser extends BaseParser {
       return DocumentBlockKind.poetry;
     }
     return DocumentBlockKind.paragraph;
+  }
+
+  String _generatedMarker(int index) {
+    var value = index;
+    final buffer = StringBuffer();
+    do {
+      buffer.writeCharCode('a'.codeUnitAt(0) + (value % 26));
+      value = (value ~/ 26) - 1;
+    } while (value >= 0);
+    return buffer.toString().split('').reversed.join();
+  }
+
+  String _normalizeAnnotationMarker(
+    String? candidate,
+    String Function() fallbackBuilder,
+  ) {
+    final cleaned = candidate?.trim();
+    if (cleaned != null &&
+        cleaned.isNotEmpty &&
+        RegExp(r'^[A-Za-z0-9]+$').hasMatch(cleaned)) {
+      return cleaned.toLowerCase();
+    }
+    return fallbackBuilder();
+  }
+
+  Verse _attachInlineMarker(
+    Verse verse,
+    String marker, {
+    required String metadataKey,
+    required List<String> pendingMarkers,
+  }) {
+    if (verse.spans.isEmpty) {
+      pendingMarkers.add(marker);
+      return verse;
+    }
+
+    final spans = List<VerseSpan>.from(verse.spans);
+    final lastSpan = spans.removeLast();
+    spans.add(
+      VerseSpan(
+        text: lastSpan.text,
+        kind: lastSpan.kind,
+        metadata: _appendMarkerMetadata(lastSpan.metadata, metadataKey, marker),
+      ),
+    );
+
+    return Verse(
+      num: verse.num,
+      chapterNum: verse.chapterNum,
+      text: verse.text,
+      bookId: verse.bookId,
+      notes: verse.notes,
+      references: verse.references,
+      spans: spans,
+      footnotes: verse.footnotes,
+      crossReferences: verse.crossReferences,
+    );
+  }
+
+  Map<String, String> _appendMarkerMetadata(
+    Map<String, String> metadata,
+    String metadataKey,
+    String marker,
+  ) {
+    final markers = (metadata[metadataKey]?.split('|') ?? const <String>[])
+        .where((value) => value.isNotEmpty)
+        .toList();
+    if (!markers.contains(marker)) {
+      markers.add(marker);
+    }
+    return {
+      ...metadata,
+      metadataKey: markers.join('|'),
+    };
   }
 }

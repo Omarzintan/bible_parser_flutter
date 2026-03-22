@@ -111,6 +111,7 @@ class OsisParser extends BaseParser {
 
     String currentReferenceText = '';
     String? currentReferenceTarget;
+    String? currentReferenceMarker;
     String currentParagraphText = '';
     Map<String, String> currentParagraphMetadata = const {};
     DocumentBlock? pendingParagraphBlock;
@@ -121,6 +122,15 @@ class OsisParser extends BaseParser {
     final List<bool> jesusQuoteStack = <bool>[];
     final List<bool> quoteLineStarts = <bool>[];
     Map<String, String>? currentWordMetadata;
+    List<String> pendingFootnoteMarkers = <String>[];
+    List<String> pendingReferenceMarkers = <String>[];
+    var nextAnnotationIndex = 0;
+
+    String nextGeneratedMarker() {
+      final marker = _generatedMarker(nextAnnotationIndex);
+      nextAnnotationIndex++;
+      return marker;
+    }
 
     try {
       final events = await parseEvents(content).toList();
@@ -178,6 +188,9 @@ class OsisParser extends BaseParser {
               chapterNum: currentChapter.num,
               bookId: currentBook.id,
             );
+            pendingFootnoteMarkers = <String>[];
+            pendingReferenceMarkers = <String>[];
+            nextAnnotationIndex = 0;
           } else if (_isChapterEndMarker(event) &&
               currentBook != null &&
               currentChapter != null) {
@@ -203,6 +216,7 @@ class OsisParser extends BaseParser {
             currentReferenceText = '';
             currentReferenceTarget = _attributeValue(event, 'osisRef') ??
                 _attributeValue(event, 'target');
+            currentReferenceMarker = _attributeValue(event, 'n');
           } else if (event.name == 'p' &&
               currentBook != null &&
               currentChapter != null &&
@@ -281,13 +295,24 @@ class OsisParser extends BaseParser {
             currentTitleType = null;
           } else if (event.name == 'note') {
             if (currentVerse != null && currentNoteText.isNotEmpty) {
+              final noteMarker = _normalizeAnnotationMarker(
+                currentNoteLabel,
+                nextGeneratedMarker,
+              );
               currentVerse.notes.add(currentNoteText);
               currentVerse.footnotes.add(
                 Footnote(
                   text: currentNoteText,
+                  marker: noteMarker,
                   label: currentNoteLabel,
                   references: List<CrossReference>.from(currentNoteReferences),
                 ),
+              );
+              currentVerse = _attachInlineMarker(
+                currentVerse,
+                noteMarker,
+                metadataKey: 'footnoteMarkers',
+                pendingMarkers: pendingFootnoteMarkers,
               );
             }
             insideNote = false;
@@ -296,20 +321,32 @@ class OsisParser extends BaseParser {
             currentNoteReferences.clear();
           } else if (event.name == 'reference') {
             if (currentVerse != null && currentReferenceText.isNotEmpty) {
+              final referenceMarker = _normalizeAnnotationMarker(
+                currentReferenceMarker,
+                nextGeneratedMarker,
+              );
               final crossReference = CrossReference(
                 label: currentReferenceText,
                 target: currentReferenceTarget,
+                marker: referenceMarker,
               );
               if (insideNote) {
                 currentNoteReferences.add(crossReference);
               } else {
                 currentVerse.references.add(currentReferenceText);
                 currentVerse.crossReferences.add(crossReference);
+                currentVerse = _attachInlineMarker(
+                  currentVerse,
+                  referenceMarker,
+                  metadataKey: 'referenceMarkers',
+                  pendingMarkers: pendingReferenceMarkers,
+                );
               }
             }
             insideReference = false;
             currentReferenceText = '';
             currentReferenceTarget = null;
+            currentReferenceMarker = null;
           } else if (event.name == 'p') {
             insideParagraph = false;
             currentParagraphMetadata = const {};
@@ -358,8 +395,12 @@ class OsisParser extends BaseParser {
                 quoteLevels: quoteLevels,
                 quoteLineStarts: quoteLineStarts,
                 wordMetadata: currentWordMetadata,
+                pendingFootnoteMarkers: pendingFootnoteMarkers,
+                pendingReferenceMarkers: pendingReferenceMarkers,
               ),
             );
+            pendingFootnoteMarkers = <String>[];
+            pendingReferenceMarkers = <String>[];
             if (quoteLineStarts.isNotEmpty) {
               quoteLineStarts[quoteLineStarts.length - 1] = false;
             }
@@ -388,6 +429,7 @@ class OsisParser extends BaseParser {
 
     String currentReferenceText = '';
     String? currentReferenceTarget;
+    String? currentReferenceMarker;
 
     int translatorAdditionDepth = 0;
     int wordsOfJesusDepth = 0;
@@ -395,6 +437,15 @@ class OsisParser extends BaseParser {
     final List<bool> jesusQuoteStack = <bool>[];
     final List<bool> quoteLineStarts = <bool>[];
     Map<String, String>? currentWordMetadata;
+    List<String> pendingFootnoteMarkers = <String>[];
+    List<String> pendingReferenceMarkers = <String>[];
+    var nextAnnotationIndex = 0;
+
+    String nextGeneratedMarker() {
+      final marker = _generatedMarker(nextAnnotationIndex);
+      nextAnnotationIndex++;
+      return marker;
+    }
 
     try {
       final events = await parseEvents(content).toList();
@@ -416,6 +467,9 @@ class OsisParser extends BaseParser {
               chapterNum: currentChapterNum,
               bookId: currentBookId,
             );
+            pendingFootnoteMarkers = <String>[];
+            pendingReferenceMarkers = <String>[];
+            nextAnnotationIndex = 0;
           } else if (_isVerseEndMarker(event) && currentVerse != null) {
             yield currentVerse;
             currentVerse = null;
@@ -430,6 +484,7 @@ class OsisParser extends BaseParser {
             currentReferenceText = '';
             currentReferenceTarget = _attributeValue(event, 'osisRef') ??
                 _attributeValue(event, 'target');
+            currentReferenceMarker = _attributeValue(event, 'n');
           } else if (event.name == 'q' && currentVerse != null) {
             final quoteLevel =
                 int.tryParse(_attributeValue(event, 'level') ?? '');
@@ -452,13 +507,24 @@ class OsisParser extends BaseParser {
             currentVerse = null;
           } else if (event.name == 'note') {
             if (currentVerse != null && currentNoteText.isNotEmpty) {
+              final noteMarker = _normalizeAnnotationMarker(
+                currentNoteLabel,
+                nextGeneratedMarker,
+              );
               currentVerse.notes.add(currentNoteText);
               currentVerse.footnotes.add(
                 Footnote(
                   text: currentNoteText,
+                  marker: noteMarker,
                   label: currentNoteLabel,
                   references: List<CrossReference>.from(currentNoteReferences),
                 ),
+              );
+              currentVerse = _attachInlineMarker(
+                currentVerse,
+                noteMarker,
+                metadataKey: 'footnoteMarkers',
+                pendingMarkers: pendingFootnoteMarkers,
               );
             }
             insideNote = false;
@@ -467,20 +533,32 @@ class OsisParser extends BaseParser {
             currentNoteReferences.clear();
           } else if (event.name == 'reference') {
             if (currentVerse != null && currentReferenceText.isNotEmpty) {
+              final referenceMarker = _normalizeAnnotationMarker(
+                currentReferenceMarker,
+                nextGeneratedMarker,
+              );
               final crossReference = CrossReference(
                 label: currentReferenceText,
                 target: currentReferenceTarget,
+                marker: referenceMarker,
               );
               if (insideNote) {
                 currentNoteReferences.add(crossReference);
               } else {
                 currentVerse.references.add(currentReferenceText);
                 currentVerse.crossReferences.add(crossReference);
+                currentVerse = _attachInlineMarker(
+                  currentVerse,
+                  referenceMarker,
+                  metadataKey: 'referenceMarkers',
+                  pendingMarkers: pendingReferenceMarkers,
+                );
               }
             }
             insideReference = false;
             currentReferenceText = '';
             currentReferenceTarget = null;
+            currentReferenceMarker = null;
           } else if (event.name == 'q' && quoteLevels.isNotEmpty) {
             final wasJesusQuote = jesusQuoteStack.removeLast();
             quoteLevels.removeLast();
@@ -520,8 +598,12 @@ class OsisParser extends BaseParser {
                 quoteLevels: quoteLevels,
                 quoteLineStarts: quoteLineStarts,
                 wordMetadata: currentWordMetadata,
+                pendingFootnoteMarkers: pendingFootnoteMarkers,
+                pendingReferenceMarkers: pendingReferenceMarkers,
               ),
             );
+            pendingFootnoteMarkers = <String>[];
+            pendingReferenceMarkers = <String>[];
             if (quoteLineStarts.isNotEmpty) {
               quoteLineStarts[quoteLineStarts.length - 1] = false;
             }
@@ -726,6 +808,8 @@ class OsisParser extends BaseParser {
     required List<int?> quoteLevels,
     required List<bool> quoteLineStarts,
     required Map<String, String>? wordMetadata,
+    required List<String> pendingFootnoteMarkers,
+    required List<String> pendingReferenceMarkers,
   }) {
     final metadata = <String, String>{
       ...?wordMetadata,
@@ -742,6 +826,12 @@ class OsisParser extends BaseParser {
     }
     if (quoteLineStarts.isNotEmpty && quoteLineStarts.last) {
       metadata['lineStart'] = 'true';
+    }
+    if (pendingFootnoteMarkers.isNotEmpty) {
+      metadata['footnoteMarkers'] = pendingFootnoteMarkers.join('|');
+    }
+    if (pendingReferenceMarkers.isNotEmpty) {
+      metadata['referenceMarkers'] = pendingReferenceMarkers.join('|');
     }
 
     return metadata;
@@ -783,6 +873,80 @@ class OsisParser extends BaseParser {
       return DocumentBlockKind.poetry;
     }
     return DocumentBlockKind.paragraph;
+  }
+
+  String _generatedMarker(int index) {
+    var value = index;
+    final buffer = StringBuffer();
+    do {
+      buffer.writeCharCode('a'.codeUnitAt(0) + (value % 26));
+      value = (value ~/ 26) - 1;
+    } while (value >= 0);
+    return buffer.toString().split('').reversed.join();
+  }
+
+  String _normalizeAnnotationMarker(
+    String? candidate,
+    String Function() fallbackBuilder,
+  ) {
+    final cleaned = candidate?.trim();
+    if (cleaned != null &&
+        cleaned.isNotEmpty &&
+        RegExp(r'^[A-Za-z0-9]+$').hasMatch(cleaned)) {
+      return cleaned.toLowerCase();
+    }
+    return fallbackBuilder();
+  }
+
+  Verse _attachInlineMarker(
+    Verse verse,
+    String marker, {
+    required String metadataKey,
+    required List<String> pendingMarkers,
+  }) {
+    if (verse.spans.isEmpty) {
+      pendingMarkers.add(marker);
+      return verse;
+    }
+
+    final spans = List<VerseSpan>.from(verse.spans);
+    final lastSpan = spans.removeLast();
+    spans.add(
+      VerseSpan(
+        text: lastSpan.text,
+        kind: lastSpan.kind,
+        metadata: _appendMarkerMetadata(lastSpan.metadata, metadataKey, marker),
+      ),
+    );
+
+    return Verse(
+      num: verse.num,
+      chapterNum: verse.chapterNum,
+      text: verse.text,
+      bookId: verse.bookId,
+      notes: verse.notes,
+      references: verse.references,
+      spans: spans,
+      footnotes: verse.footnotes,
+      crossReferences: verse.crossReferences,
+    );
+  }
+
+  Map<String, String> _appendMarkerMetadata(
+    Map<String, String> metadata,
+    String metadataKey,
+    String marker,
+  ) {
+    final markers = (metadata[metadataKey]?.split('|') ?? const <String>[])
+        .where((value) => value.isNotEmpty)
+        .toList();
+    if (!markers.contains(marker)) {
+      markers.add(marker);
+    }
+    return {
+      ...metadata,
+      metadataKey: markers.join('|'),
+    };
   }
 
   DocumentBlockKind _titleBlockKind(String? titleType) {

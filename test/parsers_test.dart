@@ -140,10 +140,20 @@ void main() {
 
       final verse = john.chapters.first.verses.first;
       expect(verse.footnotes, isNotEmpty);
+      expect(verse.footnotes.first.marker, equals('a'));
       expect(verse.footnotes.first.text, contains('Footnote'));
       expect(verse.footnotes.first.references, isNotEmpty);
       expect(verse.crossReferences, isNotEmpty);
       expect(verse.crossReferences.first.target, equals('Rev.1.8'));
+      expect(verse.crossReferences.first.marker, equals('b'));
+      expect(
+        verse.spans.any((span) => span.metadata['footnoteMarkers'] == 'a'),
+        isTrue,
+      );
+      expect(
+        verse.spans.any((span) => span.metadata['referenceMarkers'] == 'b'),
+        isTrue,
+      );
       expect(
         verse.spans.any((span) => span.kind == VerseSpanKind.wordsOfJesus),
         isTrue,
@@ -332,10 +342,20 @@ void main() {
       final verse = genesis.chapters.first.verses.first;
       expect(verse.notes, contains('Footnote text'));
       expect(verse.footnotes, isNotEmpty);
+      expect(verse.footnotes.first.marker, equals('a'));
       expect(verse.footnotes.first.label, equals('1.1'));
       expect(verse.references, contains('John 1:1'));
       expect(verse.crossReferences, isNotEmpty);
       expect(verse.crossReferences.first.target, equals('JHN.1.1'));
+      expect(verse.crossReferences.first.marker, equals('b'));
+      expect(
+        verse.spans.any((span) => span.metadata['footnoteMarkers'] == 'a'),
+        isTrue,
+      );
+      expect(
+        verse.spans.any((span) => span.metadata['referenceMarkers'] == 'b'),
+        isTrue,
+      );
       expect(verse.spans, isNotEmpty);
     });
 
@@ -496,9 +516,21 @@ void main() {
 
       final verse = john.chapters.first.verses.first;
       expect(verse.footnotes, isNotEmpty);
+      expect(verse.footnotes.first.marker, equals('study'));
       expect(verse.footnotes.first.text, contains('Footnote text'));
       expect(verse.crossReferences, isNotEmpty);
       expect(verse.crossReferences.first.target, equals('JHN.10.11'));
+      expect(verse.crossReferences.first.marker, equals('a'));
+      expect(
+        verse.spans.any(
+          (span) => span.metadata['footnoteMarkers'] == 'study',
+        ),
+        isTrue,
+      );
+      expect(
+        verse.spans.any((span) => span.metadata['referenceMarkers'] == 'a'),
+        isTrue,
+      );
       expect(
         verse.spans.any((span) => span.kind == VerseSpanKind.wordsOfJesus),
         isTrue,
