@@ -177,6 +177,20 @@ void main() {
   </book>
 </usfx>
 ''';
+    final sampleUsfxParagraphXml = '''
+<?xml version="1.0" encoding="UTF-8"?>
+<usfx>
+  <book id="GEN">
+    <c id="1">
+      <p sfm="p"/>
+      <v id="1">In the beginning God created the heaven and the earth.</v>
+      <v id="2">And the earth was without form, and void.</v>
+      <p sfm="m"/>
+      <v id="3">And God said, Let there be light.</v>
+    </c>
+  </book>
+</usfx>
+''';
 
     test('UsfxParser can parse sample XML', () async {
       final parser = UsfxParser(sampleUsfxXml);
@@ -272,6 +286,21 @@ void main() {
         verse.spans.any((span) => span.kind == VerseSpanKind.poetry),
         isTrue,
       );
+    });
+
+    test('UsfxParser preserves chapter paragraph boundaries', () async {
+      final parser = UsfxParser(sampleUsfxParagraphXml);
+
+      final chapter = (await parser.parseBooks().toList()).first.chapters.first;
+      final paragraphBlocks = chapter.blocks
+          .where((block) => block.kind == DocumentBlockKind.paragraph)
+          .toList();
+
+      expect(paragraphBlocks, hasLength(2));
+      expect(paragraphBlocks.first.metadata['beforeVerse'], equals('1'));
+      expect(paragraphBlocks.first.metadata['style'], equals('p'));
+      expect(paragraphBlocks.last.metadata['beforeVerse'], equals('3'));
+      expect(paragraphBlocks.last.metadata['style'], equals('m'));
     });
   });
 

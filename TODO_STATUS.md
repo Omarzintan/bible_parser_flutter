@@ -21,7 +21,7 @@ Status meanings:
 | Cross references | partial | partial | partial | All three formats now preserve plain strings plus basic structured cross references. |
 | Red-letter text | partial | partial | partial | Zefania can now infer red-letter style from style metadata where the source uses that convention. |
 | Poetry / quoted line structure | partial | partial | partial | Zefania can now preserve style-driven poetry/quote spans where the source exposes them, but paragraph-level block handling is still incomplete. |
-| Paragraph boundaries | todo | todo | todo | Paragraph-level structure is flattened. |
+| Paragraph boundaries | partial | todo | todo | USFX now preserves chapter paragraph-start markers as structured blocks, but OSIS and Zefania still flatten most paragraph-level structure. |
 | Section headings / titles | partial | partial | partial | All three formats now preserve some headings/titles as introduction or chapter blocks. |
 | Word-level metadata | partial | partial | partial | Zefania can now preserve some style/`gr` metadata, though it is less explicit than USFX/OSIS word markup. |
 | Translator additions | partial | partial | partial | Zefania can now infer translator-addition spans from italic/add-style conventions where present. |

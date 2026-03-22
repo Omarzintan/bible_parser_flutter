@@ -101,6 +101,7 @@ class UsfxParser extends BaseParser {
     bool insideCrossReference = false;
     bool insideHeading = false;
     bool insideParagraph = false;
+    bool insideChapterParagraph = false;
     bool insideToc = false;
     int wordsOfJesusDepth = 0;
     int translatorAdditionDepth = 0;
@@ -116,8 +117,11 @@ class UsfxParser extends BaseParser {
 
     String currentHeadingText = '';
     String currentParagraphText = '';
+    String currentChapterParagraphText = '';
     String currentTocText = '';
     int? currentTocLevel;
+    Map<String, String> currentChapterParagraphMetadata = const {};
+    DocumentBlock? pendingChapterParagraphBlock;
 
     try {
       final events = await parseEvents(content).toList();
@@ -154,6 +158,22 @@ class UsfxParser extends BaseParser {
               currentChapter != null) {
             final verseNum =
                 int.tryParse(_attributeValue(event, 'id') ?? '') ?? 1;
+            if (pendingChapterParagraphBlock != null) {
+              // USFX often uses `<p>` as a marker that the next verse starts a
+              // new paragraph. Preserve that boundary instead of forcing the
+              // app to guess paragraph breaks later.
+              currentChapter.blocks.add(
+                DocumentBlock(
+                  kind: DocumentBlockKind.paragraph,
+                  text: pendingChapterParagraphBlock.text,
+                  metadata: {
+                    ...pendingChapterParagraphBlock.metadata,
+                    'beforeVerse': verseNum.toString(),
+                  },
+                ),
+              );
+              pendingChapterParagraphBlock = null;
+            }
             currentVerse = _createVerse(
               verseNum: verseNum,
               chapterNum: currentChapter.num,
@@ -194,6 +214,24 @@ class UsfxParser extends BaseParser {
             // book/front-matter introduction content instead of verse text.
             insideParagraph = true;
             currentParagraphText = '';
+          } else if (event.name == 'p' &&
+              currentBook != null &&
+              currentChapter != null &&
+              currentVerse == null) {
+            insideChapterParagraph = true;
+            currentChapterParagraphText = '';
+            currentChapterParagraphMetadata =
+                _paragraphMetadataFromEvent(event);
+            if (event.isSelfClosing) {
+              pendingChapterParagraphBlock = DocumentBlock(
+                kind: DocumentBlockKind.paragraph,
+                text: '',
+                metadata: currentChapterParagraphMetadata,
+              );
+              insideChapterParagraph = false;
+              currentChapterParagraphText = '';
+              currentChapterParagraphMetadata = const {};
+            }
           } else if (event.name == 'wj' && currentVerse != null) {
             wordsOfJesusDepth++;
           } else if (event.name == 'add' && currentVerse != null) {
@@ -305,6 +343,19 @@ class UsfxParser extends BaseParser {
             }
             insideParagraph = false;
             currentParagraphText = '';
+          } else if (event.name == 'p' &&
+              currentBook != null &&
+              currentChapter != null &&
+              insideChapterParagraph) {
+            final text = currentChapterParagraphText.trim();
+            pendingChapterParagraphBlock = DocumentBlock(
+              kind: DocumentBlockKind.paragraph,
+              text: text,
+              metadata: currentChapterParagraphMetadata,
+            );
+            insideChapterParagraph = false;
+            currentChapterParagraphText = '';
+            currentChapterParagraphMetadata = const {};
           } else if (event.name == 'wj' && wordsOfJesusDepth > 0) {
             wordsOfJesusDepth--;
           } else if (event.name == 'add' && translatorAdditionDepth > 0) {
@@ -334,6 +385,14 @@ class UsfxParser extends BaseParser {
               currentBook != null &&
               currentChapter == null) {
             currentParagraphText = _appendText(currentParagraphText, cleaned);
+          } else if (insideChapterParagraph &&
+              currentBook != null &&
+              currentChapter != null &&
+              currentVerse == null) {
+            currentChapterParagraphText = _appendText(
+              currentChapterParagraphText,
+              cleaned,
+            );
           } else if (currentVerse != null) {
             currentVerse = _appendVerseText(
               currentVerse,
@@ -669,5 +728,15 @@ class UsfxParser extends BaseParser {
       metadata['lemma'] = lemma;
     }
     return metadata.isEmpty ? null : metadata;
+  }
+
+  Map<String, String> _paragraphMetadataFromEvent(XmlStartElementEvent event) {
+    final metadata = <String, String>{};
+    final style =
+        _attributeValue(event, 'sfm') ?? _attributeValue(event, 'style');
+    if (style != null && style.isNotEmpty) {
+      metadata['style'] = style;
+    }
+    return metadata;
   }
 }
