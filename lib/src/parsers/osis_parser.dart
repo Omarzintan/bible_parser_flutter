@@ -123,6 +123,7 @@ class OsisParser extends BaseParser {
     String? currentReferenceTarget;
     String? currentReferenceMarker;
     String currentParagraphText = '';
+    int currentParagraphEmptyLineCount = 0;
     String currentListItemText = '';
     Map<String, String> currentParagraphMetadata = const {};
     Map<String, String> currentListItemMetadata = const {};
@@ -193,12 +194,16 @@ class OsisParser extends BaseParser {
                   text: currentParagraphText.trim(),
                   metadata: {
                     ...pendingParagraphBlock.metadata,
+                    if (currentParagraphEmptyLineCount > 0)
+                      'emptyLineCount':
+                          currentParagraphEmptyLineCount.toString(),
                     'beforeVerse': _readVerseNumber(event).toString(),
                   },
                 ),
               );
               pendingParagraphBlock = null;
               currentParagraphText = '';
+              currentParagraphEmptyLineCount = 0;
             }
             currentVerse = _createVerse(
               verseNum: _readVerseNumber(event),
@@ -252,6 +257,7 @@ class OsisParser extends BaseParser {
               currentVerse == null) {
             insideParagraph = true;
             currentParagraphText = '';
+            currentParagraphEmptyLineCount = 0;
             currentParagraphMetadata = {
               ..._paragraphMetadataFromEvent(event),
               ..._currentSectionMetadata(sectionDivMetadataStack),
@@ -267,6 +273,7 @@ class OsisParser extends BaseParser {
               currentVerse == null) {
             insideParagraph = true;
             currentParagraphText = '';
+            currentParagraphEmptyLineCount = 0;
             currentParagraphMetadata = {
               ..._paragraphMetadataFromEvent(event),
               ..._currentSectionMetadata(sectionDivMetadataStack),
@@ -333,6 +340,10 @@ class OsisParser extends BaseParser {
               insideParagraph) {
             insideBlockLine = true;
             currentBlockLineHasText = false;
+            if (event.isSelfClosing) {
+              currentParagraphEmptyLineCount++;
+              insideBlockLine = false;
+            }
           } else if (event.name == 'l' && currentVerse != null) {
             lineLevels.add(int.tryParse(_attributeValue(event, 'level') ?? ''));
             quoteLineStarts.add(true);
@@ -515,19 +526,25 @@ class OsisParser extends BaseParser {
           } else if (event.name == 'p' && currentBook != null) {
             if (currentChapter == null && pendingParagraphBlock != null) {
               final introText = currentParagraphText.trim();
-              if (introText.isNotEmpty) {
+              if (introText.isNotEmpty || currentParagraphEmptyLineCount > 0) {
                 currentBook.introductionBlocks.add(
                   DocumentBlock(
                     kind: _introBlockKindFromMetadata(
                       pendingParagraphBlock.metadata,
                     ),
                     text: introText,
-                    metadata: pendingParagraphBlock.metadata,
+                    metadata: {
+                      ...pendingParagraphBlock.metadata,
+                      if (currentParagraphEmptyLineCount > 0)
+                        'emptyLineCount':
+                            currentParagraphEmptyLineCount.toString(),
+                    },
                   ),
                 );
               }
               pendingParagraphBlock = null;
               currentParagraphText = '';
+              currentParagraphEmptyLineCount = 0;
             }
             insideParagraph = false;
             insideBlockLine = false;
@@ -556,17 +573,23 @@ class OsisParser extends BaseParser {
           } else if (event.name == 'lg' && currentBook != null) {
             if (currentChapter == null && pendingParagraphBlock != null) {
               final introText = currentParagraphText.trim();
-              if (introText.isNotEmpty) {
+              if (introText.isNotEmpty || currentParagraphEmptyLineCount > 0) {
                 currentBook.introductionBlocks.add(
                   DocumentBlock(
                     kind: DocumentBlockKind.poetry,
                     text: introText,
-                    metadata: pendingParagraphBlock.metadata,
+                    metadata: {
+                      ...pendingParagraphBlock.metadata,
+                      if (currentParagraphEmptyLineCount > 0)
+                        'emptyLineCount':
+                            currentParagraphEmptyLineCount.toString(),
+                    },
                   ),
                 );
               }
               pendingParagraphBlock = null;
               currentParagraphText = '';
+              currentParagraphEmptyLineCount = 0;
             }
             insideParagraph = false;
             insideBlockLine = false;
@@ -576,6 +599,9 @@ class OsisParser extends BaseParser {
               currentBook != null &&
               currentVerse == null &&
               insideParagraph) {
+            if (!currentBlockLineHasText) {
+              currentParagraphEmptyLineCount++;
+            }
             insideBlockLine = false;
             currentBlockLineHasText = false;
           } else if (event.name == 'l' && currentVerse != null) {

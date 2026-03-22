@@ -210,6 +210,21 @@ void main() {
   </osisText>
 </osis>
 ''';
+    final sampleOsisEmptyPoetryLineXml = '''
+<?xml version="1.0" encoding="UTF-8"?>
+<osis xmlns="http://www.bibletechnologies.net/2003/OSIS/namespace">
+  <osisText osisIDWork="TEST">
+    <div type="book" osisID="Ps">
+      <chapter osisID="Ps.150">
+        <lg type="poetry">
+          <l level="1" />
+        </lg>
+        <verse osisID="Ps.150.1">Praise ye the LORD.</verse>
+      </chapter>
+    </div>
+  </osisText>
+</osis>
+''';
     test('OsisParser can parse sample XML', () async {
       final parser = OsisParser(sampleOsisXml);
 
@@ -515,6 +530,22 @@ void main() {
               block.metadata['sourceTag'] == 'p' &&
               block.metadata['type'] == 'x-ms' &&
               block.metadata['beforeVerse'] == '1',
+        ),
+        isTrue,
+      );
+    });
+
+    test('OsisParser preserves empty poetry-line markers', () async {
+      final parser = OsisParser(sampleOsisEmptyPoetryLineXml);
+
+      final chapter = (await parser.parseBooks().toList()).first.chapters.first;
+      expect(
+        chapter.blocks.any(
+          (block) =>
+              block.kind == DocumentBlockKind.poetry &&
+              block.metadata['sourceTag'] == 'lg' &&
+              block.metadata['beforeVerse'] == '1' &&
+              block.metadata['emptyLineCount'] == '1',
         ),
         isTrue,
       );
