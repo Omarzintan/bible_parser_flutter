@@ -98,6 +98,25 @@ void main() {
   </osisText>
 </osis>
 ''';
+    final sampleOsisLineGroupXml = '''
+<?xml version="1.0" encoding="UTF-8"?>
+<osis xmlns="http://www.bibletechnologies.net/2003/OSIS/namespace">
+  <osisText osisIDWork="TEST">
+    <div type="book" osisID="John">
+      <chapter osisID="John.1">
+        <lg type="poetry">
+          <l level="1">First block line</l>
+          <l level="2">Second block line</l>
+        </lg>
+        <verse osisID="John.1.1">
+          <l level="1">First verse line</l>
+          <l level="2">Second verse line</l>
+        </verse>
+      </chapter>
+    </div>
+  </osisText>
+</osis>
+''';
     test('OsisParser can parse sample XML', () async {
       final parser = OsisParser(sampleOsisXml);
 
@@ -246,6 +265,34 @@ void main() {
         ),
         isTrue,
       );
+    });
+
+    test('OsisParser preserves line-group poetry structure', () async {
+      final parser = OsisParser(sampleOsisLineGroupXml);
+
+      final chapter = (await parser.parseBooks().toList()).first.chapters.first;
+      expect(
+        chapter.blocks.any(
+          (block) =>
+              block.kind == DocumentBlockKind.poetry &&
+              block.metadata['sourceTag'] == 'lg' &&
+              block.metadata['beforeVerse'] == '1' &&
+              block.text.contains('First block line') &&
+              block.text.contains('Second block line'),
+        ),
+        isTrue,
+      );
+
+      final verse = chapter.verses.first;
+      final poetrySpans = verse.spans
+          .where((span) => span.kind == VerseSpanKind.poetry)
+          .toList();
+
+      expect(poetrySpans, hasLength(2));
+      expect(poetrySpans.first.metadata['lineStart'], equals('true'));
+      expect(poetrySpans.first.metadata['quoteLevel'], equals('1'));
+      expect(poetrySpans.last.metadata['lineStart'], equals('true'));
+      expect(poetrySpans.last.metadata['quoteLevel'], equals('2'));
     });
   });
 

@@ -102,6 +102,8 @@ class OsisParser extends BaseParser {
     bool insideNote = false;
     bool insideReference = false;
     bool insideParagraph = false;
+    bool insideBlockLine = false;
+    bool currentBlockLineHasText = false;
 
     String currentTitleText = '';
     String? currentTitleType;
@@ -124,6 +126,7 @@ class OsisParser extends BaseParser {
     final List<int?> quoteLevels = <int?>[];
     final List<bool> jesusQuoteStack = <bool>[];
     final List<bool> quoteLineStarts = <bool>[];
+    final List<int?> lineLevels = <int?>[];
     Map<String, String>? currentWordMetadata;
     List<String> pendingFootnoteMarkers = <String>[];
     List<String> pendingReferenceMarkers = <String>[];
@@ -240,6 +243,29 @@ class OsisParser extends BaseParser {
               text: '',
               metadata: currentParagraphMetadata,
             );
+          } else if (event.name == 'lg' &&
+              currentBook != null &&
+              currentVerse == null) {
+            insideParagraph = true;
+            currentParagraphText = '';
+            currentParagraphMetadata = {
+              ..._paragraphMetadataFromEvent(event),
+              'sourceTag': 'lg',
+            };
+            pendingParagraphBlock = DocumentBlock(
+              kind: DocumentBlockKind.poetry,
+              text: '',
+              metadata: currentParagraphMetadata,
+            );
+          } else if (event.name == 'l' &&
+              currentBook != null &&
+              currentVerse == null &&
+              insideParagraph) {
+            insideBlockLine = true;
+            currentBlockLineHasText = false;
+          } else if (event.name == 'l' && currentVerse != null) {
+            lineLevels.add(int.tryParse(_attributeValue(event, 'level') ?? ''));
+            quoteLineStarts.add(true);
           } else if (event.name == 'q' && currentVerse != null) {
             final quoteLevel =
                 int.tryParse(_attributeValue(event, 'level') ?? '');
@@ -405,7 +431,40 @@ class OsisParser extends BaseParser {
               currentParagraphText = '';
             }
             insideParagraph = false;
+            insideBlockLine = false;
             currentParagraphMetadata = const {};
+          } else if (event.name == 'lg' && currentBook != null) {
+            if (currentChapter == null && pendingParagraphBlock != null) {
+              final introText = currentParagraphText.trim();
+              if (introText.isNotEmpty) {
+                currentBook.introductionBlocks.add(
+                  DocumentBlock(
+                    kind: DocumentBlockKind.poetry,
+                    text: introText,
+                    metadata: pendingParagraphBlock.metadata,
+                  ),
+                );
+              }
+              pendingParagraphBlock = null;
+              currentParagraphText = '';
+            }
+            insideParagraph = false;
+            insideBlockLine = false;
+            currentBlockLineHasText = false;
+            currentParagraphMetadata = const {};
+          } else if (event.name == 'l' &&
+              currentBook != null &&
+              currentVerse == null &&
+              insideParagraph) {
+            insideBlockLine = false;
+            currentBlockLineHasText = false;
+          } else if (event.name == 'l' && currentVerse != null) {
+            if (lineLevels.isNotEmpty) {
+              lineLevels.removeLast();
+            }
+            if (quoteLineStarts.isNotEmpty) {
+              quoteLineStarts.removeLast();
+            }
           } else if (event.name == 'q' && quoteLevels.isNotEmpty) {
             final wasJesusQuote = jesusQuoteStack.removeLast();
             quoteLevels.removeLast();
@@ -430,7 +489,10 @@ class OsisParser extends BaseParser {
           } else if (insideHead) {
             currentHeadText = _appendText(currentHeadText, cleaned);
           } else if (insideParagraph && currentVerse == null) {
-            currentParagraphText = _appendText(currentParagraphText, cleaned);
+            currentParagraphText = (insideBlockLine && !currentBlockLineHasText)
+                ? _appendBlockLineText(currentParagraphText, cleaned)
+                : _appendText(currentParagraphText, cleaned);
+            currentBlockLineHasText = true;
           } else if (insideReference) {
             currentReferenceText = _appendText(currentReferenceText, cleaned);
           } else if (insideNote) {
@@ -443,12 +505,14 @@ class OsisParser extends BaseParser {
                 wordsOfJesusDepth: wordsOfJesusDepth,
                 translatorAdditionDepth: translatorAdditionDepth,
                 quoteLevels: quoteLevels,
+                lineLevels: lineLevels,
                 wordMetadata: currentWordMetadata,
               ),
               metadata: _currentSpanMetadata(
                 wordsOfJesusDepth: wordsOfJesusDepth,
                 translatorAdditionDepth: translatorAdditionDepth,
                 quoteLevels: quoteLevels,
+                lineLevels: lineLevels,
                 quoteLineStarts: quoteLineStarts,
                 wordMetadata: currentWordMetadata,
                 pendingFootnoteMarkers: pendingFootnoteMarkers,
@@ -492,6 +556,7 @@ class OsisParser extends BaseParser {
     final List<int?> quoteLevels = <int?>[];
     final List<bool> jesusQuoteStack = <bool>[];
     final List<bool> quoteLineStarts = <bool>[];
+    final List<int?> lineLevels = <int?>[];
     Map<String, String>? currentWordMetadata;
     List<String> pendingFootnoteMarkers = <String>[];
     List<String> pendingReferenceMarkers = <String>[];
@@ -541,6 +606,9 @@ class OsisParser extends BaseParser {
             currentReferenceTarget = _attributeValue(event, 'osisRef') ??
                 _attributeValue(event, 'target');
             currentReferenceMarker = _attributeValue(event, 'n');
+          } else if (event.name == 'l' && currentVerse != null) {
+            lineLevels.add(int.tryParse(_attributeValue(event, 'level') ?? ''));
+            quoteLineStarts.add(true);
           } else if (event.name == 'q' && currentVerse != null) {
             final quoteLevel =
                 int.tryParse(_attributeValue(event, 'level') ?? '');
@@ -615,6 +683,13 @@ class OsisParser extends BaseParser {
             currentReferenceText = '';
             currentReferenceTarget = null;
             currentReferenceMarker = null;
+          } else if (event.name == 'l' && currentVerse != null) {
+            if (lineLevels.isNotEmpty) {
+              lineLevels.removeLast();
+            }
+            if (quoteLineStarts.isNotEmpty) {
+              quoteLineStarts.removeLast();
+            }
           } else if (event.name == 'q' && quoteLevels.isNotEmpty) {
             final wasJesusQuote = jesusQuoteStack.removeLast();
             quoteLevels.removeLast();
@@ -646,12 +721,14 @@ class OsisParser extends BaseParser {
                 wordsOfJesusDepth: wordsOfJesusDepth,
                 translatorAdditionDepth: translatorAdditionDepth,
                 quoteLevels: quoteLevels,
+                lineLevels: lineLevels,
                 wordMetadata: currentWordMetadata,
               ),
               metadata: _currentSpanMetadata(
                 wordsOfJesusDepth: wordsOfJesusDepth,
                 translatorAdditionDepth: translatorAdditionDepth,
                 quoteLevels: quoteLevels,
+                lineLevels: lineLevels,
                 quoteLineStarts: quoteLineStarts,
                 wordMetadata: currentWordMetadata,
                 pendingFootnoteMarkers: pendingFootnoteMarkers,
@@ -843,12 +920,14 @@ class OsisParser extends BaseParser {
     required int wordsOfJesusDepth,
     required int translatorAdditionDepth,
     required List<int?> quoteLevels,
+    required List<int?> lineLevels,
     required Map<String, String>? wordMetadata,
   }) {
     if (wordsOfJesusDepth > 0) return VerseSpanKind.wordsOfJesus;
     if (translatorAdditionDepth > 0) return VerseSpanKind.translatorAddition;
-    if (quoteLevels.isNotEmpty) {
-      return quoteLevels.any((level) => level != null)
+    if (quoteLevels.isNotEmpty || lineLevels.isNotEmpty) {
+      return quoteLevels.any((level) => level != null) ||
+              lineLevels.any((level) => level != null)
           ? VerseSpanKind.poetry
           : VerseSpanKind.quote;
     }
@@ -862,6 +941,7 @@ class OsisParser extends BaseParser {
     required int wordsOfJesusDepth,
     required int translatorAdditionDepth,
     required List<int?> quoteLevels,
+    required List<int?> lineLevels,
     required List<bool> quoteLineStarts,
     required Map<String, String>? wordMetadata,
     required List<String> pendingFootnoteMarkers,
@@ -879,6 +959,8 @@ class OsisParser extends BaseParser {
     }
     if (quoteLevels.isNotEmpty && quoteLevels.last != null) {
       metadata['quoteLevel'] = quoteLevels.last.toString();
+    } else if (lineLevels.isNotEmpty && lineLevels.last != null) {
+      metadata['quoteLevel'] = lineLevels.last.toString();
     }
     if (quoteLineStarts.isNotEmpty && quoteLineStarts.last) {
       metadata['lineStart'] = 'true';
@@ -1072,5 +1154,10 @@ class OsisParser extends BaseParser {
       return current + next;
     }
     return '$current $next';
+  }
+
+  String _appendBlockLineText(String current, String next) {
+    if (current.isEmpty) return next;
+    return '$current\n$next';
   }
 }
