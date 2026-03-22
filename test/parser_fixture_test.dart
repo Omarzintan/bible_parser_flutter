@@ -219,6 +219,30 @@ const _osisTitle = '''<?xml version="1.0" encoding="utf-8"?>
   </osisText>
 </osis>''';
 
+/// USFX proper name via <pn>.
+const _usfxProperName = '''<?xml version="1.0" encoding="utf-8"?>
+<usfx xmlns="http://www.bibletechnologies.net/2003/USFX/namespace">
+  <book id="GEN"><c id="1">
+    <v id="1">God said to <pn>Abram</pn>, go.</v>
+  </c></book>
+</usfx>''';
+
+/// USFX Selah music cue via <qs>.
+const _usfxSelah = '''<?xml version="1.0" encoding="utf-8"?>
+<usfx xmlns="http://www.bibletechnologies.net/2003/USFX/namespace">
+  <book id="PSA"><c id="3">
+    <v id="2">Many are rising against me. <qs>Selah</qs></v>
+  </c></book>
+</usfx>''';
+
+/// USFX acrostic heading via <qa>.
+const _usfxAcrosticHeading = '''<?xml version="1.0" encoding="utf-8"?>
+<usfx xmlns="http://www.bibletechnologies.net/2003/USFX/namespace">
+  <book id="PSA"><c id="119">
+    <v id="1"><qa>א</qa> Blessed are the undefiled in the way.</v>
+  </c></book>
+</usfx>''';
+
 // ---------------------------------------------------------------------------
 // Zefania fixtures
 // ---------------------------------------------------------------------------
@@ -378,6 +402,35 @@ void main() {
       expect(addSpans, isNotEmpty,
           reason: 'Expected at least one translatorAddition span from <add>');
       expect(addSpans.first.text, contains('without form'));
+    });
+
+    test('preserves proper name spans via <pn>', () async {
+      final book = await _parseFirstBook(_usfxProperName, 'USFX');
+      final verse = _firstVerse(book!);
+      final pnSpans =
+          verse!.spans.where((s) => s.kind == VerseSpanKind.properName);
+      expect(pnSpans, isNotEmpty,
+          reason: 'Expected at least one properName span from <pn>');
+      expect(pnSpans.first.text, contains('Abram'));
+    });
+
+    test('preserves Selah spans via <qs>', () async {
+      final book = await _parseFirstBook(_usfxSelah, 'USFX');
+      final verse = _firstVerse(book!);
+      final selahSpans =
+          verse!.spans.where((s) => s.kind == VerseSpanKind.selah);
+      expect(selahSpans, isNotEmpty,
+          reason: 'Expected at least one selah span from <qs>');
+      expect(selahSpans.first.text, contains('Selah'));
+    });
+
+    test('preserves acrostic heading spans via <qa>', () async {
+      final book = await _parseFirstBook(_usfxAcrosticHeading, 'USFX');
+      final verse = _firstVerse(book!);
+      final qaSpans =
+          verse!.spans.where((s) => s.kind == VerseSpanKind.acrosticHeading);
+      expect(qaSpans, isNotEmpty,
+          reason: 'Expected at least one acrosticHeading span from <qa>');
     });
 
     test('preserves red-letter spans via <wj>', () async {

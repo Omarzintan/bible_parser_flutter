@@ -6,6 +6,9 @@ enum VerseSpanKind {
   poetry,
   word,
   divineNameTag, // <nd> in USFX, <divineName> in OSIS — LORD / divine name
+  properName,    // <pn> in USFX — proper noun (person, place)
+  selah,         // <qs> in USFX — Selah / music cue at end of poetic line
+  acrosticHeading, // <qa> in USFX — acrostic heading letter (e.g. Aleph)
 }
 
 class VerseSpan {
