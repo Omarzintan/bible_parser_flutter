@@ -111,6 +111,26 @@ const _usfxHeading = '''<?xml version="1.0" encoding="utf-8"?>
   </book>
 </usfx>''';
 
+/// USFX divine name via <nd>.
+const _usfxDivineName = '''<?xml version="1.0" encoding="utf-8"?>
+<usfx xmlns="http://www.bibletechnologies.net/2003/USFX/namespace">
+  <book id="GEN">
+    <c id="1">
+      <v id="1">I am <nd>LORD</nd> your God.</v>
+    </c>
+  </book>
+</usfx>''';
+
+/// USFX translator addition via <add>.
+const _usfxTranslatorAdd = '''<?xml version="1.0" encoding="utf-8"?>
+<usfx xmlns="http://www.bibletechnologies.net/2003/USFX/namespace">
+  <book id="GEN">
+    <c id="1">
+      <v id="1">And the earth was <add>without form</add>, and void.</v>
+    </c>
+  </book>
+</usfx>''';
+
 // ---------------------------------------------------------------------------
 // OSIS fixtures
 // ---------------------------------------------------------------------------
@@ -157,6 +177,18 @@ const _osisCrossRefWithOrigin = '''<?xml version="1.0" encoding="utf-8"?>
     <div type="book" osisID="Gen">
       <chapter osisID="Gen.1">
         <verse osisID="Gen.1.1">In the beginning.<note type="crossReference" n="a"><reference type="source">1:1</reference><reference osisRef="Gen.1.2">Gen 1:2</reference></note></verse>
+      </chapter>
+    </div>
+  </osisText>
+</osis>''';
+
+/// OSIS divine name via <divineName>.
+const _osisDivineName = '''<?xml version="1.0" encoding="utf-8"?>
+<osis xmlns="http://www.bibletechnologies.net/2003/OSIS/namespace">
+  <osisText osisIDWork="test">
+    <div type="book" osisID="Gen">
+      <chapter osisID="Gen.1">
+        <verse osisID="Gen.1.1">I am <divineName>LORD</divineName> your God.</verse>
       </chapter>
     </div>
   </osisText>
@@ -324,6 +356,30 @@ void main() {
       expect(ref.originRef, contains('1:1'));
     });
 
+    test('preserves divine name spans via <nd>', () async {
+      final book = await _parseFirstBook(_usfxDivineName, 'USFX');
+      final verse = _firstVerse(book!);
+
+      expect(verse!.spans, isNotEmpty);
+      final divineSpans =
+          verse.spans.where((s) => s.kind == VerseSpanKind.divineNameTag);
+      expect(divineSpans, isNotEmpty,
+          reason: 'Expected at least one divineNameTag span from <nd>');
+      expect(divineSpans.first.text, contains('LORD'));
+    });
+
+    test('preserves translator addition spans via <add>', () async {
+      final book = await _parseFirstBook(_usfxTranslatorAdd, 'USFX');
+      final verse = _firstVerse(book!);
+
+      expect(verse!.spans, isNotEmpty);
+      final addSpans =
+          verse.spans.where((s) => s.kind == VerseSpanKind.translatorAddition);
+      expect(addSpans, isNotEmpty,
+          reason: 'Expected at least one translatorAddition span from <add>');
+      expect(addSpans.first.text, contains('without form'));
+    });
+
     test('preserves red-letter spans via <wj>', () async {
       final book = await _parseFirstBook(_usfxRedLetter, 'USFX');
       final verse = _firstVerse(book!);
@@ -417,6 +473,18 @@ void main() {
       // <reference type="source"> text must land in originRef.
       expect(ref.originRef, isNotNull);
       expect(ref.originRef, contains('1:1'));
+    });
+
+    test('preserves divine name spans via <divineName>', () async {
+      final book = await _parseFirstBook(_osisDivineName, 'OSIS');
+      final verse = _firstVerse(book!);
+
+      expect(verse!.spans, isNotEmpty);
+      final divineSpans =
+          verse.spans.where((s) => s.kind == VerseSpanKind.divineNameTag);
+      expect(divineSpans, isNotEmpty,
+          reason: 'Expected at least one divineNameTag span from <divineName>');
+      expect(divineSpans.first.text, contains('LORD'));
     });
 
     test('preserves red-letter spans via <q who="Jesus">', () async {

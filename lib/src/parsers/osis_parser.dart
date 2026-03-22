@@ -134,6 +134,7 @@ class OsisParser extends BaseParser {
 
     int translatorAdditionDepth = 0;
     int wordsOfJesusDepth = 0;
+    bool insideDivineNameTag = false;
     final List<int?> quoteLevels = <int?>[];
     final List<bool> jesusQuoteStack = <bool>[];
     final List<bool> quoteLineStarts = <bool>[];
@@ -363,6 +364,8 @@ class OsisParser extends BaseParser {
             }
           } else if (event.name == 'transChange' && currentVerse != null) {
             translatorAdditionDepth++;
+          } else if (event.name == 'divineName' && currentVerse != null) {
+            insideDivineNameTag = true;
           } else if (event.name == 'w' && currentVerse != null) {
             currentWordMetadata = _wordMetadataFromEvent(event);
           }
@@ -640,6 +643,8 @@ class OsisParser extends BaseParser {
           } else if (event.name == 'transChange' &&
               translatorAdditionDepth > 0) {
             translatorAdditionDepth--;
+          } else if (event.name == 'divineName') {
+            insideDivineNameTag = false;
           } else if (event.name == 'w') {
             currentWordMetadata = null;
           }
@@ -674,6 +679,7 @@ class OsisParser extends BaseParser {
                 quoteLevels: quoteLevels,
                 lineLevels: lineLevels,
                 wordMetadata: currentWordMetadata,
+                insideDivineNameTag: insideDivineNameTag,
               ),
               metadata: _currentSpanMetadata(
                 wordsOfJesusDepth: wordsOfJesusDepth,
@@ -722,6 +728,7 @@ class OsisParser extends BaseParser {
 
     int translatorAdditionDepth = 0;
     int wordsOfJesusDepth = 0;
+    bool insideDivineNameTag = false;
     final List<int?> quoteLevels = <int?>[];
     final List<bool> jesusQuoteStack = <bool>[];
     final List<bool> quoteLineStarts = <bool>[];
@@ -792,6 +799,8 @@ class OsisParser extends BaseParser {
             }
           } else if (event.name == 'transChange' && currentVerse != null) {
             translatorAdditionDepth++;
+          } else if (event.name == 'divineName' && currentVerse != null) {
+            insideDivineNameTag = true;
           } else if (event.name == 'w' && currentVerse != null) {
             currentWordMetadata = _wordMetadataFromEvent(event);
           }
@@ -885,6 +894,8 @@ class OsisParser extends BaseParser {
           } else if (event.name == 'transChange' &&
               translatorAdditionDepth > 0) {
             translatorAdditionDepth--;
+          } else if (event.name == 'divineName') {
+            insideDivineNameTag = false;
           } else if (event.name == 'w') {
             currentWordMetadata = null;
           }
@@ -906,6 +917,7 @@ class OsisParser extends BaseParser {
                 quoteLevels: quoteLevels,
                 lineLevels: lineLevels,
                 wordMetadata: currentWordMetadata,
+                insideDivineNameTag: insideDivineNameTag,
               ),
               metadata: _currentSpanMetadata(
                 wordsOfJesusDepth: wordsOfJesusDepth,
@@ -1105,8 +1117,10 @@ class OsisParser extends BaseParser {
     required List<int?> quoteLevels,
     required List<int?> lineLevels,
     required Map<String, String>? wordMetadata,
+    bool insideDivineNameTag = false,
   }) {
     if (wordsOfJesusDepth > 0) return VerseSpanKind.wordsOfJesus;
+    if (insideDivineNameTag) return VerseSpanKind.divineNameTag;
     if (translatorAdditionDepth > 0) return VerseSpanKind.translatorAddition;
     if (quoteLevels.isNotEmpty || lineLevels.isNotEmpty) {
       return quoteLevels.any((level) => level != null) ||

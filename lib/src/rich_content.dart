@@ -5,6 +5,7 @@ enum VerseSpanKind {
   quote,
   poetry,
   word,
+  divineNameTag, // <nd> in USFX, <divineName> in OSIS — LORD / divine name
 }
 
 class VerseSpan {

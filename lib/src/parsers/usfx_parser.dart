@@ -107,6 +107,7 @@ class UsfxParser extends BaseParser {
     bool insideToc = false;
     int wordsOfJesusDepth = 0;
     int translatorAdditionDepth = 0;
+    bool insideNdTag = false;
     final List<int?> quoteLevels = <int?>[];
     final List<bool> quoteLineStarts = <bool>[];
     Map<String, String>? currentWordMetadata;
@@ -292,6 +293,8 @@ class UsfxParser extends BaseParser {
             wordsOfJesusDepth++;
           } else if (event.name == 'add' && currentVerse != null) {
             translatorAdditionDepth++;
+          } else if (event.name == 'nd' && currentVerse != null) {
+            insideNdTag = true;
           } else if (event.name == 'q' && currentVerse != null) {
             quoteLevels
                 .add(int.tryParse(_attributeValue(event, 'level') ?? ''));
@@ -489,6 +492,8 @@ class UsfxParser extends BaseParser {
             wordsOfJesusDepth--;
           } else if (event.name == 'add' && translatorAdditionDepth > 0) {
             translatorAdditionDepth--;
+          } else if (event.name == 'nd') {
+            insideNdTag = false;
           } else if (event.name == 'q' && quoteLevels.isNotEmpty) {
             quoteLevels.removeLast();
             if (quoteLineStarts.isNotEmpty) {
@@ -553,6 +558,7 @@ class UsfxParser extends BaseParser {
                 translatorAdditionDepth: translatorAdditionDepth,
                 quoteLevels: quoteLevels,
                 wordMetadata: currentWordMetadata,
+                insideNdTag: insideNdTag,
               ),
               metadata: _currentSpanMetadata(
                 wordsOfJesusDepth: wordsOfJesusDepth,
@@ -592,6 +598,7 @@ class UsfxParser extends BaseParser {
     bool insideCrossReference = false;
     int wordsOfJesusDepth = 0;
     int translatorAdditionDepth = 0;
+    bool insideNdTag = false;
     final List<int?> quoteLevels = <int?>[];
     final List<bool> quoteLineStarts = <bool>[];
     Map<String, String>? currentWordMetadata;
@@ -677,6 +684,8 @@ class UsfxParser extends BaseParser {
             wordsOfJesusDepth++;
           } else if (event.name == 'add' && currentVerse != null) {
             translatorAdditionDepth++;
+          } else if (event.name == 'nd' && currentVerse != null) {
+            insideNdTag = true;
           } else if (event.name == 'q' && currentVerse != null) {
             quoteLevels
                 .add(int.tryParse(_attributeValue(event, 'level') ?? ''));
@@ -767,6 +776,8 @@ class UsfxParser extends BaseParser {
             wordsOfJesusDepth--;
           } else if (event.name == 'add' && translatorAdditionDepth > 0) {
             translatorAdditionDepth--;
+          } else if (event.name == 'nd') {
+            insideNdTag = false;
           } else if (event.name == 'q' && quoteLevels.isNotEmpty) {
             quoteLevels.removeLast();
             if (quoteLineStarts.isNotEmpty) {
@@ -805,6 +816,7 @@ class UsfxParser extends BaseParser {
                 translatorAdditionDepth: translatorAdditionDepth,
                 quoteLevels: quoteLevels,
                 wordMetadata: currentWordMetadata,
+                insideNdTag: insideNdTag,
               ),
               metadata: _currentSpanMetadata(
                 wordsOfJesusDepth: wordsOfJesusDepth,
@@ -934,8 +946,10 @@ class UsfxParser extends BaseParser {
     required int translatorAdditionDepth,
     required List<int?> quoteLevels,
     required Map<String, String>? wordMetadata,
+    bool insideNdTag = false,
   }) {
     if (wordsOfJesusDepth > 0) return VerseSpanKind.wordsOfJesus;
+    if (insideNdTag) return VerseSpanKind.divineNameTag;
     if (translatorAdditionDepth > 0) return VerseSpanKind.translatorAddition;
     if (quoteLevels.isNotEmpty) {
       return quoteLevels.any((level) => level != null)
