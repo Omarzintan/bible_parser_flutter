@@ -516,6 +516,7 @@ void main() {
       expect(chapterTitle.metadata['sourceTag'], equals('title'));
       expect(chapterTitle.metadata['type'], equals('psalm'));
       expect(chapterTitle.metadata['canonical'], equals('true'));
+      expect(chapterTitle.metadata['beforeVerse'], equals('1'));
     });
 
     test('OsisParser treats x-ms paragraph markers as headings', () async {

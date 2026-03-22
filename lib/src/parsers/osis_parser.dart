@@ -417,6 +417,7 @@ class OsisParser extends BaseParser {
                       ..._currentSectionMetadata(sectionDivMetadataStack),
                       ...currentTitleMetadata,
                       'sourceTag': 'title',
+                      if (currentVerse == null) 'beforeVerse': '1',
                     },
                   ),
                 );
