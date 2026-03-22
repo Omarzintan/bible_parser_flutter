@@ -482,6 +482,7 @@ class OsisParser extends BaseParser {
                   text: currentNoteText,
                   marker: noteMarker,
                   label: currentNoteLabel,
+                  bodyText: currentNoteText.isEmpty ? null : currentNoteText,
                   references: List<CrossReference>.from(currentNoteReferences),
                 ),
               );
@@ -792,6 +793,7 @@ class OsisParser extends BaseParser {
                   text: currentNoteText,
                   marker: noteMarker,
                   label: currentNoteLabel,
+                  bodyText: currentNoteText.isEmpty ? null : currentNoteText,
                   references: List<CrossReference>.from(currentNoteReferences),
                 ),
               );

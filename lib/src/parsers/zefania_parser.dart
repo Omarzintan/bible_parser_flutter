@@ -342,6 +342,7 @@ class ZefaniaParser extends BaseParser {
                   text: currentNoteText,
                   marker: noteMarker,
                   label: currentNoteLabel,
+                  bodyText: currentNoteText.isEmpty ? null : currentNoteText,
                 ),
               );
               currentVerse = _attachInlineMarker(
@@ -540,6 +541,7 @@ class ZefaniaParser extends BaseParser {
                   text: currentNoteText,
                   marker: noteMarker,
                   label: currentNoteLabel,
+                  bodyText: currentNoteText.isEmpty ? null : currentNoteText,
                 ),
               );
               currentVerse = _attachInlineMarker(

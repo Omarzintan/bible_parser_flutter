@@ -346,6 +346,9 @@ void main() {
       expect(fn.text, contains('note about this verse'));
       // The n="" attribute is stored as both label and marker.
       expect(fn.label, equals('a'));
+      // bodyText is set to the full note text as a convenience field.
+      expect(fn.bodyText, isNotNull);
+      expect(fn.bodyText, contains('note about this verse'));
 
       // Legacy plain-text list is also populated.
       expect(verse.notes, hasLength(1));
@@ -418,6 +421,9 @@ void main() {
 
       final fn = verse.footnotes.first;
       expect(fn.text, contains('footnote about creation'));
+      // bodyText is set to the full note text as a convenience field.
+      expect(fn.bodyText, isNotNull);
+      expect(fn.bodyText, contains('footnote about creation'));
 
       // Legacy plain-text list is also populated.
       expect(verse.notes, hasLength(1));

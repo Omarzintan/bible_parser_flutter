@@ -53,28 +53,25 @@ They are separate from feature backlog — they affect code quality and testabil
 
 ## Recommended Next Step
 
-- `next` Add structured footnote parts (`fr` / `ft` / `fq` as separate fields on `Footnote`) and the missing USFX intro paragraph tags (`ip`, `imt`, `is`).
+- `next` Separate OSIS and Zefania note content into `bodyText` when it is the sole note content, and investigate whether real source files expose `xo`/`xot` (cross-ref origin) that should be preserved as a field on `CrossReference`.
 
 **Why this first:**
 
-- Fixture tests now exist, so parser internals can be changed safely.
-- Footnote part separation is the highest-value lossy area identified in both TODO files.
-- USFX intro paragraphs are the next most common silently-dropped tag in real source files.
+- Footnote parts are now separated for USFX. OSIS/Zefania note text still goes only to `text`; `bodyText` would let consumers use the same code path for all formats.
+- `CrossReference.xo` / origin reference is the next parallel gap — same problem as `fr` was for footnotes.
 
 **Definition of done:**
 
-- `Footnote` gains `originRef` (`fr`), `bodyText` (`ft`), and `quotedText` (`fq`) fields alongside the existing `text` fallback.
-- USFX `<ip>`, `<imt>`, `<is>` tags are preserved as book-level introduction blocks.
-- At least one new fixture test per change is added to `parser_fixture_test.dart` and passes.
-- App-side `bible_models.dart` is updated to match if the `Footnote` shape changes.
+- OSIS/Zefania `Footnote.bodyText` is populated when the note has no structural sub-tags (i.e. `bodyText = text` as a convenience).
+- `CrossReference` gains an `originRef` field for USFX `<xo>` and OSIS `<reference type="source">`.
+- At least one fixture test per change passes.
 
 ---
 
 ## Current Status
 
 - `partial` All three parser formats now populate part of the shared rich-content model, but output is still incomplete and format fidelity is still lossy across the board.
-- `in_progress` The active gap is the remaining non-verse layout structures — intro paragraphs, quote attribution, divine name, Selah markers, table content, and several inline formatting kinds — that the parsers still drop or flatten.
-- `done` Fixture-based regression tests added (`test/parser_fixture_test.dart`): 14 new tests covering basic verse text, footnotes, cross-references, red-letter spans, and section headings across all three formats. All 57 tests pass.
+- `in_progress` The active gap is the remaining non-verse layout structures — quote attribution, divine name, Selah markers, table content, and several inline formatting kinds — that the parsers still drop or flatten.
 
 **Feature coverage summary:**
 
@@ -102,6 +99,7 @@ The full per-tag breakdown is in `README.md` under **Format Feature Support**.
 
 ## Completed Recently
 
+- `done` USFX footnote parts separated: `Footnote` gains `bodyText` (`<ft>`) and `quotedText` (`<fq>`/`<fqa>`). Legacy `text` unchanged. App model and serializer updated. 58 tests pass.
 - `done` Added fixture-based regression tests (`test/parser_fixture_test.dart`) covering basic verse text, footnotes, cross-references, red-letter spans, and section headings for all three formats (14 tests, 57 total pass).
 - `done` Added full per-tag format feature support tables to `README.md` for USFX, OSIS, and Zefania, covering every known tag with current support status.
 - `done` Preserved top-level Zefania `INFORMATION` metadata as carried front-matter blocks so source title/description no longer disappears.
