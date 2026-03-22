@@ -10,6 +10,7 @@ Status meanings:
 
 ## Current Status
 
+- `done` USFX now preserves `<b>` break markers as source-tagged document blocks, so those layout breaks no longer disappear before the reader can choose how to render them.
 - `done` Zefania paragraph-style `BR` blocks now keep `sourceTag` metadata too, so those layout markers line up better with the richer source-tag handling already present in USFX and OSIS.
 - `done` OSIS now preserves `speaker` elements as structured heading blocks with source metadata, so speaker labels survive parsing instead of being flattened away before the reader can use them.
 - `done` OSIS now preserves `<lg>` / `<l>` line-group poetry as both chapter-level poetry blocks and verse-level line-start metadata, so more poetic structure survives instead of flattening into prose.
@@ -19,6 +20,7 @@ Status meanings:
 - `in_progress` Rich parser work is now active across all main app formats: USFX, OSIS, and Zefania all preserve some structured spans, notes, references, and front-matter content.
 - `in_progress` All three main parser formats now emit chapter paragraph-start blocks where their source files expose paragraph markers, and they now preserve more source-driven poetry line starts as span metadata, but the coverage is still lossy and depends on what each XML source actually contains.
 - `in_progress` The next parser slice should focus on remaining non-verse layout tags beyond titles, paragraphs, line groups, and speaker labels, especially where source files can still expose richer sectional structure than the shared model currently keeps.
+- `in_progress` The next parser slice should focus on remaining non-verse layout tags beyond titles, paragraphs, line groups, speaker labels, and simple break markers, especially where source files can still expose richer sectional structure than the shared model currently keeps.
 
 | Feature | USFX | OSIS | Zefania | Notes |
 |---|---|---|---|---|

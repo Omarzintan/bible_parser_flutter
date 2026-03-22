@@ -411,6 +411,17 @@ void main() {
   </book>
 </usfx>
 ''';
+    final sampleUsfxBreakXml = '''
+<?xml version="1.0" encoding="UTF-8"?>
+<usfx>
+  <book id="GEN">
+    <c id="1">
+      <b/>
+      <v id="1">In the beginning God created the heaven and the earth.</v>
+    </c>
+  </book>
+</usfx>
+''';
     final sampleUsfxSectionBlocksXml = '''
 <?xml version="1.0" encoding="UTF-8"?>
 <usfx>
@@ -567,6 +578,22 @@ void main() {
       expect(poetrySpans.first.metadata['lineStart'], equals('true'));
       expect(poetrySpans.first.metadata['quoteLevel'], equals('2'));
       expect(poetrySpans.last.metadata['lineStart'], equals('true'));
+    });
+
+    test('UsfxParser preserves break markers as document blocks', () async {
+      final parser = UsfxParser(sampleUsfxBreakXml);
+
+      final chapter = (await parser.parseBooks().toList()).first.chapters.first;
+      expect(
+        chapter.blocks.any(
+          (block) =>
+              block.kind == DocumentBlockKind.paragraph &&
+              block.metadata['sourceTag'] == 'b' &&
+              block.metadata['style'] == 'b' &&
+              block.metadata['beforeVerse'] == '1',
+        ),
+        isTrue,
+      );
     });
 
     test('UsfxParser preserves additional front matter and section tags',

@@ -259,6 +259,18 @@ class UsfxParser extends BaseParser {
               currentChapterParagraphText = '';
               currentChapterParagraphMetadata = const {};
             }
+          } else if (event.name == 'b' &&
+              currentBook != null &&
+              currentChapter != null &&
+              currentVerse == null) {
+            // USFX `<b>` is a source layout break. Preserve it as a block
+            // marker instead of dropping it so the reader can decide how to
+            // render the break later.
+            pendingChapterParagraphBlock = DocumentBlock(
+              kind: DocumentBlockKind.paragraph,
+              text: '',
+              metadata: const {'sourceTag': 'b', 'style': 'b'},
+            );
           } else if (event.name == 'wj' && currentVerse != null) {
             wordsOfJesusDepth++;
           } else if (event.name == 'add' && currentVerse != null) {
