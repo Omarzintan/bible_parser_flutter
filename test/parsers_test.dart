@@ -183,6 +183,20 @@ void main() {
   </osisText>
 </osis>
 ''';
+    final sampleOsisTitleMetadataXml = '''
+<?xml version="1.0" encoding="UTF-8"?>
+<osis xmlns="http://www.bibletechnologies.net/2003/OSIS/namespace">
+  <osisText osisIDWork="TEST">
+    <div type="book" osisID="Ps">
+      <title type="main" short="Psalms" canonical="true">The Book of Psalms</title>
+      <chapter osisID="Ps.1">
+        <title type="psalm" canonical="true">ALEPH.</title>
+        <verse osisID="Ps.1.1">Blessed is the man.</verse>
+      </chapter>
+    </div>
+  </osisText>
+</osis>
+''';
     test('OsisParser can parse sample XML', () async {
       final parser = OsisParser(sampleOsisXml);
 
@@ -453,6 +467,27 @@ void main() {
         ),
         isTrue,
       );
+    });
+
+    test('OsisParser preserves title metadata such as short and canonical',
+        () async {
+      final parser = OsisParser(sampleOsisTitleMetadataXml);
+
+      final psalms = (await parser.parseBooks().toList()).first;
+      final introTitle = psalms.introductionBlocks.firstWhere(
+        (block) => block.text.contains('Book of Psalms'),
+      );
+      expect(introTitle.metadata['sourceTag'], equals('title'));
+      expect(introTitle.metadata['type'], equals('main'));
+      expect(introTitle.metadata['short'], equals('Psalms'));
+      expect(introTitle.metadata['canonical'], equals('true'));
+
+      final chapterTitle = psalms.chapters.first.blocks.firstWhere(
+        (block) => block.text.contains('ALEPH.'),
+      );
+      expect(chapterTitle.metadata['sourceTag'], equals('title'));
+      expect(chapterTitle.metadata['type'], equals('psalm'));
+      expect(chapterTitle.metadata['canonical'], equals('true'));
     });
   });
 

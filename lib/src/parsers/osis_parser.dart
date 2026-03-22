@@ -109,6 +109,7 @@ class OsisParser extends BaseParser {
 
     String currentTitleText = '';
     String? currentTitleType;
+    Map<String, String> currentTitleMetadata = const {};
     String currentHeadText = '';
     Map<String, String> currentHeadMetadata = const {};
     String currentSpeakerText = '';
@@ -221,6 +222,7 @@ class OsisParser extends BaseParser {
             insideTitle = true;
             currentTitleText = '';
             currentTitleType = _attributeValue(event, 'type');
+            currentTitleMetadata = _titleMetadataFromEvent(event);
           } else if (event.name == 'head' &&
               currentBook != null &&
               currentVerse == null) {
@@ -390,8 +392,8 @@ class OsisParser extends BaseParser {
                     text: titleText,
                     metadata: {
                       ..._currentSectionMetadata(sectionDivMetadataStack),
+                      ...currentTitleMetadata,
                       'sourceTag': 'title',
-                      if (currentTitleType != null) 'type': currentTitleType,
                     },
                   ),
                 );
@@ -402,8 +404,8 @@ class OsisParser extends BaseParser {
                     text: titleText,
                     metadata: {
                       ..._currentSectionMetadata(sectionDivMetadataStack),
+                      ...currentTitleMetadata,
                       'sourceTag': 'title',
-                      if (currentTitleType != null) 'type': currentTitleType,
                     },
                   ),
                 );
@@ -412,6 +414,7 @@ class OsisParser extends BaseParser {
             insideTitle = false;
             currentTitleText = '';
             currentTitleType = null;
+            currentTitleMetadata = const {};
           } else if (event.name == 'head' && currentBook != null) {
             final headText = currentHeadText.trim();
             if (headText.isNotEmpty) {
@@ -1118,6 +1121,23 @@ class OsisParser extends BaseParser {
     final subType = _attributeValue(event, 'subType');
     if (subType != null && subType.isNotEmpty) {
       metadata['subType'] = subType;
+    }
+    return metadata;
+  }
+
+  Map<String, String> _titleMetadataFromEvent(XmlStartElementEvent event) {
+    final metadata = <String, String>{};
+    final type = _attributeValue(event, 'type');
+    if (type != null && type.isNotEmpty) {
+      metadata['type'] = type;
+    }
+    final short = _attributeValue(event, 'short');
+    if (short != null && short.isNotEmpty) {
+      metadata['short'] = short;
+    }
+    final canonical = _attributeValue(event, 'canonical');
+    if (canonical != null && canonical.isNotEmpty) {
+      metadata['canonical'] = canonical;
     }
     return metadata;
   }
