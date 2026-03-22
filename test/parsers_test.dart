@@ -197,6 +197,19 @@ void main() {
   </osisText>
 </osis>
 ''';
+    final sampleOsisMajorSectionParagraphXml = '''
+<?xml version="1.0" encoding="UTF-8"?>
+<osis xmlns="http://www.bibletechnologies.net/2003/OSIS/namespace">
+  <osisText osisIDWork="TEST">
+    <div type="book" osisID="Ps">
+      <chapter osisID="Ps.1">
+        <p type="x-ms">Book I</p>
+        <verse osisID="Ps.1.1">Blessed is the man.</verse>
+      </chapter>
+    </div>
+  </osisText>
+</osis>
+''';
     test('OsisParser can parse sample XML', () async {
       final parser = OsisParser(sampleOsisXml);
 
@@ -488,6 +501,23 @@ void main() {
       expect(chapterTitle.metadata['sourceTag'], equals('title'));
       expect(chapterTitle.metadata['type'], equals('psalm'));
       expect(chapterTitle.metadata['canonical'], equals('true'));
+    });
+
+    test('OsisParser treats x-ms paragraph markers as headings', () async {
+      final parser = OsisParser(sampleOsisMajorSectionParagraphXml);
+
+      final chapter = (await parser.parseBooks().toList()).first.chapters.first;
+      expect(
+        chapter.blocks.any(
+          (block) =>
+              block.kind == DocumentBlockKind.heading &&
+              block.text.contains('Book I') &&
+              block.metadata['sourceTag'] == 'p' &&
+              block.metadata['type'] == 'x-ms' &&
+              block.metadata['beforeVerse'] == '1',
+        ),
+        isTrue,
+      );
     });
   });
 

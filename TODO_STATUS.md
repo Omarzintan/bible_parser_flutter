@@ -24,6 +24,7 @@ Status meanings:
 
 ## Completed Recently
 
+- `done` Classified OSIS paragraph markers like `type="x-ms"` as heading-like structural blocks instead of generic prose, so major section markers from real files survive with better semantics.
 - `done` Preserved more OSIS title metadata such as `short` and `canonical` so title blocks now keep source navigation/layout hints that real OSIS files already expose.
 - `done` Preserved OSIS `<lb />` break markers as structured layout blocks with source-tag metadata instead of dropping those source line breaks before the reader can use them.
 - `done` Preserved USFX list-style block tags such as `li1`, `li2`, and `ili1` as structured blocks with source-tag and level metadata instead of flattening those list sections away.
@@ -34,7 +35,7 @@ Status meanings:
 
 - `partial` Phase 1 shared rich-content model types now exist in code, and all three main parser formats now populate part of them, but output is still incomplete and format fidelity is still lossy.
 - `in_progress` USFX, OSIS, and Zefania now all preserve some structured spans, notes, references, front matter, headings, paragraph starts, and layout metadata, but the output is still incomplete and source fidelity is still lossy.
-- `in_progress` The active parser gap is remaining non-verse layout structure beyond the current title, paragraph, list, line-group, speaker, caption, simple break, nested section, basic list-item, line-break, and basic title-metadata handling, especially where source files expose richer sectional tags than the shared model keeps.
+- `in_progress` The active parser gap is remaining non-verse layout structure beyond the current title, paragraph, list, line-group, speaker, caption, simple break, nested section, basic list-item, line-break, title-metadata, and major-section paragraph handling, especially where source files expose richer sectional tags than the shared model keeps.
 
 | Feature | USFX | OSIS | Zefania | Notes |
 |---|---|---|---|---|

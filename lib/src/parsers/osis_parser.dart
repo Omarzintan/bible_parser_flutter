@@ -1182,6 +1182,11 @@ class OsisParser extends BaseParser {
   DocumentBlockKind _paragraphKindFromMetadata(Map<String, String> metadata) {
     final combined =
         '${metadata['type'] ?? ''} ${metadata['subType'] ?? ''}'.toLowerCase();
+    if (combined.contains('x-ms') ||
+        combined.contains('major-section') ||
+        combined.contains('section heading')) {
+      return DocumentBlockKind.heading;
+    }
     if (combined.contains('quote') ||
         combined.contains('poetry') ||
         combined.contains('line') ||
@@ -1274,6 +1279,9 @@ class OsisParser extends BaseParser {
     final combined =
         '${metadata['type'] ?? ''} ${metadata['subType'] ?? ''}'.toLowerCase();
     if (combined.contains('preface')) return DocumentBlockKind.preface;
+    if (_paragraphKindFromMetadata(metadata) == DocumentBlockKind.heading) {
+      return DocumentBlockKind.heading;
+    }
     if (_paragraphKindFromMetadata(metadata) == DocumentBlockKind.poetry) {
       return DocumentBlockKind.poetry;
     }
