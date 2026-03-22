@@ -149,6 +149,26 @@ void main() {
   </osisText>
 </osis>
 ''';
+    final sampleOsisListXml = '''
+<?xml version="1.0" encoding="UTF-8"?>
+<osis xmlns="http://www.bibletechnologies.net/2003/OSIS/namespace">
+  <osisText osisIDWork="TEST">
+    <div type="book" osisID="John">
+      <list type="outline" subType="x-study">
+        <item type="label" level="1">Intro list item</item>
+      </list>
+      <chapter osisID="John.1">
+        <div type="section" osisID="John.1.section.1">
+          <list type="poetry">
+            <item level="2">Indented chapter item</item>
+          </list>
+        </div>
+        <verse osisID="John.1.1">In the beginning was the Word.</verse>
+      </chapter>
+    </div>
+  </osisText>
+</osis>
+''';
     test('OsisParser can parse sample XML', () async {
       final parser = OsisParser(sampleOsisXml);
 
@@ -378,6 +398,31 @@ void main() {
       );
       expect(sectionParagraph.metadata['sectionType'], equals('section'));
       expect(sectionParagraph.metadata['sourceTag'], equals('p'));
+    });
+
+    test('OsisParser preserves non-verse list items as structured blocks',
+        () async {
+      final parser = OsisParser(sampleOsisListXml);
+
+      final john = (await parser.parseBooks().toList()).first;
+      final introItem = john.introductionBlocks.firstWhere(
+        (block) => block.text.contains('Intro list item'),
+      );
+      expect(introItem.kind, isNotNull);
+      expect(introItem.metadata['sourceTag'], equals('item'));
+      expect(introItem.metadata['listType'], equals('outline'));
+      expect(introItem.metadata['listSubType'], equals('x-study'));
+      expect(introItem.metadata['itemType'], equals('label'));
+      expect(introItem.metadata['itemLevel'], equals('1'));
+
+      final chapterItem = john.chapters.first.blocks.firstWhere(
+        (block) => block.text.contains('Indented chapter item'),
+      );
+      expect(chapterItem.kind, equals(DocumentBlockKind.poetry));
+      expect(chapterItem.metadata['sourceTag'], equals('item'));
+      expect(chapterItem.metadata['listType'], equals('poetry'));
+      expect(chapterItem.metadata['itemLevel'], equals('2'));
+      expect(chapterItem.metadata['sectionType'], equals('section'));
     });
   });
 

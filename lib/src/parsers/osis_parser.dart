@@ -103,6 +103,7 @@ class OsisParser extends BaseParser {
     bool insideNote = false;
     bool insideReference = false;
     bool insideParagraph = false;
+    bool insideListItem = false;
     bool insideBlockLine = false;
     bool currentBlockLineHasText = false;
 
@@ -121,8 +122,11 @@ class OsisParser extends BaseParser {
     String? currentReferenceTarget;
     String? currentReferenceMarker;
     String currentParagraphText = '';
+    String currentListItemText = '';
     Map<String, String> currentParagraphMetadata = const {};
+    Map<String, String> currentListItemMetadata = const {};
     DocumentBlock? pendingParagraphBlock;
+    final List<Map<String, String>> listMetadataStack = <Map<String, String>>[];
 
     int translatorAdditionDepth = 0;
     int wordsOfJesusDepth = 0;
@@ -271,6 +275,21 @@ class OsisParser extends BaseParser {
               text: '',
               metadata: currentParagraphMetadata,
             );
+          } else if (event.name == 'list' &&
+              currentBook != null &&
+              currentVerse == null) {
+            listMetadataStack.add(_listMetadataFromEvent(event));
+          } else if (event.name == 'item' &&
+              currentBook != null &&
+              currentVerse == null) {
+            insideListItem = true;
+            currentListItemText = '';
+            currentListItemMetadata = {
+              ..._currentSectionMetadata(sectionDivMetadataStack),
+              ..._currentListMetadata(listMetadataStack),
+              ..._itemMetadataFromEvent(event),
+              'sourceTag': 'item',
+            };
           } else if (event.name == 'div' &&
               currentBook != null &&
               !_isBookStart(event)) {
@@ -483,6 +502,27 @@ class OsisParser extends BaseParser {
             insideParagraph = false;
             insideBlockLine = false;
             currentParagraphMetadata = const {};
+          } else if (event.name == 'item' && currentBook != null) {
+            final itemText = currentListItemText.trim();
+            if (insideListItem && itemText.isNotEmpty) {
+              final block = DocumentBlock(
+                kind: _listItemBlockKind(currentListItemMetadata),
+                text: itemText,
+                metadata: currentListItemMetadata,
+              );
+              if (currentChapter == null) {
+                currentBook.introductionBlocks.add(block);
+              } else {
+                currentChapter.blocks.add(block);
+              }
+            }
+            insideListItem = false;
+            currentListItemText = '';
+            currentListItemMetadata = const {};
+          } else if (event.name == 'list' && currentBook != null) {
+            if (listMetadataStack.isNotEmpty) {
+              listMetadataStack.removeLast();
+            }
           } else if (event.name == 'lg' && currentBook != null) {
             if (currentChapter == null && pendingParagraphBlock != null) {
               final introText = currentParagraphText.trim();
@@ -540,6 +580,8 @@ class OsisParser extends BaseParser {
             currentHeadText = _appendText(currentHeadText, cleaned);
           } else if (insideSpeaker) {
             currentSpeakerText = _appendText(currentSpeakerText, cleaned);
+          } else if (insideListItem && currentVerse == null) {
+            currentListItemText = _appendText(currentListItemText, cleaned);
           } else if (insideParagraph && currentVerse == null) {
             currentParagraphText = (insideBlockLine && !currentBlockLineHasText)
                 ? _appendBlockLineText(currentParagraphText, cleaned)
@@ -1053,6 +1095,43 @@ class OsisParser extends BaseParser {
     return metadata;
   }
 
+  Map<String, String> _listMetadataFromEvent(XmlStartElementEvent event) {
+    final metadata = <String, String>{};
+    final type = _attributeValue(event, 'type');
+    if (type != null && type.isNotEmpty) {
+      metadata['listType'] = type;
+    }
+    final subType = _attributeValue(event, 'subType');
+    if (subType != null && subType.isNotEmpty) {
+      metadata['listSubType'] = subType;
+    }
+    return metadata;
+  }
+
+  Map<String, String> _itemMetadataFromEvent(XmlStartElementEvent event) {
+    final metadata = <String, String>{};
+    final type = _attributeValue(event, 'type');
+    if (type != null && type.isNotEmpty) {
+      metadata['itemType'] = type;
+    }
+    final level = _attributeValue(event, 'level');
+    if (level != null && level.isNotEmpty) {
+      metadata['itemLevel'] = level;
+    }
+    return metadata;
+  }
+
+  Map<String, String> _currentListMetadata(
+    List<Map<String, String>> listMetadataStack,
+  ) {
+    for (final metadata in listMetadataStack.reversed) {
+      if (metadata.isNotEmpty) {
+        return metadata;
+      }
+    }
+    return const {};
+  }
+
   DocumentBlockKind _paragraphKindFromMetadata(Map<String, String> metadata) {
     final combined =
         '${metadata['type'] ?? ''} ${metadata['subType'] ?? ''}'.toLowerCase();
@@ -1060,6 +1139,18 @@ class OsisParser extends BaseParser {
         combined.contains('poetry') ||
         combined.contains('line') ||
         combined.contains('lg')) {
+      return DocumentBlockKind.poetry;
+    }
+    return DocumentBlockKind.paragraph;
+  }
+
+  DocumentBlockKind _listItemBlockKind(Map<String, String> metadata) {
+    final combined =
+        '${metadata['listType'] ?? ''} ${metadata['listSubType'] ?? ''} ${metadata['itemType'] ?? ''}'
+            .toLowerCase();
+    if (combined.contains('poetry') ||
+        combined.contains('quote') ||
+        combined.contains('line')) {
       return DocumentBlockKind.poetry;
     }
     return DocumentBlockKind.paragraph;
