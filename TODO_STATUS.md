@@ -73,7 +73,7 @@ They are separate from feature backlog — they affect code quality and testabil
 | --- | --- | --- | --- | --- |
 | Book / chapter / verse parsing | done | done | done | Core extraction works in all three formats. |
 | Auto format detection | done | done | done | Detection exists in `BibleParser`. |
-| Footnotes | partial | partial | partial | Structured `Footnote` objects exist but nested parts like `fr` / `ft` / `fq` are not separated. |
+| Footnotes | partial | partial | partial | Structured `Footnote` objects exist with `bodyText`, `quotedText`, and `originRef` separated in USFX. OSIS and Zefania populate `bodyText` but lack part-level separation. |
 | Cross-references | partial | partial | partial | Structured `CrossReference` objects exist; multiple refs and targets are partially preserved. |
 | Red-letter text | partial | partial | partial | USFX `<wj>` and OSIS `<q who="Jesus">` tracked; Zefania infers from style metadata. |
 | Poetry / quoted line structure | partial | partial | partial | Line starts and line groups preserved; stanza grouping and quote levels still incomplete. |
@@ -83,9 +83,9 @@ They are separate from feature backlog — they affect code quality and testabil
 | Word-level metadata | done | done | partial | Strong's, lemma, and morphology preserved in span metadata. Zefania has no standard word-level tags. |
 | Translator additions | done | done | partial | `<add>` (USFX) and `<transChange type="added">` (OSIS) emit `translatorAddition` spans. Zefania infers from style conventions. |
 | Divine name (LORD) | done | done | todo | `<nd>` (USFX) and `<divineName>` (OSIS) emit `divineNameTag` spans. Zefania has no equivalent tag. |
-| Proper name | done | todo | todo | `<pn>` (USFX) emits `properName` span. OSIS has no standard equivalent. |
-| Selah / music cue | done | todo | todo | `<qs>` (USFX) emits `selah` span. |
-| Acrostic heading | done | todo | todo | `<qa>` (USFX) emits `acrosticHeading` span. |
+| Proper name | done | n/a | n/a | `<pn>` (USFX) emits `properName` span. OSIS and Zefania have no standard equivalent tag. |
+| Selah / music cue | done | n/a | n/a | `<qs>` (USFX) emits `selah` span. OSIS and Zefania encode selah as inline text. |
+| Acrostic heading | done | n/a | n/a | `<qa>` (USFX) emits `acrosticHeading` span. OSIS uses `<title type="acrostic">` which maps to heading blocks. |
 | Inline emphasis/bold/italic | done | done | todo | USFX `<em>/<bd>/<it>` and OSIS `<hi type="bold/italic/emphasis">` all emit matching span kinds. |
 | Introductions / front matter | partial | partial | partial | Book-level intro blocks exist in all three; Bible-level front matter still incomplete. |
 | Structured notes model | partial | partial | partial | Structured objects coexist with legacy plain-text lists; still lossy. |
