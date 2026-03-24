@@ -143,6 +143,20 @@ const _usfxTranslatorAdd = '''<?xml version="1.0" encoding="utf-8"?>
   </book>
 </usfx>''';
 
+/// USFX table with two rows and two columns.
+const _usfxTable = '''<?xml version="1.0" encoding="utf-8"?>
+<usfx xmlns="http://www.bibletechnologies.net/2003/USFX/namespace">
+  <book id="GEN">
+    <c id="1">
+      <table>
+        <tr><tc1>Name</tc1><tc2>Age</tc2></tr>
+        <tr><tc1>Adam</tc1><tc2>930</tc2></tr>
+      </table>
+      <v id="1">In the beginning God created the heaven and the earth.</v>
+    </c>
+  </book>
+</usfx>''';
+
 /// USFX footnote after a red-letter span — tests that spanIndex anchors to
 /// the correct span (the wordsOfJesus span) instead of the last span.
 const _usfxFootnoteAnchor = '''<?xml version="1.0" encoding="utf-8"?>
@@ -756,6 +770,29 @@ void main() {
           reason: 'Expected <cd> chapter description as a chapter block');
       expect(cdBlocks.first.kind, equals(DocumentBlockKind.introduction));
       expect(cdBlocks.first.text, equals('The story of creation.'));
+    });
+
+    test('preserves USFX tables as table and tableRow blocks', () async {
+      final book = await _parseFirstBook(_usfxTable, 'USFX');
+      expect(book, isNotNull);
+      final chapter = book!.chapters.first;
+
+      final tableBlocks = chapter.blocks
+          .where((b) => b.kind == DocumentBlockKind.table)
+          .toList();
+      expect(tableBlocks, hasLength(1),
+          reason: 'Expected one table container block');
+      expect(tableBlocks.first.metadata['rowCount'], equals('2'));
+
+      final rowBlocks = chapter.blocks
+          .where((b) => b.kind == DocumentBlockKind.tableRow)
+          .toList();
+      expect(rowBlocks, hasLength(2), reason: 'Expected two row blocks');
+
+      expect(rowBlocks.first.metadata['cells'], contains('Name'));
+      expect(rowBlocks.first.metadata['cells'], contains('Age'));
+      expect(rowBlocks.last.metadata['cells'], contains('Adam'));
+      expect(rowBlocks.last.metadata['cells'], contains('930'));
     });
   });
 

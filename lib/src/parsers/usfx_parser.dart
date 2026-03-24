@@ -153,6 +153,14 @@ class UsfxParser extends BaseParser {
     Map<String, String> currentChapterParagraphMetadata = const {};
     DocumentBlock? pendingChapterParagraphBlock;
 
+    // Table state
+    bool insideTable = false;
+    bool insideTableRow = false;
+    bool insideTableCell = false;
+    String currentTableCellText = '';
+    List<String> currentTableRowCells = [];
+    List<DocumentBlock> currentTableRows = [];
+
     try {
       final events = await parseEvents(content).toList();
 
@@ -266,6 +274,17 @@ class UsfxParser extends BaseParser {
             currentStructuredBlockTag = event.name;
             currentStructuredBlockText = '';
             currentStructuredBlockLevel = _structuredBlockLevel(event.name);
+          } else if (event.name == 'table' &&
+              currentBook != null &&
+              currentVerse == null) {
+            insideTable = true;
+            currentTableRows = [];
+          } else if (event.name == 'tr' && insideTable) {
+            insideTableRow = true;
+            currentTableRowCells = [];
+          } else if (_isUsfxTableCellTag(event.name) && insideTableRow) {
+            insideTableCell = true;
+            currentTableCellText = '';
           } else if (event.name == 'p' &&
               currentBook != null &&
               currentChapter == null) {
@@ -494,6 +513,47 @@ class UsfxParser extends BaseParser {
             currentStructuredBlockTag = null;
             currentStructuredBlockText = '';
             currentStructuredBlockLevel = null;
+          } else if (_isUsfxTableCellTag(event.name) && insideTableCell) {
+            currentTableRowCells.add(currentTableCellText.trim());
+            insideTableCell = false;
+            currentTableCellText = '';
+          } else if (event.name == 'tr' && insideTableRow) {
+            final cellsStr = currentTableRowCells.join('\t');
+            currentTableRows.add(DocumentBlock(
+              kind: DocumentBlockKind.tableRow,
+              text: currentTableRowCells.join(' '),
+              metadata: {
+                'sourceTag': 'tr',
+                'cells': cellsStr,
+              },
+            ));
+            insideTableRow = false;
+            currentTableRowCells = [];
+          } else if (event.name == 'table' && insideTable) {
+            if (currentTableRows.isNotEmpty && currentBook != null) {
+              final allText = currentTableRows.map((r) => r.text).join(' ');
+              final tableBlock = DocumentBlock(
+                kind: DocumentBlockKind.table,
+                text: allText,
+                metadata: {
+                  'sourceTag': 'table',
+                  'rowCount': currentTableRows.length.toString(),
+                },
+              );
+              if (currentChapter == null) {
+                currentBook.introductionBlocks.add(tableBlock);
+                for (final row in currentTableRows) {
+                  currentBook.introductionBlocks.add(row);
+                }
+              } else {
+                currentChapter.blocks.add(tableBlock);
+                for (final row in currentTableRows) {
+                  currentChapter.blocks.add(row);
+                }
+              }
+            }
+            insideTable = false;
+            currentTableRows = [];
           } else if (event.name == 'p' &&
               currentBook != null &&
               currentChapter == null) {
@@ -581,6 +641,8 @@ class UsfxParser extends BaseParser {
             currentTocText = _appendText(currentTocText, cleaned);
           } else if (insideHeading && currentBook != null) {
             currentHeadingText = _appendText(currentHeadingText, cleaned);
+          } else if (insideTableCell) {
+            currentTableCellText = _appendText(currentTableCellText, cleaned);
           } else if (currentStructuredBlockTag != null &&
               currentBook != null &&
               currentVerse == null) {
@@ -1203,6 +1265,12 @@ class UsfxParser extends BaseParser {
       return DocumentBlockKind.poetry;
     }
     return DocumentBlockKind.heading;
+  }
+
+  /// USFX table cell tags: `tc1`, `tc2`, `tcr1`, `th1`, `thr1`, etc.
+  bool _isUsfxTableCellTag(String tagName) {
+    return RegExp(r'^(tc|tcr|th|thr)\d*$', caseSensitive: false)
+        .hasMatch(tagName);
   }
 
   String _generatedMarker(int index) {
