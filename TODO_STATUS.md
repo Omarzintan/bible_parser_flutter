@@ -44,7 +44,7 @@ They are separate from feature backlog — they affect code quality and testabil
 | --- | --- | --- |
 | Parser state explosion | High | Each parser's `parseBooks()` has 40+ local state variables. This is hard to test, easy to break, and hard to read. State should be extracted into a dedicated class or set of smaller methods. |
 | Test coverage is still selective | High | Fixture-based regression tests now exist, but coverage is still thin relative to parser complexity. XML edge cases are brutal to debug without broader fixtures. Every new parser feature should still be verified by a real XML snippet before being marked done. |
-| Marker attachment is a heuristic | Medium | Footnote and reference markers are attached to verse text by inserting metadata into "the last span." This breaks when annotations overlap (e.g., red-letter + footnote at the same word). True positional anchoring requires tracking the exact byte or character offset when the caller appears in the XML stream. |
+| Marker attachment uses span-level granularity | Low | `spanIndex` now tracks which span a footnote/reference appeared at, replacing the old last-span heuristic. Character-level precision within a span is not yet tracked, but span-level anchoring handles the common cases. |
 | Metadata type unsafety | Medium | All span and block metadata is stored as `Map<String, String>`. Numeric values like level or depth get string-converted and back. Missing keys throw at runtime with no compile-time warning. |
 | Legacy plain-text fallback coexists with structured output | Low | `Verse.notes` and `Verse.references` (plain `List<String>`) still exist alongside the newer `Verse.footnotes` and `Verse.crossReferences`. This dual output complicates both parser logic and consumer code. The plain-text lists should eventually be deprecated and removed. |
 | Zefania style inference is fragile | Low | Zefania has no explicit red-letter or translator-addition tags. The parser infers span kinds from `<STYLE type="...">` name patterns. Different source files may use different naming conventions, so this will silently break on new files. |
@@ -53,19 +53,19 @@ They are separate from feature backlog — they affect code quality and testabil
 
 ## Recommended Next Step
 
-- `next` Improve inline note and reference anchor placement: track the XML position where a footnote caller or reference marker appears so it attaches to the correct span boundary instead of heuristically on the last span.
+- `next` Finish structured footnote part separation in OSIS and Zefania: these formats currently put all note text into `bodyText` as a single string, but USFX already separates `bodyText`, `quotedText`, and `label`. Bringing OSIS and Zefania to the same level removes the last major footnote fidelity gap.
 
 **Why this first:**
 
-- USFX intro paragraphs, chapter descriptions, word metadata, and OSIS tables are all now preserved with correct block kinds and tested.
-- Anchor fidelity is the next structural gap that affects multiple formats and directly impacts how accurately footnote/reference markers render in the app.
+- Anchor placement is now solved — `spanIndex` tracks the correct span for all three formats.
+- Footnote structure is the next parser gap that directly affects the app's structured note rendering quality.
 
 ---
 
 ## Current Status
 
 - `partial` All three parser formats now populate part of the shared rich-content model, but output is still incomplete and format fidelity is still lossy across the board.
-- `in_progress` Remaining parser gaps with the highest immediate value are inline note/reference anchor fidelity and reducing format lossiness across all three parsers.
+- `in_progress` Remaining parser gaps with the highest immediate value are footnote part separation in OSIS/Zefania and reducing format lossiness across all three parsers.
 
 **Feature coverage summary:**
 
@@ -73,8 +73,8 @@ They are separate from feature backlog — they affect code quality and testabil
 | --- | --- | --- | --- | --- |
 | Book / chapter / verse parsing | done | done | done | Core extraction works in all three formats. |
 | Auto format detection | done | done | done | Detection exists in `BibleParser`. |
-| Footnotes | partial | partial | partial | Structured `Footnote` objects exist with `bodyText`, `quotedText`, and `originRef` separated in USFX. OSIS and Zefania populate `bodyText` but lack part-level separation. |
-| Cross-references | partial | partial | partial | Structured `CrossReference` objects exist; multiple refs and targets are partially preserved. |
+| Footnotes | partial | partial | partial | Structured `Footnote` objects with `bodyText`, `quotedText`, `originRef`, and `spanIndex` anchor. USFX has part-level separation; OSIS and Zefania populate `bodyText` only. |
+| Cross-references | partial | partial | partial | Structured `CrossReference` objects with `spanIndex` anchor; multiple refs and targets partially preserved. |
 | Red-letter text | partial | partial | partial | USFX `<wj>` and OSIS `<q who="Jesus">` tracked; Zefania infers from style metadata. |
 | Poetry / quoted line structure | partial | partial | partial | Line starts and line groups preserved; stanza grouping and quote levels still incomplete. |
 | Paragraph boundaries | partial | partial | partial | Chapter paragraph-start markers preserved in block model; not full layout fidelity. |
@@ -98,6 +98,7 @@ The full per-tag breakdown is in `README.md` under **Format Feature Support**.
 
 ## Completed Recently
 
+- `done` Added `spanIndex` anchor tracking to `Footnote` and `CrossReference` — all three parsers now record the span index where the annotation appeared in the XML stream, replacing the last-span heuristic. Includes fixture test for multi-span anchor placement. 80 tests pass.
 - `done` Fixed USFX `<cd>` (chapter description) to classify as `introduction` instead of `heading`, and added fixture test covering `<imt>`, `<ip>`, `<is1>`, `<io1>`, and `<cd>`. 36 fixture tests pass.
 - `done` Added USFX morphology (`m` attribute) to word metadata and added fixture tests for word metadata in both USFX and OSIS. 35 fixture tests pass.
 - `done` Preserved OSIS `<table>` / `<row>` / `<cell>` as explicit `table` and `tableRow` document blocks with table/row/cell metadata, and added a fixture regression test for it.
@@ -107,9 +108,6 @@ The full per-tag breakdown is in `README.md` under **Format Feature Support**.
 - `done` Added OSIS `<hi type="bold/italic/emphasis">` support via hiKinds stack. Fixed README: Zefania `<BR />` was already handled. 33 fixture tests pass.
 - `done` Added `emphasis`, `bold`, `italic` span kinds for USFX `<em>`, `<bd>`, `<it>`. 33 fixture tests pass.
 - `done` Added `properName`, `selah`, `acrosticHeading` span kinds for USFX `<pn>`, `<qs>`, `<qa>`. 33 fixture tests pass.
-- `done` Added `divineNameTag` span kind for USFX `<nd>` and OSIS `<divineName>`. 33 fixture tests pass.
-- `done` Added `CrossReference.originRef` from USFX `<xo>` and OSIS `<reference type="source">`. Also fixed OSIS cross-reference-only notes being silently dropped. 33 fixture tests pass.
-- `done` OSIS and Zefania parsers now populate `Footnote.bodyText` with the full note text so the app's structured rendering path works for all three formats. 33 fixture tests pass.
 
 ---
 
