@@ -53,19 +53,19 @@ They are separate from feature backlog — they affect code quality and testabil
 
 ## Recommended Next Step
 
-- `next` Add USFX intro paragraph support: preserve `<ip>`, `<imt>`, `<is>` intro paragraph tags as book-level introduction blocks, and `<cd>` chapter descriptions as chapter-level blocks.
+- `next` Improve inline note and reference anchor placement: track the XML position where a footnote caller or reference marker appears so it attaches to the correct span boundary instead of heuristically on the last span.
 
 **Why this first:**
 
-- Word metadata (`lemma`, `morph`, Strong's) is now preserved in both USFX and OSIS.
-- Intro paragraphs are the next explicitly listed gap in the format tables and the app's `TODO_STATUS.md` calls them out as the next parser-side gain needed for richer document rendering.
+- USFX intro paragraphs, chapter descriptions, word metadata, and OSIS tables are all now preserved with correct block kinds and tested.
+- Anchor fidelity is the next structural gap that affects multiple formats and directly impacts how accurately footnote/reference markers render in the app.
 
 ---
 
 ## Current Status
 
 - `partial` All three parser formats now populate part of the shared rich-content model, but output is still incomplete and format fidelity is still lossy across the board.
-- `in_progress` Remaining parser gaps with the highest immediate value are USFX intro paragraph tags (`<ip>`, `<imt>`, `<is>`, `<cd>`) and the broader anchor-fidelity work for inline notes and references.
+- `in_progress` Remaining parser gaps with the highest immediate value are inline note/reference anchor fidelity and reducing format lossiness across all three parsers.
 
 **Feature coverage summary:**
 
@@ -98,6 +98,7 @@ The full per-tag breakdown is in `README.md` under **Format Feature Support**.
 
 ## Completed Recently
 
+- `done` Fixed USFX `<cd>` (chapter description) to classify as `introduction` instead of `heading`, and added fixture test covering `<imt>`, `<ip>`, `<is1>`, `<io1>`, and `<cd>`. 36 fixture tests pass.
 - `done` Added USFX morphology (`m` attribute) to word metadata and added fixture tests for word metadata in both USFX and OSIS. 35 fixture tests pass.
 - `done` Preserved OSIS `<table>` / `<row>` / `<cell>` as explicit `table` and `tableRow` document blocks with table/row/cell metadata, and added a fixture regression test for it.
 - `done` Added USFX `<q who="...">` speaker attribution — all non-empty `who` values now emit `quoteWho` in span metadata. 33 fixture tests pass.

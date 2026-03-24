@@ -1159,7 +1159,8 @@ class UsfxParser extends BaseParser {
         normalized == 'imi' ||
         normalized == 'iot' ||
         normalized.startsWith('io') ||
-        normalized == 'ie') {
+        normalized == 'ie' ||
+        normalized == 'cd') {
       return isPreface
           ? DocumentBlockKind.preface
           : DocumentBlockKind.introduction;

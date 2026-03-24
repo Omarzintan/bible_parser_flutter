@@ -383,6 +383,21 @@ const _osisWordMetadata = '''<?xml version="1.0" encoding="utf-8"?>
   </osisText>
 </osis>''';
 
+/// USFX intro paragraphs and chapter description.
+const _usfxIntroParagraphs = '''<?xml version="1.0" encoding="utf-8"?>
+<usfx xmlns="http://www.bibletechnologies.net/2003/USFX/namespace">
+  <book id="GEN">
+    <imt>Introduction to Genesis</imt>
+    <ip>Genesis is the first book of the Bible.</ip>
+    <is1>Outline</is1>
+    <io1>Creation (1:1-2:3)</io1>
+    <c id="1">
+      <cd>The story of creation.</cd>
+      <v id="1">In the beginning God created the heaven and the earth.</v>
+    </c>
+  </book>
+</usfx>''';
+
 // ---------------------------------------------------------------------------
 // Zefania fixtures
 // ---------------------------------------------------------------------------
@@ -671,6 +686,43 @@ void main() {
       expect(wordSpans.first.metadata['strongs'], equals('H7225'));
       expect(wordSpans.first.metadata['lemma'], equals('reshith'));
       expect(wordSpans.first.metadata['morph'], equals('HNcfsa'));
+    });
+
+    test('preserves intro paragraphs and chapter description', () async {
+      final book = await _parseFirstBook(_usfxIntroParagraphs, 'USFX');
+
+      expect(book, isNotNull);
+
+      final introBlocks = book!.introductionBlocks;
+      expect(introBlocks, isNotEmpty,
+          reason: 'Expected book-level introduction blocks from <imt>, <ip>, <is1>, <io1>');
+
+      final introTitles = introBlocks
+          .where((b) => b.metadata['sourceTag'] == 'imt')
+          .toList();
+      expect(introTitles, hasLength(1));
+      expect(introTitles.first.text, equals('Introduction to Genesis'));
+
+      final introParagraphs = introBlocks
+          .where((b) => b.metadata['sourceTag'] == 'ip')
+          .toList();
+      expect(introParagraphs, hasLength(1));
+      expect(introParagraphs.first.kind, equals(DocumentBlockKind.introduction));
+
+      final introOutlines = introBlocks
+          .where((b) => b.metadata['sourceTag'] == 'io1')
+          .toList();
+      expect(introOutlines, hasLength(1));
+      expect(introOutlines.first.kind, equals(DocumentBlockKind.introduction));
+
+      final chapter = book.chapters.first;
+      final cdBlocks = chapter.blocks
+          .where((b) => b.metadata['sourceTag'] == 'cd')
+          .toList();
+      expect(cdBlocks, hasLength(1),
+          reason: 'Expected <cd> chapter description as a chapter block');
+      expect(cdBlocks.first.kind, equals(DocumentBlockKind.introduction));
+      expect(cdBlocks.first.text, equals('The story of creation.'));
     });
   });
 
