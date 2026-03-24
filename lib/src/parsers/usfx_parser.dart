@@ -1110,6 +1110,10 @@ class UsfxParser extends BaseParser {
     if (lemma != null && lemma.isNotEmpty) {
       metadata['lemma'] = lemma;
     }
+    final morph = _attributeValue(event, 'm');
+    if (morph != null && morph.isNotEmpty) {
+      metadata['morph'] = morph;
+    }
     return metadata.isEmpty ? null : metadata;
   }
 

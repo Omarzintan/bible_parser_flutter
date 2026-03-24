@@ -53,19 +53,19 @@ They are separate from feature backlog — they affect code quality and testabil
 
 ## Recommended Next Step
 
-- `next` Preserve OSIS word metadata more completely: keep `lemma` and `morph` from `<w>` in span metadata so study-oriented sources do not lose that information during import.
+- `next` Add USFX intro paragraph support: preserve `<ip>`, `<imt>`, `<is>` intro paragraph tags as book-level introduction blocks, and `<cd>` chapter descriptions as chapter-level blocks.
 
 **Why this first:**
 
-- OSIS table row text now survives import as structured blocks, so the next visible parser loss in the OSIS support table is word metadata completeness.
-- `lemma` / `morph` are already present in real OSIS sources and fit the existing word-span metadata path without requiring a new block model first.
+- Word metadata (`lemma`, `morph`, Strong's) is now preserved in both USFX and OSIS.
+- Intro paragraphs are the next explicitly listed gap in the format tables and the app's `TODO_STATUS.md` calls them out as the next parser-side gain needed for richer document rendering.
 
 ---
 
 ## Current Status
 
 - `partial` All three parser formats now populate part of the shared rich-content model, but output is still incomplete and format fidelity is still lossy across the board.
-- `in_progress` Remaining parser gaps with the highest immediate value are OSIS word metadata completeness (`lemma` / `morph`) and the broader anchor-fidelity work for inline notes and references.
+- `in_progress` Remaining parser gaps with the highest immediate value are USFX intro paragraph tags (`<ip>`, `<imt>`, `<is>`, `<cd>`) and the broader anchor-fidelity work for inline notes and references.
 
 **Feature coverage summary:**
 
@@ -80,7 +80,7 @@ They are separate from feature backlog — they affect code quality and testabil
 | Paragraph boundaries | partial | partial | partial | Chapter paragraph-start markers preserved in block model; not full layout fidelity. |
 | Section headings / titles | partial | partial | partial | Heading blocks exist; level and source-tag metadata coverage still incomplete. |
 | Tables | todo | partial | todo | OSIS table containers and rows now survive as `table` / `tableRow` blocks with row/cell metadata; no richer cell model yet. |
-| Word-level metadata | partial | partial | partial | Strong's stored in span metadata map; morphology and lemma dropped. |
+| Word-level metadata | done | done | partial | Strong's, lemma, and morphology preserved in span metadata. Zefania has no standard word-level tags. |
 | Translator additions | done | done | partial | `<add>` (USFX) and `<transChange type="added">` (OSIS) emit `translatorAddition` spans. Zefania infers from style conventions. |
 | Divine name (LORD) | done | done | todo | `<nd>` (USFX) and `<divineName>` (OSIS) emit `divineNameTag` spans. Zefania has no equivalent tag. |
 | Proper name | done | todo | todo | `<pn>` (USFX) emits `properName` span. OSIS has no standard equivalent. |
@@ -98,7 +98,8 @@ The full per-tag breakdown is in `README.md` under **Format Feature Support**.
 
 ## Completed Recently
 
-- `done` Preserved OSIS `<table>` / `<row>` / `<cell>` as explicit `table` and `tableRow` document blocks with table/row/cell metadata, and added a fixture regression test for it. `flutter test test/parser_fixture_test.dart` passes (33 tests).
+- `done` Added USFX morphology (`m` attribute) to word metadata and added fixture tests for word metadata in both USFX and OSIS. 35 fixture tests pass.
+- `done` Preserved OSIS `<table>` / `<row>` / `<cell>` as explicit `table` and `tableRow` document blocks with table/row/cell metadata, and added a fixture regression test for it.
 - `done` Added USFX `<q who="...">` speaker attribution — all non-empty `who` values now emit `quoteWho` in span metadata. 33 fixture tests pass.
 - `done` Added stanza-break metadata (`stanzaBreak: 'true'`) to USFX `<b>` blocks and OSIS empty `<l />` blocks. 33 fixture tests pass.
 - `done` Added OSIS `<q who="...">` speaker attribution to span metadata — non-Jesus speakers emit `quoteWho`. 33 fixture tests pass.

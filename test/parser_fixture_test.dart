@@ -363,6 +363,26 @@ const _usfxAcrosticHeading = '''<?xml version="1.0" encoding="utf-8"?>
   </c></book>
 </usfx>''';
 
+/// USFX word metadata with Strong's, lemma, and morphology.
+const _usfxWordMetadata = '''<?xml version="1.0" encoding="utf-8"?>
+<usfx xmlns="http://www.bibletechnologies.net/2003/USFX/namespace">
+  <book id="GEN"><c id="1">
+    <v id="1"><w s="H7225" l="reshith" m="HNcfsa">Beginning</w> God created.</v>
+  </c></book>
+</usfx>''';
+
+/// OSIS word metadata with lemma and morph.
+const _osisWordMetadata = '''<?xml version="1.0" encoding="utf-8"?>
+<osis xmlns="http://www.bibletechnologies.net/2003/OSIS/namespace">
+  <osisText osisIDWork="test">
+    <div type="book" osisID="Gen">
+      <chapter osisID="Gen.1">
+        <verse osisID="Gen.1.1"><w lemma="strong:H7225" morph="HNcfsa">Beginning</w> God created.</verse>
+      </chapter>
+    </div>
+  </osisText>
+</osis>''';
+
 // ---------------------------------------------------------------------------
 // Zefania fixtures
 // ---------------------------------------------------------------------------
@@ -634,6 +654,24 @@ void main() {
           reason: 'Expected a block with stanzaBreak=true from <b>');
       expect(stanzaBlocks.first.metadata['sourceTag'], equals('b'));
     });
+
+    test('preserves word metadata (Strong\'s, lemma, morph) from <w>', () async {
+      final book = await _parseFirstBook(_usfxWordMetadata, 'USFX');
+
+      expect(book, isNotNull);
+      final verse = _firstVerse(book!);
+      expect(verse, isNotNull);
+
+      final wordSpans = verse!.spans
+          .where((s) => s.kind == VerseSpanKind.word)
+          .toList();
+
+      expect(wordSpans, isNotEmpty,
+          reason: 'Expected a word span from <w> tag');
+      expect(wordSpans.first.metadata['strongs'], equals('H7225'));
+      expect(wordSpans.first.metadata['lemma'], equals('reshith'));
+      expect(wordSpans.first.metadata['morph'], equals('HNcfsa'));
+    });
   });
 
   // -------------------------------------------------------------------------
@@ -811,6 +849,23 @@ void main() {
       expect(tableBlocks.first.metadata['rowIndex'], equals('1'));
       expect(tableBlocks.last.text, equals('Light Created'));
       expect(tableBlocks.last.metadata['rowIndex'], equals('2'));
+    });
+
+    test('preserves word metadata (lemma, morph) from <w>', () async {
+      final book = await _parseFirstBook(_osisWordMetadata, 'OSIS');
+
+      expect(book, isNotNull);
+      final verse = _firstVerse(book!);
+      expect(verse, isNotNull);
+
+      final wordSpans = verse!.spans
+          .where((s) => s.kind == VerseSpanKind.word)
+          .toList();
+
+      expect(wordSpans, isNotEmpty,
+          reason: 'Expected a word span from <w> tag');
+      expect(wordSpans.first.metadata['lemma'], equals('strong:H7225'));
+      expect(wordSpans.first.metadata['morph'], equals('HNcfsa'));
     });
   });
 
