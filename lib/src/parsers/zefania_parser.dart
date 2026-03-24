@@ -812,15 +812,24 @@ class ZefaniaParser extends BaseParser {
             '')
         .toLowerCase();
 
+    // Determine the most specific span kind from the style name.
+    VerseSpanKind? spanKind;
+    if (styleName.contains('poetry') || styleName.contains('quote')) {
+      spanKind = VerseSpanKind.poetry;
+    } else if (styleName.contains('bold') || styleName == 'b') {
+      spanKind = VerseSpanKind.bold;
+    } else if (styleName.contains('italic') || styleName == 'i') {
+      spanKind = VerseSpanKind.italic;
+    } else if (styleName.contains('emphasis') || styleName == 'em') {
+      spanKind = VerseSpanKind.emphasis;
+    }
+
     return BibleStyleContext(
       wordsOfJesus: styleName.contains('red') ||
           styleName.contains('jesus') ||
           styleName.contains('wj'),
-      translatorAddition:
-          styleName.contains('italic') || styleName.contains('add'),
-      kind: styleName.contains('poetry') || styleName.contains('quote')
-          ? VerseSpanKind.poetry
-          : null,
+      translatorAddition: styleName.contains('add'),
+      kind: spanKind,
       metadata: {
         if (styleName.isNotEmpty) 'style': styleName,
         if (_attributeValue(event, 'gr') case final gr? when gr.isNotEmpty)

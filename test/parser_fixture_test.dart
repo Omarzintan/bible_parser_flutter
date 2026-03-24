@@ -472,6 +472,28 @@ const _zefaniaRedLetter = '''<?xml version="1.0" encoding="utf-8"?>
   </BIBLEBOOK>
 </XMLBIBLE>''';
 
+/// Zefania bold text via <STYLE css="bold">.
+const _zefaniaBold = '''<?xml version="1.0" encoding="utf-8"?>
+<XMLBIBLE xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    biblename="TestBible" type="x-bible">
+  <BIBLEBOOK bnumber="1" bname="Genesis" bsname="Gen">
+    <CHAPTER cnumber="1">
+      <VERS vnumber="1">In the <STYLE css="bold">beginning</STYLE> God created.</VERS>
+    </CHAPTER>
+  </BIBLEBOOK>
+</XMLBIBLE>''';
+
+/// Zefania italic text via <STYLE css="italic">.
+const _zefaniaItalic = '''<?xml version="1.0" encoding="utf-8"?>
+<XMLBIBLE xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    biblename="TestBible" type="x-bible">
+  <BIBLEBOOK bnumber="1" bname="Genesis" bsname="Gen">
+    <CHAPTER cnumber="1">
+      <VERS vnumber="1">In the beginning <STYLE css="italic">God</STYLE> created.</VERS>
+    </CHAPTER>
+  </BIBLEBOOK>
+</XMLBIBLE>''';
+
 // ===========================================================================
 // Tests
 // ===========================================================================
@@ -1049,6 +1071,30 @@ void main() {
       expect(redSpans, isNotEmpty,
           reason: 'Expected wordsOfJesus span from <STYLE css="wj">');
       expect(redSpans.first.text, contains('Blessed'));
+    });
+
+    test('preserves bold spans via <STYLE css="bold">', () async {
+      final book = await _parseFirstBook(_zefaniaBold, 'ZEFANIA');
+      final verse = _firstVerse(book!);
+
+      expect(verse!.spans, isNotEmpty);
+      final boldSpans =
+          verse.spans.where((s) => s.kind == VerseSpanKind.bold);
+      expect(boldSpans, isNotEmpty,
+          reason: 'Expected bold span from <STYLE css="bold">');
+      expect(boldSpans.first.text, contains('beginning'));
+    });
+
+    test('preserves italic spans via <STYLE css="italic">', () async {
+      final book = await _parseFirstBook(_zefaniaItalic, 'ZEFANIA');
+      final verse = _firstVerse(book!);
+
+      expect(verse!.spans, isNotEmpty);
+      final italicSpans =
+          verse.spans.where((s) => s.kind == VerseSpanKind.italic);
+      expect(italicSpans, isNotEmpty,
+          reason: 'Expected italic span from <STYLE css="italic">');
+      expect(italicSpans.first.text, contains('God'));
     });
   });
 }

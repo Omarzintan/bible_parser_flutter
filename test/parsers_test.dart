@@ -1075,7 +1075,7 @@ void main() {
       );
       expect(
         verse.spans
-            .any((span) => span.kind == VerseSpanKind.translatorAddition),
+            .any((span) => span.kind == VerseSpanKind.italic),
         isTrue,
       );
       expect(
