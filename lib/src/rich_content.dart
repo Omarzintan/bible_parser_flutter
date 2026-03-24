@@ -35,11 +35,16 @@ class CrossReference {
   /// (OSIS). Null when the source does not include an explicit origin tag.
   final String? originRef;
 
+  /// Index of the span that was current when this reference appeared in the
+  /// XML stream.  Null when the source position could not be determined.
+  final int? spanIndex;
+
   const CrossReference({
     required this.label,
     this.target,
     this.marker,
     this.originRef,
+    this.spanIndex,
   });
 }
 
@@ -61,6 +66,10 @@ class Footnote {
 
   final List<CrossReference> references;
 
+  /// Index of the span that was current when this footnote appeared in the
+  /// XML stream.  Null when the source position could not be determined.
+  final int? spanIndex;
+
   const Footnote({
     required this.text,
     this.marker,
@@ -68,6 +77,7 @@ class Footnote {
     this.bodyText,
     this.quotedText,
     this.references = const [],
+    this.spanIndex,
   });
 }
 

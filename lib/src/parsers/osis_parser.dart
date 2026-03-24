@@ -120,12 +120,14 @@ class OsisParser extends BaseParser {
 
     String currentNoteText = '';
     String? currentNoteLabel;
+    int? footnoteSpanIndex;
     final List<CrossReference> currentNoteReferences = <CrossReference>[];
 
     String currentReferenceText = '';
     String? currentReferenceTarget;
     String? currentReferenceMarker;
     String? currentReferenceType;
+    int? referenceSpanIndex;
     String currentNoteOriginRef = '';
     String currentParagraphText = '';
     int currentParagraphEmptyLineCount = 0;
@@ -263,6 +265,9 @@ class OsisParser extends BaseParser {
             currentNoteLabel =
                 _attributeValue(event, 'n') ?? _attributeValue(event, 'type');
             currentNoteReferences.clear();
+            footnoteSpanIndex = currentVerse.spans.isNotEmpty
+                ? currentVerse.spans.length - 1
+                : null;
           } else if (event.name == 'reference' && currentVerse != null) {
             insideReference = true;
             currentReferenceText = '';
@@ -270,6 +275,9 @@ class OsisParser extends BaseParser {
                 _attributeValue(event, 'target');
             currentReferenceMarker = _attributeValue(event, 'n');
             currentReferenceType = _attributeValue(event, 'type');
+            referenceSpanIndex = currentVerse.spans.isNotEmpty
+                ? currentVerse.spans.length - 1
+                : null;
           } else if (event.name == 'p' &&
               currentBook != null &&
               currentVerse == null) {
@@ -551,6 +559,7 @@ class OsisParser extends BaseParser {
                   label: currentNoteLabel,
                   bodyText: currentNoteText.isEmpty ? null : currentNoteText,
                   references: List<CrossReference>.from(currentNoteReferences),
+                  spanIndex: footnoteSpanIndex,
                 ),
               );
               currentVerse = _attachInlineMarker(
@@ -558,11 +567,13 @@ class OsisParser extends BaseParser {
                 noteMarker,
                 metadataKey: 'footnoteMarkers',
                 pendingMarkers: pendingFootnoteMarkers,
+                spanIndex: footnoteSpanIndex,
               );
             }
             insideNote = false;
             currentNoteText = '';
             currentNoteLabel = null;
+            footnoteSpanIndex = null;
             currentNoteOriginRef = '';
             currentNoteReferences.clear();
           } else if (event.name == 'reference') {
@@ -582,6 +593,7 @@ class OsisParser extends BaseParser {
                   originRef: insideNote && currentNoteOriginRef.isNotEmpty
                       ? currentNoteOriginRef
                       : null,
+                  spanIndex: referenceSpanIndex,
                 );
                 if (insideNote) {
                   currentNoteReferences.add(crossReference);
@@ -593,11 +605,13 @@ class OsisParser extends BaseParser {
                     referenceMarker,
                     metadataKey: 'referenceMarkers',
                     pendingMarkers: pendingReferenceMarkers,
+                    spanIndex: referenceSpanIndex,
                   );
                 }
               }
             }
             insideReference = false;
+            referenceSpanIndex = null;
             currentReferenceText = '';
             currentReferenceTarget = null;
             currentReferenceMarker = null;
@@ -852,12 +866,14 @@ class OsisParser extends BaseParser {
 
     String currentNoteText = '';
     String? currentNoteLabel;
+    int? footnoteSpanIndex;
     final List<CrossReference> currentNoteReferences = <CrossReference>[];
 
     String currentReferenceText = '';
     String? currentReferenceTarget;
     String? currentReferenceMarker;
     String? currentReferenceType;
+    int? referenceSpanIndex;
     String currentNoteOriginRef = '';
 
     int translatorAdditionDepth = 0;
@@ -912,6 +928,9 @@ class OsisParser extends BaseParser {
             currentNoteLabel =
                 _attributeValue(event, 'n') ?? _attributeValue(event, 'type');
             currentNoteReferences.clear();
+            footnoteSpanIndex = currentVerse.spans.isNotEmpty
+                ? currentVerse.spans.length - 1
+                : null;
           } else if (event.name == 'reference' && currentVerse != null) {
             insideReference = true;
             currentReferenceText = '';
@@ -919,6 +938,9 @@ class OsisParser extends BaseParser {
                 _attributeValue(event, 'target');
             currentReferenceMarker = _attributeValue(event, 'n');
             currentReferenceType = _attributeValue(event, 'type');
+            referenceSpanIndex = currentVerse.spans.isNotEmpty
+                ? currentVerse.spans.length - 1
+                : null;
           } else if (event.name == 'l' && currentVerse != null) {
             lineLevels.add(int.tryParse(_attributeValue(event, 'level') ?? ''));
             quoteLineStarts.add(true);
@@ -969,6 +991,7 @@ class OsisParser extends BaseParser {
                   label: currentNoteLabel,
                   bodyText: currentNoteText.isEmpty ? null : currentNoteText,
                   references: List<CrossReference>.from(currentNoteReferences),
+                  spanIndex: footnoteSpanIndex,
                 ),
               );
               currentVerse = _attachInlineMarker(
@@ -976,11 +999,13 @@ class OsisParser extends BaseParser {
                 noteMarker,
                 metadataKey: 'footnoteMarkers',
                 pendingMarkers: pendingFootnoteMarkers,
+                spanIndex: footnoteSpanIndex,
               );
             }
             insideNote = false;
             currentNoteText = '';
             currentNoteLabel = null;
+            footnoteSpanIndex = null;
             currentNoteOriginRef = '';
             currentNoteReferences.clear();
           } else if (event.name == 'reference') {
@@ -1000,6 +1025,7 @@ class OsisParser extends BaseParser {
                   originRef: insideNote && currentNoteOriginRef.isNotEmpty
                       ? currentNoteOriginRef
                       : null,
+                  spanIndex: referenceSpanIndex,
                 );
                 if (insideNote) {
                   currentNoteReferences.add(crossReference);
@@ -1011,11 +1037,13 @@ class OsisParser extends BaseParser {
                     referenceMarker,
                     metadataKey: 'referenceMarkers',
                     pendingMarkers: pendingReferenceMarkers,
+                    spanIndex: referenceSpanIndex,
                   );
                 }
               }
             }
             insideReference = false;
+            referenceSpanIndex = null;
             currentReferenceText = '';
             currentReferenceTarget = null;
             currentReferenceMarker = null;
@@ -1585,6 +1613,7 @@ class OsisParser extends BaseParser {
     String marker, {
     required String metadataKey,
     required List<String> pendingMarkers,
+    int? spanIndex,
   }) {
     if (verse.spans.isEmpty) {
       pendingMarkers.add(marker);
@@ -1592,13 +1621,16 @@ class OsisParser extends BaseParser {
     }
 
     final spans = List<VerseSpan>.from(verse.spans);
-    final lastSpan = spans.removeLast();
-    spans.add(
-      VerseSpan(
-        text: lastSpan.text,
-        kind: lastSpan.kind,
-        metadata: _appendMarkerMetadata(lastSpan.metadata, metadataKey, marker),
-      ),
+
+    final targetIndex =
+        (spanIndex != null && spanIndex >= 0 && spanIndex < spans.length)
+            ? spanIndex
+            : spans.length - 1;
+    final targetSpan = spans[targetIndex];
+    spans[targetIndex] = VerseSpan(
+      text: targetSpan.text,
+      kind: targetSpan.kind,
+      metadata: _appendMarkerMetadata(targetSpan.metadata, metadataKey, marker),
     );
 
     return Verse(

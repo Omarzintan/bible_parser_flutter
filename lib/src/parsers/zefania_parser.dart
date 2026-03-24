@@ -109,9 +109,11 @@ class ZefaniaParser extends BaseParser {
     String currentCaptionText = '';
     String currentNoteText = '';
     String? currentNoteLabel;
+    int? footnoteSpanIndex;
     String currentXrefText = '';
     String? currentXrefTarget;
     String? currentXrefMarker;
+    int? referenceSpanIndex;
     String currentParagraphText = '';
     String currentInformationText = '';
     Map<String, String> currentPrologMetadata = const {};
@@ -230,12 +232,18 @@ class ZefaniaParser extends BaseParser {
             currentNoteText = '';
             currentNoteLabel =
                 _attributeValue(event, 'type') ?? _attributeValue(event, 'n');
+            footnoteSpanIndex = currentVerse.spans.isNotEmpty
+                ? currentVerse.spans.length - 1
+                : null;
           } else if (event.name == 'XREF' && currentVerse != null) {
             insideXref = true;
             currentXrefText = '';
             currentXrefTarget = _attributeValue(event, 'fscope') ??
                 _attributeValue(event, 'target');
             currentXrefMarker = _attributeValue(event, 'n');
+            referenceSpanIndex = currentVerse.spans.isNotEmpty
+                ? currentVerse.spans.length - 1
+                : null;
           } else if (event.name == 'BR' &&
               currentBook != null &&
               currentChapter != null &&
@@ -343,6 +351,7 @@ class ZefaniaParser extends BaseParser {
                   marker: noteMarker,
                   label: currentNoteLabel,
                   bodyText: currentNoteText.isEmpty ? null : currentNoteText,
+                  spanIndex: footnoteSpanIndex,
                 ),
               );
               currentVerse = _attachInlineMarker(
@@ -350,11 +359,13 @@ class ZefaniaParser extends BaseParser {
                 noteMarker,
                 metadataKey: 'footnoteMarkers',
                 pendingMarkers: pendingFootnoteMarkers,
+                spanIndex: footnoteSpanIndex,
               );
             }
             insideNote = false;
             currentNoteText = '';
             currentNoteLabel = null;
+            footnoteSpanIndex = null;
           } else if (event.name == 'XREF') {
             if (currentVerse != null && currentXrefText.isNotEmpty) {
               final referenceMarker = _normalizeAnnotationMarker(
@@ -367,6 +378,7 @@ class ZefaniaParser extends BaseParser {
                   label: currentXrefText,
                   target: currentXrefTarget,
                   marker: referenceMarker,
+                  spanIndex: referenceSpanIndex,
                 ),
               );
               currentVerse = _attachInlineMarker(
@@ -374,9 +386,11 @@ class ZefaniaParser extends BaseParser {
                 referenceMarker,
                 metadataKey: 'referenceMarkers',
                 pendingMarkers: pendingReferenceMarkers,
+                spanIndex: referenceSpanIndex,
               );
             }
             insideXref = false;
+            referenceSpanIndex = null;
             currentXrefText = '';
             currentXrefTarget = null;
             currentXrefMarker = null;
@@ -462,9 +476,11 @@ class ZefaniaParser extends BaseParser {
 
     String currentNoteText = '';
     String? currentNoteLabel;
+    int? footnoteSpanIndex;
     String currentXrefText = '';
     String? currentXrefTarget;
     String? currentXrefMarker;
+    int? referenceSpanIndex;
 
     int wordsOfJesusDepth = 0;
     int translatorAdditionDepth = 0;
@@ -508,12 +524,18 @@ class ZefaniaParser extends BaseParser {
             currentNoteText = '';
             currentNoteLabel =
                 _attributeValue(event, 'type') ?? _attributeValue(event, 'n');
+            footnoteSpanIndex = currentVerse.spans.isNotEmpty
+                ? currentVerse.spans.length - 1
+                : null;
           } else if (event.name == 'XREF' && currentVerse != null) {
             insideXref = true;
             currentXrefText = '';
             currentXrefTarget = _attributeValue(event, 'fscope') ??
                 _attributeValue(event, 'target');
             currentXrefMarker = _attributeValue(event, 'n');
+            referenceSpanIndex = currentVerse.spans.isNotEmpty
+                ? currentVerse.spans.length - 1
+                : null;
           } else if (event.name == 'STYLE' && currentVerse != null) {
             final styleContext = _styleContextFromEvent(event);
             styleStack.add(styleContext);
@@ -542,6 +564,7 @@ class ZefaniaParser extends BaseParser {
                   marker: noteMarker,
                   label: currentNoteLabel,
                   bodyText: currentNoteText.isEmpty ? null : currentNoteText,
+                  spanIndex: footnoteSpanIndex,
                 ),
               );
               currentVerse = _attachInlineMarker(
@@ -549,11 +572,13 @@ class ZefaniaParser extends BaseParser {
                 noteMarker,
                 metadataKey: 'footnoteMarkers',
                 pendingMarkers: pendingFootnoteMarkers,
+                spanIndex: footnoteSpanIndex,
               );
             }
             insideNote = false;
             currentNoteText = '';
             currentNoteLabel = null;
+            footnoteSpanIndex = null;
           } else if (event.name == 'XREF') {
             if (currentVerse != null && currentXrefText.isNotEmpty) {
               final referenceMarker = _normalizeAnnotationMarker(
@@ -566,6 +591,7 @@ class ZefaniaParser extends BaseParser {
                   label: currentXrefText,
                   target: currentXrefTarget,
                   marker: referenceMarker,
+                  spanIndex: referenceSpanIndex,
                 ),
               );
               currentVerse = _attachInlineMarker(
@@ -573,9 +599,11 @@ class ZefaniaParser extends BaseParser {
                 referenceMarker,
                 metadataKey: 'referenceMarkers',
                 pendingMarkers: pendingReferenceMarkers,
+                spanIndex: referenceSpanIndex,
               );
             }
             insideXref = false;
+            referenceSpanIndex = null;
             currentXrefText = '';
             currentXrefTarget = null;
             currentXrefMarker = null;
@@ -896,6 +924,7 @@ class ZefaniaParser extends BaseParser {
     String marker, {
     required String metadataKey,
     required List<String> pendingMarkers,
+    int? spanIndex,
   }) {
     if (verse.spans.isEmpty) {
       pendingMarkers.add(marker);
@@ -903,13 +932,16 @@ class ZefaniaParser extends BaseParser {
     }
 
     final spans = List<VerseSpan>.from(verse.spans);
-    final lastSpan = spans.removeLast();
-    spans.add(
-      VerseSpan(
-        text: lastSpan.text,
-        kind: lastSpan.kind,
-        metadata: _appendMarkerMetadata(lastSpan.metadata, metadataKey, marker),
-      ),
+
+    final targetIndex =
+        (spanIndex != null && spanIndex >= 0 && spanIndex < spans.length)
+            ? spanIndex
+            : spans.length - 1;
+    final targetSpan = spans[targetIndex];
+    spans[targetIndex] = VerseSpan(
+      text: targetSpan.text,
+      kind: targetSpan.kind,
+      metadata: _appendMarkerMetadata(targetSpan.metadata, metadataKey, marker),
     );
 
     return Verse(

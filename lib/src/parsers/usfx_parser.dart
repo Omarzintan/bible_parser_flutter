@@ -124,10 +124,12 @@ class UsfxParser extends BaseParser {
     String currentFootnoteBodyText = '';
     String currentFootnoteQuoteText = '';
     String? currentFootnoteMarker;
+    int? footnoteSpanIndex;
 
     String currentReferenceText = '';
     String? currentReferenceTarget;
     String? currentReferenceMarker;
+    int? referenceSpanIndex;
     bool insideXoTag = false;
     String currentXoText = '';
     List<String> pendingFootnoteMarkers = <String>[];
@@ -225,6 +227,9 @@ class UsfxParser extends BaseParser {
             currentFootnoteBodyText = '';
             currentFootnoteQuoteText = '';
             currentFootnoteMarker = _attributeValue(event, 'caller');
+            footnoteSpanIndex = currentVerse.spans.isNotEmpty
+                ? currentVerse.spans.length - 1
+                : null;
           } else if (event.name == 'fr' && insideFootnote) {
             insideFootnoteLabel = true;
           } else if (event.name == 'ft' && insideFootnote) {
@@ -237,6 +242,9 @@ class UsfxParser extends BaseParser {
             currentReferenceText = '';
             currentReferenceTarget = null;
             currentReferenceMarker = _attributeValue(event, 'caller');
+            referenceSpanIndex = currentVerse.spans.isNotEmpty
+                ? currentVerse.spans.length - 1
+                : null;
             insideXoTag = false;
             currentXoText = '';
           } else if (event.name == 'xo' && insideCrossReference) {
@@ -365,6 +373,7 @@ class UsfxParser extends BaseParser {
                   quotedText: currentFootnoteQuoteText.isEmpty
                       ? null
                       : currentFootnoteQuoteText,
+                  spanIndex: footnoteSpanIndex,
                 ),
               );
               currentVerse = _attachInlineMarker(
@@ -372,6 +381,7 @@ class UsfxParser extends BaseParser {
                 footnoteMarker,
                 metadataKey: 'footnoteMarkers',
                 pendingMarkers: pendingFootnoteMarkers,
+                spanIndex: footnoteSpanIndex,
               );
             }
             insideFootnote = false;
@@ -383,6 +393,7 @@ class UsfxParser extends BaseParser {
             currentFootnoteBodyText = '';
             currentFootnoteQuoteText = '';
             currentFootnoteMarker = null;
+            footnoteSpanIndex = null;
           } else if (event.name == 'fr') {
             insideFootnoteLabel = false;
           } else if (event.name == 'ft') {
@@ -405,6 +416,7 @@ class UsfxParser extends BaseParser {
                   marker: referenceMarker,
                   originRef:
                       currentXoText.trim().isEmpty ? null : currentXoText.trim(),
+                  spanIndex: referenceSpanIndex,
                 ),
               );
               currentVerse = _attachInlineMarker(
@@ -412,6 +424,7 @@ class UsfxParser extends BaseParser {
                 referenceMarker,
                 metadataKey: 'referenceMarkers',
                 pendingMarkers: pendingReferenceMarkers,
+                spanIndex: referenceSpanIndex,
               );
             }
             insideCrossReference = false;
@@ -419,6 +432,7 @@ class UsfxParser extends BaseParser {
             currentReferenceText = '';
             currentReferenceTarget = null;
             currentReferenceMarker = null;
+            referenceSpanIndex = null;
             currentXoText = '';
           } else if (event.name == 'toc' && currentBook != null) {
             final text = currentTocText.trim();
@@ -659,10 +673,12 @@ class UsfxParser extends BaseParser {
     String currentFootnoteBodyText = '';
     String currentFootnoteQuoteText = '';
     String? currentFootnoteMarker;
+    int? footnoteSpanIndex;
 
     String currentReferenceText = '';
     String? currentReferenceTarget;
     String? currentReferenceMarker;
+    int? referenceSpanIndex;
     bool insideXoTag = false;
     String currentXoText = '';
     List<String> pendingFootnoteMarkers = <String>[];
@@ -712,6 +728,9 @@ class UsfxParser extends BaseParser {
             currentFootnoteBodyText = '';
             currentFootnoteQuoteText = '';
             currentFootnoteMarker = _attributeValue(event, 'caller');
+            footnoteSpanIndex = currentVerse.spans.isNotEmpty
+                ? currentVerse.spans.length - 1
+                : null;
           } else if (event.name == 'fr' && insideFootnote) {
             insideFootnoteLabel = true;
           } else if (event.name == 'ft' && insideFootnote) {
@@ -724,6 +743,9 @@ class UsfxParser extends BaseParser {
             currentReferenceText = '';
             currentReferenceTarget = null;
             currentReferenceMarker = _attributeValue(event, 'caller');
+            referenceSpanIndex = currentVerse.spans.isNotEmpty
+                ? currentVerse.spans.length - 1
+                : null;
             insideXoTag = false;
             currentXoText = '';
           } else if (event.name == 'xo' && insideCrossReference) {
@@ -781,6 +803,7 @@ class UsfxParser extends BaseParser {
                   quotedText: currentFootnoteQuoteText.isEmpty
                       ? null
                       : currentFootnoteQuoteText,
+                  spanIndex: footnoteSpanIndex,
                 ),
               );
               currentVerse = _attachInlineMarker(
@@ -788,6 +811,7 @@ class UsfxParser extends BaseParser {
                 footnoteMarker,
                 metadataKey: 'footnoteMarkers',
                 pendingMarkers: pendingFootnoteMarkers,
+                spanIndex: footnoteSpanIndex,
               );
             }
             insideFootnote = false;
@@ -799,6 +823,7 @@ class UsfxParser extends BaseParser {
             currentFootnoteBodyText = '';
             currentFootnoteQuoteText = '';
             currentFootnoteMarker = null;
+            footnoteSpanIndex = null;
           } else if (event.name == 'fr') {
             insideFootnoteLabel = false;
           } else if (event.name == 'ft') {
@@ -821,6 +846,7 @@ class UsfxParser extends BaseParser {
                   marker: referenceMarker,
                   originRef:
                       currentXoText.trim().isEmpty ? null : currentXoText.trim(),
+                  spanIndex: referenceSpanIndex,
                 ),
               );
               currentVerse = _attachInlineMarker(
@@ -828,6 +854,7 @@ class UsfxParser extends BaseParser {
                 referenceMarker,
                 metadataKey: 'referenceMarkers',
                 pendingMarkers: pendingReferenceMarkers,
+                spanIndex: referenceSpanIndex,
               );
             }
             insideCrossReference = false;
@@ -1206,6 +1233,7 @@ class UsfxParser extends BaseParser {
     String marker, {
     required String metadataKey,
     required List<String> pendingMarkers,
+    int? spanIndex,
   }) {
     if (verse.spans.isEmpty) {
       pendingMarkers.add(marker);
@@ -1213,13 +1241,18 @@ class UsfxParser extends BaseParser {
     }
 
     final spans = List<VerseSpan>.from(verse.spans);
-    final lastSpan = spans.removeLast();
-    spans.add(
-      VerseSpan(
-        text: lastSpan.text,
-        kind: lastSpan.kind,
-        metadata: _appendMarkerMetadata(lastSpan.metadata, metadataKey, marker),
-      ),
+
+    // Use the recorded span index when available and valid, otherwise fall
+    // back to the last span (the previous heuristic).
+    final targetIndex =
+        (spanIndex != null && spanIndex >= 0 && spanIndex < spans.length)
+            ? spanIndex
+            : spans.length - 1;
+    final targetSpan = spans[targetIndex];
+    spans[targetIndex] = VerseSpan(
+      text: targetSpan.text,
+      kind: targetSpan.kind,
+      metadata: _appendMarkerMetadata(targetSpan.metadata, metadataKey, marker),
     );
 
     return Verse(

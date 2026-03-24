@@ -143,6 +143,17 @@ const _usfxTranslatorAdd = '''<?xml version="1.0" encoding="utf-8"?>
   </book>
 </usfx>''';
 
+/// USFX footnote after a red-letter span — tests that spanIndex anchors to
+/// the correct span (the wordsOfJesus span) instead of the last span.
+const _usfxFootnoteAnchor = '''<?xml version="1.0" encoding="utf-8"?>
+<usfx xmlns="http://www.bibletechnologies.net/2003/USFX/namespace">
+  <book id="JHN">
+    <c id="3">
+      <v id="16">For <wj>God so loved<f caller="a"><ft>Or: in this way loved</ft></f> the world</wj> that he gave.</v>
+    </c>
+  </book>
+</usfx>''';
+
 // ---------------------------------------------------------------------------
 // OSIS fixtures
 // ---------------------------------------------------------------------------
@@ -487,6 +498,8 @@ void main() {
       expect(fn.label!.trim(), equals('1:1'));
       // Caller attribute drives the marker.
       expect(fn.marker, equals('a'));
+      // spanIndex records that the footnote appeared after span 0.
+      expect(fn.spanIndex, equals(0));
 
       // Legacy plain-text list is also populated for backwards compatibility.
       expect(verse.notes, hasLength(1));
@@ -504,6 +517,26 @@ void main() {
       expect(fn.quotedText, contains('Let there be light'));
       // Combined text fallback must still contain all non-fr content.
       expect(fn.text, contains('Let there be light'));
+    });
+
+    test('anchors footnote to the span where it appeared in the XML', () async {
+      final book = await _parseFirstBook(_usfxFootnoteAnchor, 'USFX');
+      final verse = _firstVerse(book!);
+
+      expect(verse!.footnotes, hasLength(1));
+      final fn = verse.footnotes.first;
+
+      // The footnote opens after "God so loved" which is inside <wj>.
+      // At that point spans are: ["For ", "God so loved"] — the footnote
+      // should anchor to span index 1 (the wordsOfJesus span), not the
+      // last span after the note closes.
+      expect(fn.spanIndex, equals(1),
+          reason: 'Footnote should anchor to the span present when <f> opened');
+
+      // The marker metadata should also be on span 1, not the last span.
+      final anchoredSpan = verse.spans[fn.spanIndex!];
+      expect(anchoredSpan.metadata['footnoteMarkers'], isNotNull,
+          reason: 'Marker metadata should be on the anchored span');
     });
 
     test('preserves cross-reference with target', () async {
