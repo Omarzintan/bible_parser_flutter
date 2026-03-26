@@ -122,22 +122,22 @@ The tables below map what each supported XML format can express against what the
 | Words of Jesus | `<wj>` | ✅ | Preserved as `wordsOfJesus` span kind |
 | Translator additions | `<add>` | ✅ | Preserved as `translatorAddition` span kind |
 | Divine name (LORD) | `<nd>` | ✅ | Preserved as `divineNameTag` span kind |
-| Footnotes | `<f caller="...">` | ⚠️ | Structured `Footnote` objects created |
+| Footnotes | `<f caller="...">` `<fe>` | ✅ | Structured `Footnote` objects; `fr`, `ft`, `fk`, `fv`, `fp`, `fq`/`fqa`, and nested `<ref>` all preserved; endnotes (`<fe>`) handled identically; character-level `charOffset` captured |
 | Footnote label (verse ref) | `<fr>` | ✅ | Preserved as `label` field |
 | Footnote body text | `<ft>` | ✅ | Preserved as `bodyText` field |
 | Footnote quote / alt quote | `<fq>` `<fqa>` | ✅ | Preserved as `quotedText` field |
-| Cross-references | `<x caller="...">` | ⚠️ | Structured `CrossReference` objects created |
+| Cross-references | `<x caller="...">` | ✅ | Structured `CrossReference` objects; multiple `<ref>` targets split; `<xt>` text and plain text inside `<x>` both captured; character-level `charOffset` captured |
 | Cross-ref origin | `<xo>` | ✅ | Preserved as `originRef` field |
 | Cross-ref target | `<ref tgt="...">` | ✅ | Preserved as `target` field |
-| Poetry / quote lines | `<q level="...">` | ⚠️ | Level tracked; stanza grouping partial |
+| Poetry / quote lines | `<q level="...">` `<ql>` `<qm>` `<qr>` `<qc>` | ✅ | Inline quote level tracked; `ql`, `qm*`, `qr*`, `qc` block tags emit poetry blocks; poetry paragraph markers carry inferred `quoteLevel`, `indentLevel`, and `stanzaGroup` |
 | Quote attribution | `<q who="...">` | ✅ | Non-Jesus `who` value stored in span `quoteWho` metadata (USFX and OSIS) |
-| Strong's word metadata | `<w s="...">` | ⚠️ | Stored in span `metadata` map |
-| Word morphology | `<w m="...">` | ❌ | Attribute dropped |
-| Word lemma | `<w l="...">` | ❌ | Attribute dropped |
+| Strong's word metadata | `<w s="...">` `<w src="...">` | ✅ | Stored in span `metadata` map; both `s` and `src` attribute names accepted |
+| Word morphology | `<w m="...">` | ✅ | Preserved in span metadata |
+| Word lemma | `<w l="...">` | ✅ | Preserved in span metadata |
 | Book heading | `<h>` | ✅ | Preserved as introduction block |
 | TOC labels | `<toc level="1/2/3">` | ✅ | Preserved as `TocLabel` objects |
-| Section headings | `<s>` `<s1>` `<s2>` | ⚠️ | Captured as heading blocks; level partial |
-| Paragraph starts / breaks | `<p>` `<b>` | ⚠️ | Preserved as chapter-level document blocks |
+| Section headings | `<s>` `<s1>` `<s2>` `<sr>` | ✅ | Captured as heading blocks; level extracted and `sourceTag` preserved; section range `<sr>` also captured |
+| Paragraph starts / breaks | `<p>` `<b>` `<nb>` `<pm>` | ✅ | Preserved as chapter-level document blocks; `sourceTag` metadata consistent; full `nb`/`pm`/`pmo`/`pmc`/`pmr` family supported |
 | Intro paragraphs | `<ip>` `<imt>` `<is>` | ✅ | Captured as introduction blocks |
 | Intro outline entries | `<io1>` `<io2>` | ✅ | Captured as introduction blocks with level |
 | Chapter description | `<cd>` | ✅ | Captured as chapter-level block |

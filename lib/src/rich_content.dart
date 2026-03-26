@@ -12,6 +12,8 @@ enum VerseSpanKind {
   emphasis,        // <em> in USFX — general emphasis (renders italic)
   bold,            // <bd> in USFX — bold text
   italic,          // <it> in USFX — italic text
+  foreignLanguage, // <fl> in USFX — foreign language word or phrase
+  keyword,         // <k> in USFX — glossary keyword or defined term
 }
 
 class VerseSpan {

@@ -114,6 +114,8 @@ class UsfxParser extends BaseParser {
     bool insideEmTag = false;
     bool insideBdTag = false;
     bool insideItTag = false;
+    bool insideFlTag = false;
+    bool insideKTag = false;
     final List<int?> quoteLevels = <int?>[];
     final List<String?> quoteWhoStack = <String?>[];
     final List<bool> quoteLineStarts = <bool>[];
@@ -228,7 +230,8 @@ class UsfxParser extends BaseParser {
               currentVerse != null) {
             currentChapter.addVerse(currentVerse);
             currentVerse = null;
-          } else if (event.name == 'f' && currentVerse != null) {
+          } else if ((event.name == 'f' || event.name == 'fe') &&
+              currentVerse != null) {
             insideFootnote = true;
             currentFootnoteText = '';
             currentFootnoteLabel = '';
@@ -240,7 +243,9 @@ class UsfxParser extends BaseParser {
                 : null;
           } else if (event.name == 'fr' && insideFootnote) {
             insideFootnoteLabel = true;
-          } else if (event.name == 'ft' && insideFootnote) {
+          } else if ((event.name == 'ft' || event.name == 'fk' ||
+                  event.name == 'fv' || event.name == 'fp') &&
+              insideFootnote) {
             insideFootnoteBody = true;
           } else if ((event.name == 'fq' || event.name == 'fqa') &&
               insideFootnote) {
@@ -292,7 +297,7 @@ class UsfxParser extends BaseParser {
             // book/front-matter introduction content instead of verse text.
             insideParagraph = true;
             currentParagraphText = '';
-          } else if (event.name == 'p' &&
+          } else if (_isChapterParagraphBreakTag(event.name) &&
               currentBook != null &&
               currentChapter != null &&
               currentVerse == null) {
@@ -345,6 +350,11 @@ class UsfxParser extends BaseParser {
             insideBdTag = true;
           } else if (event.name == 'it' && currentVerse != null) {
             insideItTag = true;
+          } else if (event.name == 'fl' && currentVerse != null &&
+              !insideFootnote && !insideCrossReference) {
+            insideFlTag = true;
+          } else if (event.name == 'k' && currentVerse != null) {
+            insideKTag = true;
           } else if (event.name == 'q' && currentVerse != null) {
             quoteLevels
                 .add(int.tryParse(_attributeValue(event, 'level') ?? ''));
@@ -372,7 +382,7 @@ class UsfxParser extends BaseParser {
               currentVerse != null) {
             currentChapter.addVerse(currentVerse);
             currentVerse = null;
-          } else if (event.name == 'f') {
+          } else if (event.name == 'f' || event.name == 'fe') {
             if (currentVerse != null && currentFootnoteText.isNotEmpty) {
               final footnoteMarker = _normalizeAnnotationMarker(
                 currentFootnoteMarker ?? currentFootnoteLabel,
@@ -415,7 +425,8 @@ class UsfxParser extends BaseParser {
             footnoteSpanIndex = null;
           } else if (event.name == 'fr') {
             insideFootnoteLabel = false;
-          } else if (event.name == 'ft') {
+          } else if (event.name == 'ft' || event.name == 'fk' ||
+              event.name == 'fv' || event.name == 'fp') {
             insideFootnoteBody = false;
           } else if (event.name == 'fq' || event.name == 'fqa') {
             insideFootnoteQuote = false;
@@ -604,6 +615,10 @@ class UsfxParser extends BaseParser {
             insideBdTag = false;
           } else if (event.name == 'it') {
             insideItTag = false;
+          } else if (event.name == 'fl') {
+            insideFlTag = false;
+          } else if (event.name == 'k') {
+            insideKTag = false;
           } else if (event.name == 'q' && quoteLevels.isNotEmpty) {
             quoteLevels.removeLast();
             if (quoteWhoStack.isNotEmpty) quoteWhoStack.removeLast();
@@ -678,6 +693,8 @@ class UsfxParser extends BaseParser {
                 insideEmTag: insideEmTag,
                 insideBdTag: insideBdTag,
                 insideItTag: insideItTag,
+                insideFlTag: insideFlTag,
+                insideKTag: insideKTag,
               ),
               metadata: _currentSpanMetadata(
                 wordsOfJesusDepth: wordsOfJesusDepth,
@@ -725,6 +742,8 @@ class UsfxParser extends BaseParser {
     bool insideEmTag = false;
     bool insideBdTag = false;
     bool insideItTag = false;
+    bool insideFlTag = false;
+    bool insideKTag = false;
     final List<int?> quoteLevels = <int?>[];
     final List<String?> quoteWhoStack = <String?>[];
     final List<bool> quoteLineStarts = <bool>[];
@@ -783,7 +802,8 @@ class UsfxParser extends BaseParser {
               currentVerse != null) {
             yield currentVerse;
             currentVerse = null;
-          } else if (event.name == 'f' && currentVerse != null) {
+          } else if ((event.name == 'f' || event.name == 'fe') &&
+              currentVerse != null) {
             insideFootnote = true;
             currentFootnoteText = '';
             currentFootnoteLabel = '';
@@ -795,7 +815,9 @@ class UsfxParser extends BaseParser {
                 : null;
           } else if (event.name == 'fr' && insideFootnote) {
             insideFootnoteLabel = true;
-          } else if (event.name == 'ft' && insideFootnote) {
+          } else if ((event.name == 'ft' || event.name == 'fk' ||
+                  event.name == 'fv' || event.name == 'fp') &&
+              insideFootnote) {
             insideFootnoteBody = true;
           } else if ((event.name == 'fq' || event.name == 'fqa') &&
               insideFootnote) {
@@ -833,6 +855,11 @@ class UsfxParser extends BaseParser {
             insideBdTag = true;
           } else if (event.name == 'it' && currentVerse != null) {
             insideItTag = true;
+          } else if (event.name == 'fl' && currentVerse != null &&
+              !insideFootnote && !insideCrossReference) {
+            insideFlTag = true;
+          } else if (event.name == 'k' && currentVerse != null) {
+            insideKTag = true;
           } else if (event.name == 'q' && currentVerse != null) {
             quoteLevels
                 .add(int.tryParse(_attributeValue(event, 'level') ?? ''));
@@ -845,7 +872,7 @@ class UsfxParser extends BaseParser {
           if (event.name == 'v' && currentVerse != null) {
             yield currentVerse;
             currentVerse = null;
-          } else if (event.name == 'f') {
+          } else if (event.name == 'f' || event.name == 'fe') {
             if (currentVerse != null && currentFootnoteText.isNotEmpty) {
               final footnoteMarker = _normalizeAnnotationMarker(
                 currentFootnoteMarker ?? currentFootnoteLabel,
@@ -888,7 +915,8 @@ class UsfxParser extends BaseParser {
             footnoteSpanIndex = null;
           } else if (event.name == 'fr') {
             insideFootnoteLabel = false;
-          } else if (event.name == 'ft') {
+          } else if (event.name == 'ft' || event.name == 'fk' ||
+              event.name == 'fv' || event.name == 'fp') {
             insideFootnoteBody = false;
           } else if (event.name == 'fq' || event.name == 'fqa') {
             insideFootnoteQuote = false;
@@ -943,6 +971,10 @@ class UsfxParser extends BaseParser {
             insideBdTag = false;
           } else if (event.name == 'it') {
             insideItTag = false;
+          } else if (event.name == 'fl') {
+            insideFlTag = false;
+          } else if (event.name == 'k') {
+            insideKTag = false;
           } else if (event.name == 'q' && quoteLevels.isNotEmpty) {
             quoteLevels.removeLast();
             if (quoteWhoStack.isNotEmpty) quoteWhoStack.removeLast();
@@ -989,6 +1021,8 @@ class UsfxParser extends BaseParser {
                 insideEmTag: insideEmTag,
                 insideBdTag: insideBdTag,
                 insideItTag: insideItTag,
+                insideFlTag: insideFlTag,
+                insideKTag: insideKTag,
               ),
               metadata: _currentSpanMetadata(
                 wordsOfJesusDepth: wordsOfJesusDepth,
@@ -1126,6 +1160,8 @@ class UsfxParser extends BaseParser {
     bool insideEmTag = false,
     bool insideBdTag = false,
     bool insideItTag = false,
+    bool insideFlTag = false,
+    bool insideKTag = false,
   }) {
     if (wordsOfJesusDepth > 0) return VerseSpanKind.wordsOfJesus;
     if (insideNdTag) return VerseSpanKind.divineNameTag;
@@ -1135,6 +1171,8 @@ class UsfxParser extends BaseParser {
     if (insideEmTag) return VerseSpanKind.emphasis;
     if (insideBdTag) return VerseSpanKind.bold;
     if (insideItTag) return VerseSpanKind.italic;
+    if (insideFlTag) return VerseSpanKind.foreignLanguage;
+    if (insideKTag) return VerseSpanKind.keyword;
     if (translatorAdditionDepth > 0) return VerseSpanKind.translatorAddition;
     if (quoteLevels.isNotEmpty) {
       return quoteLevels.any((level) => level != null)
@@ -1191,7 +1229,7 @@ class UsfxParser extends BaseParser {
 
   Map<String, String>? _wordMetadataFromEvent(XmlStartElementEvent event) {
     final metadata = <String, String>{};
-    final strongs = _attributeValue(event, 's');
+    final strongs = _attributeValue(event, 's') ?? _attributeValue(event, 'src');
     if (strongs != null && strongs.isNotEmpty) {
       metadata['strongs'] = strongs;
     }
@@ -1207,7 +1245,7 @@ class UsfxParser extends BaseParser {
   }
 
   Map<String, String> _paragraphMetadataFromEvent(XmlStartElementEvent event) {
-    final metadata = <String, String>{};
+    final metadata = <String, String>{'sourceTag': event.name};
     final style =
         _attributeValue(event, 'sfm') ?? _attributeValue(event, 'style');
     if (style != null && style.isNotEmpty) {
@@ -1224,9 +1262,13 @@ class UsfxParser extends BaseParser {
     return DocumentBlockKind.paragraph;
   }
 
+  bool _isChapterParagraphBreakTag(String name) {
+    return const {'p', 'nb', 'pm', 'pmo', 'pmc', 'pmr'}.contains(name);
+  }
+
   bool _isStructuredBlockTag(String tagName) {
     return RegExp(
-      r'^(imt\d*|mt\d*|mte\d*|is\d*|ipi?|im|imi|iot|io\d*|ie|ili?\d*|li\d*|ms\d*|s\d*|sp|cl|cd|d)$',
+      r'^(imt\d*|mt\d*|mte\d*|is\d*|ipi?|im|imi|iot|io\d*|ie|ili?\d*|li\d*|pi\d*|mi|ms\d*|sr|s\d*|r|sp|cl|cd|d|ql|qm\d*|qr\d*|qc)$',
       caseSensitive: false,
     ).hasMatch(tagName);
   }
@@ -1234,6 +1276,12 @@ class UsfxParser extends BaseParser {
   int? _structuredBlockLevel(String tagName) {
     final match = RegExp(r'(\d+)$').firstMatch(tagName);
     return match == null ? null : int.tryParse(match.group(1)!);
+  }
+
+  String? _inferUsfxParagraphQuoteLevel(String style) {
+    final match = RegExp(r'^(?:q|qm|qr)(\d+)$', caseSensitive: false)
+        .firstMatch(style.trim());
+    return match?.group(1);
   }
 
   DocumentBlockKind _structuredBlockKind(
@@ -1261,7 +1309,14 @@ class UsfxParser extends BaseParser {
       // differently without losing the original tag and nesting level.
       return DocumentBlockKind.paragraph;
     }
-    if (normalized == 'd') {
+    if (normalized.startsWith('pi') || normalized == 'mi') {
+      // USFX indented and embedded-speech paragraph markers.
+      return DocumentBlockKind.paragraph;
+    }
+    if (normalized == 'd' || normalized == 'ql' ||
+        normalized.startsWith('qm') ||
+        normalized.startsWith('qr') ||
+        normalized == 'qc') {
       return DocumentBlockKind.poetry;
     }
     return DocumentBlockKind.heading;

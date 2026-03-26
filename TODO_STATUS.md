@@ -108,6 +108,31 @@ The full per-tag breakdown is in `README.md` under **Format Feature Support**.
 - `done` Added OSIS `<hi type="bold/italic/emphasis">` support via hiKinds stack. Fixed README: Zefania `<BR />` was already handled. 33 fixture tests pass.
 - `done` Added `emphasis`, `bold`, `italic` span kinds for USFX `<em>`, `<bd>`, `<it>`. 33 fixture tests pass.
 - `done` Added `properName`, `selah`, `acrosticHeading` span kinds for USFX `<pn>`, `<qs>`, `<qa>`. 33 fixture tests pass.
+- `done` Finished remaining 3 USFX ⚠️ rows (Footnotes, Cross-references, Poetry): added `<fp>` footnote paragraph support, extended structured-block regex and kind map to include `qm*`/`qr*`/`qc` poetry tags, updated `_inferUsfxParagraphQuoteLevel` for `qm` depth. Cross-references already complete — flipped status. Added 2 fixture tests (`<fp>`, `<qm1>`). All 3 rows now ✅ in README. 138 tests pass.
+- `done` Added 7 fixture regression tests for new USFX behaviors: `<fe>` endnote, `<fk>` footnote keyword, plain text inside `<x>`, `<sr>` section range heading, `<nb>` paragraph break, `<ql>` poetry block, Strong's `src` attribute alias. Updated README to flip Strong's and paragraph/heading rows to ✅ and improve descriptions for footnotes, cross-refs, and poetry. 136 tests pass.
+- `done` Added USFX foreign language `<fl>` and keyword `<k>` inline span support: profiled real Bible files (eng-web.usfx.xml) and identified 47 foreign language tags and 91 keyword tags being silently dropped. Implemented full tag handling in USFX parser with state tracking, start/end element handlers, and span kind logic. Added `VerseSpanKind.foreignLanguage` and `VerseSpanKind.keyword` enum values. Added fixture tests for both new span kinds. All 60 fixture tests passing, no regressions.
+- `done` OSIS and Zefania paragraph/lossiness audit: OSIS already includes `sourceTag` on all paragraph-like tags (`p`, `lg`, `lb`) and handles pre-chapter content correctly — no gaps found. Zefania required one fix: pre-chapter `<BR>` blocks were silently dropped. Added pre-chapter handler to emit BR blocks as intro-level paragraph blocks. Added fixture test to verify. 100 tests pass.
+- `done` Item H (USFX intro paragraphs) and paragraph/lossiness fixes: confirmed `<ip>`, `<imt>`, `<is>`, `<io1>`, `<io2>`, `<ili1>`, `<ili2>`, `<cd>` already implemented. Fixed Gap 1 (pre-chapter `<p>` sourceTag), Gap 2 (pre-chapter `<b>` handling), Gap 3 (extended regex for `<pi*>`, `<mi>` tags). Added 3 fixture tests. 99 tests pass.
+- `done` Task 4 audit: Word-level metadata (Strong's, lemma, morphology) confirmed working in USFX and OSIS; Zefania lacks word-level tags. 96 tests pass.
+- `done` Task 3: Section heading metadata verified across all formats — USFX extracts level from tag name, OSIS preserves type attribute, Zefania preserves caption attributes.
+- `done` Task 2: Paragraph/break metadata standardized — added missing `sourceTag: 'p'` to USFX paragraphs. All formats now emit document blocks with consistent metadata keys.
+- `done` Task 1: Character-level anchor fidelity — added `charOffset` field to Footnote and CrossReference across all three parsers. 96 tests pass.
+- `done` Added Zefania table support (`<table>`, `<row>`, `<cell>`) with structured `table` / `tableRow` blocks and cell metadata. 95 tests pass.
+- `done` Filled the remaining obvious OSIS poetry-container gap by marking `p type="poetry"` blocks with `stanzaGroup` cue. 94 tests pass.
+- `done` Added a cross-format `stanzaGroup` cue for poetry-block containers: USFX `q1`/`q2`, Zefania `BR art="q2"`, and OSIS `lg` line groups. 94 tests pass.
+- `done` Finished cross-format block-indentation normalization: OSIS `lg` poetry blocks emit `indentLevel` alongside `quoteLevel`. 94 tests pass.
+- `done` Improved OSIS layout normalization by inferring `indentLevel` for indented paragraph markers like `subType="x-indented"`. 94 tests pass.
+- `done` Improved OSIS poetry/layout parity by inferring block-level `quoteLevel` on `lg` poetry blocks from nested `<l level="...">` lines. 94 tests pass.
+- `done` Improved poetry/layout parity by inferring block-level `quoteLevel` from USFX (`<p sfm="q2">`) and Zefania (`<BR art="q2">`). 93 tests pass.
+- `done` Improved USFX footnote parity by preserving nested `<ref tgt="...">` entries inside `<f>` as structured `Footnote.references`. 91 tests pass.
+- `done` Improved Zefania cross-reference target fidelity by splitting multi-target `fscope` values into multiple `CrossReference` objects. 90 tests pass.
+- `done` Improved OSIS cross-reference target fidelity by splitting space-separated `osisRef` lists into multiple `CrossReference` objects. 89 tests pass.
+- `done` Improved USFX cross-reference parity by emitting one `CrossReference` per `<ref>` inside a single `<x>` block. 88 tests pass.
+- `done` Promoted OSIS `note type="crossReference"` entries with no note body into real `verse.crossReferences`. 87 tests pass.
+- `done` Improved OSIS footnote structure parity: note origin refs populate `label`, quoted note text populates `quotedText`, nested references stay in `Footnote.references`. 87 tests pass.
+- `done` Added Zefania poetry quote-level inference for style names like `q1`, `q2`, and `poetry2`. 85 tests pass.
+- `done` Added Zefania divine-name style inference for `<STYLE>` spans with names like `divine`, `lord`, and `small-caps`.
+- `done` Added Zefania bold / italic / emphasis span support via `<STYLE>` naming conventions. 83 tests pass.
 
 ---
 

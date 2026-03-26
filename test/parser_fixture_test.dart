@@ -423,6 +423,178 @@ const _usfxIntroParagraphs = '''<?xml version="1.0" encoding="utf-8"?>
   </book>
 </usfx>''';
 
+/// USFX pre-chapter <p> (paragraph) block.
+const _usfxPreChapterParagraph = '''<?xml version="1.0" encoding="utf-8"?>
+<usfx xmlns="http://www.bibletechnologies.net/2003/USFX/namespace">
+  <book id="GEN">
+    <p>This is a pre-chapter paragraph.</p>
+    <c id="1">
+      <v id="1">In the beginning God created the heaven and the earth.</v>
+    </c>
+  </book>
+</usfx>''';
+
+/// USFX <pi1> (indented paragraph) tag.
+const _usfxIndentedParagraph = '''<?xml version="1.0" encoding="utf-8"?>
+<usfx xmlns="http://www.bibletechnologies.net/2003/USFX/namespace">
+  <book id="GEN">
+    <c id="1">
+      <v id="1">In the beginning God created the heaven and the earth.</v>
+      <pi1>This is an indented paragraph.</pi1>
+      <v id="2">And God saw that it was good.</v>
+    </c>
+  </book>
+</usfx>''';
+
+/// USFX pre-chapter <b> (blank line / stanza break).
+const _usfxPreChapterBreak = '''<?xml version="1.0" encoding="utf-8"?>
+<usfx xmlns="http://www.bibletechnologies.net/2003/USFX/namespace">
+  <book id="GEN">
+    <p>Introduction paragraph.</p>
+    <b/>
+    <c id="1">
+      <v id="1">In the beginning God created the heaven and the earth.</v>
+    </c>
+  </book>
+</usfx>''';
+
+/// USFX foreign language span via <fl>.
+const _usfxForeignLanguage = '''<?xml version="1.0" encoding="utf-8"?>
+<usfx xmlns="http://www.bibletechnologies.net/2003/USFX/namespace">
+  <book id="PSA">
+    <c id="119">
+      <v id="52">I remember your name in the night, <fl>Adonai</fl>, and keep your law.</v>
+    </c>
+  </book>
+</usfx>''';
+
+/// USFX keyword span via <k>.
+const _usfxKeyword = '''<?xml version="1.0" encoding="utf-8"?>
+<usfx xmlns="http://www.bibletechnologies.net/2003/USFX/namespace">
+  <book id="REV">
+    <c id="9">
+      <v id="11">They have as king over them the angel of the <k>abyss</k>, whose name in Hebrew is Abaddon.</v>
+    </c>
+  </book>
+</usfx>''';
+
+/// USFX cross-reference using <xt> instead of <ref tgt="...">.
+const _usfxCrossRefXt = '''<?xml version="1.0" encoding="utf-8"?>
+<usfx xmlns="http://www.bibletechnologies.net/2003/USFX/namespace">
+  <book id="JHN">
+    <c id="3">
+      <v id="16">For God so loved the world.<x caller="+"><xo>3:16 </xo><xt>Rom 5:8; 1Jn 4:9</xt></x></v>
+    </c>
+  </book>
+</usfx>''';
+
+/// USFX footnote with <fl> inside — must NOT corrupt verse-level foreignLanguage spans.
+const _usfxFlInsideFootnote = '''<?xml version="1.0" encoding="utf-8"?>
+<usfx xmlns="http://www.bibletechnologies.net/2003/USFX/namespace">
+  <book id="EST">
+    <c id="1">
+      <v id="1">A word<f caller="a"><fr>1:1 </fr><ft>From <fl>Hebrew</fl> text.</ft></f> and plain text after.</v>
+    </c>
+  </book>
+</usfx>''';
+
+/// USFX footnote with <fp> paragraph tag inside.
+const _usfxFootnoteParagraph = '''<?xml version="1.0" encoding="utf-8"?>
+<usfx xmlns="http://www.bibletechnologies.net/2003/USFX/namespace">
+  <book id="GEN">
+    <c id="1">
+      <v id="1">A word<f caller="a"><ft>First sentence.</ft><fp>Second paragraph of the note.</fp></f> of text.</v>
+    </c>
+  </book>
+</usfx>''';
+
+/// USFX margin-indented poetry block via <qm1>.
+const _usfxQmPoetry = '''<?xml version="1.0" encoding="utf-8"?>
+<usfx xmlns="http://www.bibletechnologies.net/2003/USFX/namespace">
+  <book id="PSA">
+    <c id="1">
+      <v id="1">Blessed is the man.</v>
+      <qm1>A margin indented poetry line.</qm1>
+      <v id="2">His delight is in the law.</v>
+    </c>
+  </book>
+</usfx>''';
+
+/// USFX endnote via <fe>.
+const _usfxEndnote = '''<?xml version="1.0" encoding="utf-8"?>
+<usfx xmlns="http://www.bibletechnologies.net/2003/USFX/namespace">
+  <book id="GEN">
+    <c id="1">
+      <v id="1">In the beginning<fe caller="e"><fr>1:1 </fr><ft>An explanatory endnote.</ft></fe> God created.</v>
+    </c>
+  </book>
+</usfx>''';
+
+/// USFX footnote with <fk> keyword tag inside.
+const _usfxFootnoteKeyword = '''<?xml version="1.0" encoding="utf-8"?>
+<usfx xmlns="http://www.bibletechnologies.net/2003/USFX/namespace">
+  <book id="GEN">
+    <c id="1">
+      <v id="1">A word<f caller="a"><fk>creation</fk><ft> Notes about origins.</ft></f> is preserved.</v>
+    </c>
+  </book>
+</usfx>''';
+
+/// USFX cross-reference with plain text (no <xt> wrapper).
+const _usfxCrossRefPlainText = '''<?xml version="1.0" encoding="utf-8"?>
+<usfx xmlns="http://www.bibletechnologies.net/2003/USFX/namespace">
+  <book id="GEN">
+    <c id="1">
+      <v id="1">In the beginning.<x caller="+"><xo>1:1 </xo>Gen 1:1</x></v>
+    </c>
+  </book>
+</usfx>''';
+
+/// USFX section range heading via <sr>.
+const _usfxSectionRange = '''<?xml version="1.0" encoding="utf-8"?>
+<usfx xmlns="http://www.bibletechnologies.net/2003/USFX/namespace">
+  <book id="GEN">
+    <c id="1">
+      <sr>Genesis 1:1–5</sr>
+      <v id="1">In the beginning God created the heaven and the earth.</v>
+    </c>
+  </book>
+</usfx>''';
+
+/// USFX <nb> no-break paragraph between verses.
+const _usfxNbParagraphBreak = '''<?xml version="1.0" encoding="utf-8"?>
+<usfx xmlns="http://www.bibletechnologies.net/2003/USFX/namespace">
+  <book id="GEN">
+    <c id="1">
+      <v id="1">In the beginning God created the heaven and the earth.</v>
+      <nb/>
+      <v id="2">And the earth was without form and void.</v>
+    </c>
+  </book>
+</usfx>''';
+
+/// USFX <ql> poetry response/selah line between verses.
+const _usfxQlPoetry = '''<?xml version="1.0" encoding="utf-8"?>
+<usfx xmlns="http://www.bibletechnologies.net/2003/USFX/namespace">
+  <book id="PSA">
+    <c id="3">
+      <v id="1">LORD, how many are my foes!</v>
+      <ql>Selah.</ql>
+      <v id="2">Many are rising against me.</v>
+    </c>
+  </book>
+</usfx>''';
+
+/// USFX Strong's number via src attribute alias.
+const _usfxStrongsSource = '''<?xml version="1.0" encoding="utf-8"?>
+<usfx xmlns="http://www.bibletechnologies.net/2003/USFX/namespace">
+  <book id="GEN">
+    <c id="1">
+      <v id="1"><w src="H1254">created</w> by God.</v>
+    </c>
+  </book>
+</usfx>''';
+
 // ---------------------------------------------------------------------------
 // Zefania fixtures
 // ---------------------------------------------------------------------------
@@ -815,6 +987,197 @@ void main() {
       expect(rowBlocks.first.metadata['cells'], contains('Age'));
       expect(rowBlocks.last.metadata['cells'], contains('Adam'));
       expect(rowBlocks.last.metadata['cells'], contains('930'));
+    });
+
+    test('preserves USFX foreign language span via <fl>', () async {
+      final book = await _parseFirstBook(_usfxForeignLanguage, 'USFX');
+      final verse = _firstVerse(book!);
+
+      expect(verse, isNotNull);
+      expect(verse!.spans.isNotEmpty, isTrue,
+          reason: 'Verse should contain spans');
+
+      // Find spans with kind foreignLanguage
+      final flSpans = verse.spans
+          .where((s) => s.kind == VerseSpanKind.foreignLanguage)
+          .toList();
+      expect(flSpans, isNotEmpty,
+          reason: 'Should have at least one foreignLanguage span from <fl> tags');
+
+      // Just verify that a foreign language span exists with the expected text
+      final flTexts = flSpans.map((s) => s.text).toList();
+      expect(flTexts, contains('Adonai'),
+          reason: 'Should have a foreignLanguage span with the foreign word');
+    });
+
+    test('preserves USFX keyword span via <k>', () async {
+      final book = await _parseFirstBook(_usfxKeyword, 'USFX');
+      final verse = _firstVerse(book!);
+
+      expect(verse, isNotNull);
+      expect(verse!.spans.isNotEmpty, isTrue,
+          reason: 'Verse should contain spans for keyword and other text');
+
+      // Find the span with kind keyword
+      final kSpans = verse.spans
+          .where((s) => s.kind == VerseSpanKind.keyword)
+          .toList();
+      expect(kSpans, isNotEmpty,
+          reason: 'Should have at least one keyword span');
+
+      final kSpan = kSpans.first;
+      expect(kSpan.text, equals('abyss'),
+          reason: 'Keyword span should contain the text inside <k>');
+    });
+
+    test('preserves <xt> cross-reference text as structured CrossReference', () async {
+      final book = await _parseFirstBook(_usfxCrossRefXt, 'USFX');
+      final verse = _firstVerse(book!);
+
+      expect(verse, isNotNull);
+      expect(verse!.crossReferences, isNotEmpty,
+          reason: '<xt> should produce at least one CrossReference');
+
+      final xref = verse.crossReferences.first;
+      expect(xref.label, contains('Rom 5:8'),
+          reason: '<xt> text should become the CrossReference label');
+      expect(xref.originRef, isNotNull,
+          reason: '<xo> origin should be preserved alongside <xt>');
+    });
+
+    test('<fl> inside a footnote does not corrupt verse-level span kinds', () async {
+      final book = await _parseFirstBook(_usfxFlInsideFootnote, 'USFX');
+      final verse = _firstVerse(book!);
+
+      expect(verse, isNotNull);
+
+      // The text after the footnote should be a normal span, not foreignLanguage.
+      final postFootnoteSpans = verse!.spans
+          .where((s) => s.text.contains('plain text'))
+          .toList();
+      expect(postFootnoteSpans, isNotEmpty,
+          reason: 'Text after footnote should be present as a span');
+
+      final corruptedSpans = verse.spans
+          .where((s) =>
+              s.kind == VerseSpanKind.foreignLanguage &&
+              s.text.contains('plain text'))
+          .toList();
+      expect(corruptedSpans, isEmpty,
+          reason: '<fl> inside a footnote must not mark following verse text as foreignLanguage');
+    });
+
+    test('<fe> endnote produces a Footnote in verse.footnotes', () async {
+      final book = await _parseFirstBook(_usfxEndnote, 'USFX');
+      final verse = _firstVerse(book!);
+
+      expect(verse, isNotNull);
+      expect(verse!.footnotes, isNotEmpty,
+          reason: '<fe> endnote should produce a Footnote object');
+      expect(verse.footnotes.first.bodyText, contains('endnote'),
+          reason: 'Endnote body text should be preserved');
+    });
+
+    test('<fk> keyword inside footnote contributes to footnote bodyText', () async {
+      final book = await _parseFirstBook(_usfxFootnoteKeyword, 'USFX');
+      final verse = _firstVerse(book!);
+
+      expect(verse, isNotNull);
+      expect(verse!.footnotes, isNotEmpty,
+          reason: '<f> with <fk> should produce a Footnote');
+      expect(verse.footnotes.first.bodyText, contains('creation'),
+          reason: '<fk> text should appear in footnote bodyText');
+    });
+
+    test('plain text inside <x> (no <xt>) produces a CrossReference', () async {
+      final book = await _parseFirstBook(_usfxCrossRefPlainText, 'USFX');
+      final verse = _firstVerse(book!);
+
+      expect(verse, isNotNull);
+      expect(verse!.crossReferences, isNotEmpty,
+          reason: 'Plain text in <x> should produce a CrossReference');
+      expect(verse.crossReferences.first.label, contains('Gen 1:1'),
+          reason: 'Plain cross-reference text should become the label');
+    });
+
+    test('<sr> section range produces heading block with sourceTag sr', () async {
+      final book = await _parseFirstBook(_usfxSectionRange, 'USFX');
+      expect(book, isNotNull);
+      final chapter = book!.chapters.first;
+
+      final srBlocks = chapter.blocks
+          .where((b) => b.metadata['sourceTag'] == 'sr')
+          .toList();
+      expect(srBlocks, hasLength(1),
+          reason: 'Expected one <sr> heading block');
+      expect(srBlocks.first.kind, equals(DocumentBlockKind.heading));
+      expect(srBlocks.first.text, contains('Genesis'));
+    });
+
+    test('<nb> between verses produces paragraph block with sourceTag nb', () async {
+      final book = await _parseFirstBook(_usfxNbParagraphBreak, 'USFX');
+      expect(book, isNotNull);
+      final chapter = book!.chapters.first;
+
+      final nbBlocks = chapter.blocks
+          .where((b) => b.metadata['sourceTag'] == 'nb')
+          .toList();
+      expect(nbBlocks, hasLength(1),
+          reason: 'Expected one <nb> paragraph block between verses');
+      expect(nbBlocks.first.kind, equals(DocumentBlockKind.paragraph));
+    });
+
+    test('<ql> produces poetry block with sourceTag ql', () async {
+      final book = await _parseFirstBook(_usfxQlPoetry, 'USFX');
+      expect(book, isNotNull);
+      final chapter = book!.chapters.first;
+
+      final qlBlocks = chapter.blocks
+          .where((b) => b.metadata['sourceTag'] == 'ql')
+          .toList();
+      expect(qlBlocks, hasLength(1),
+          reason: 'Expected one <ql> poetry block');
+      expect(qlBlocks.first.kind, equals(DocumentBlockKind.poetry));
+      expect(qlBlocks.first.text, equals('Selah.'));
+    });
+
+    test('<fp> paragraph inside footnote contributes to footnote bodyText', () async {
+      final book = await _parseFirstBook(_usfxFootnoteParagraph, 'USFX');
+      final verse = _firstVerse(book!);
+
+      expect(verse, isNotNull);
+      expect(verse!.footnotes, isNotEmpty,
+          reason: '<f> with <fp> should produce a Footnote');
+      expect(verse.footnotes.first.bodyText, contains('Second paragraph'),
+          reason: '<fp> text should appear in footnote bodyText');
+    });
+
+    test('<qm1> produces poetry block with sourceTag qm1', () async {
+      final book = await _parseFirstBook(_usfxQmPoetry, 'USFX');
+      expect(book, isNotNull);
+      final chapter = book!.chapters.first;
+
+      final qmBlocks = chapter.blocks
+          .where((b) => b.metadata['sourceTag'] == 'qm1')
+          .toList();
+      expect(qmBlocks, hasLength(1),
+          reason: 'Expected one <qm1> margin poetry block');
+      expect(qmBlocks.first.kind, equals(DocumentBlockKind.poetry));
+      expect(qmBlocks.first.text, contains('margin indented'));
+    });
+
+    test('<w src="..."> preserves Strong\'s number in span metadata', () async {
+      final book = await _parseFirstBook(_usfxStrongsSource, 'USFX');
+      final verse = _firstVerse(book!);
+
+      expect(verse, isNotNull);
+      final wordSpans = verse!.spans
+          .where((s) => s.metadata.containsKey('strongs'))
+          .toList();
+      expect(wordSpans, isNotEmpty,
+          reason: '<w src="..."> should populate strongs in span metadata');
+      expect(wordSpans.first.metadata['strongs'], equals('H1254'));
+      expect(wordSpans.first.text, equals('created'));
     });
   });
 
