@@ -41,12 +41,17 @@ class CrossReference {
   /// XML stream.  Null when the source position could not be determined.
   final int? spanIndex;
 
+  /// Character offset within the verse text where this reference marker
+  /// appears.  Null when the source position could not be determined.
+  final int? charOffset;
+
   const CrossReference({
     required this.label,
     this.target,
     this.marker,
     this.originRef,
     this.spanIndex,
+    this.charOffset,
   });
 }
 
@@ -72,6 +77,10 @@ class Footnote {
   /// XML stream.  Null when the source position could not be determined.
   final int? spanIndex;
 
+  /// Character offset within the verse text where this footnote marker
+  /// appears.  Null when the source position could not be determined.
+  final int? charOffset;
+
   const Footnote({
     required this.text,
     this.marker,
@@ -80,6 +89,7 @@ class Footnote {
     this.quotedText,
     this.references = const [],
     this.spanIndex,
+    this.charOffset,
   });
 }
 
