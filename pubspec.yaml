@@ -1,6 +1,6 @@
 name: bible_parser_flutter
 description: "A Flutter package for parsing Bible texts in OSIS, USFX, and ZEFANIA formats with direct parsing and database-backed approaches. Includes desktop app for database creation and management."
-version: 0.3.0
+version: 0.4.0
 homepage: https://github.com/Omarzintan/bible_parser_flutter
 repository: https://github.com/Omarzintan/bible_parser_flutter
 issue_tracker: https://github.com/Omarzintan/bible_parser_flutter/issues

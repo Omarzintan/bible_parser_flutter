@@ -2,7 +2,15 @@
 
 A Flutter package for parsing Bible texts in OSIS, USFX, and ZEFANIA XML formats with both direct parsing and database-backed approaches. **Now includes a desktop app for Bible database creation and management!**
 
-## 🆕 v0.3.0 Features
+## 🆕 v0.4.0 Features
+
+- ✅ **Footnote Support**: Parse and display USFX `<f>` footnotes with inline markers and full content
+- ✅ **Updated DB Schema**: New `verse_footnotes` table (database version 5)
+- ✅ **`Footnote` class**: New public API type with `id`, `marker`, `content`
+- ✅ **`Verse.hasFootnotes`**: Convenience getter on `Verse`
+- ✅ **`TextSegment.isFootnoteMarker`**: Identify footnote positions within segments
+
+## v0.3.0 Features
 
 - ✅ **Desktop App**: Complete Bible database creation tool
 - ✅ **Database Export**: User-controlled file saving
@@ -85,7 +93,7 @@ Add this to your package's `pubspec.yaml` file:
 
 ```yaml
 dependencies:
-  bible_parser_flutter: ^0.3.0
+  bible_parser_flutter: ^0.4.0
 ```
 
 Then run:
