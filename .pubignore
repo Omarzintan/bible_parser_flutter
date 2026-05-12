@@ -9,6 +9,9 @@ example/
 # Exclude documentation files that are not needed in the package
 doc/
 
+# Exclude build artifacts
+build/
+
 # Exclude test files that are not needed in the published package
 test_functionality.dart
 test_database_loading.dart

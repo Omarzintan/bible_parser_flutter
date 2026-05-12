@@ -1,3 +1,30 @@
+## 0.4.0 - Footnote Support
+
+### 🆕 New Features
+* **Footnote parsing for USFX format** - `<f>` tags are now fully parsed
+  * New `Footnote` class with `id`, `marker`, and `content` fields
+  * Footnote positions encoded as zero-width `TextSegment` entries with `attributes['footnote']` set
+  * Superscript markers (`¹`, `²`, `³`...) auto-assigned per verse
+  * `verse.hasFootnotes` convenience getter
+  * `segment.isFootnoteMarker` and `segment.footnoteId` getters on `TextSegment`
+* **Database persistence for footnotes**
+  * New `verse_footnotes` table (database version 5)
+  * Automatic migration from version 4 — no data loss
+  * Footnotes loaded automatically in `getVerses`, `getVerse`, and `searchVerses`
+* **`Footnote` exported** from main library entry point
+
+### 🔄 Breaking Changes
+* None — fully backward compatible. Verses without footnotes return `null` for `footnotes`.
+
+### 📦 Database Schema
+* Version bumped from 4 → 5
+* New table: `verse_footnotes (id, verse_id, footnote_id, marker, content)`
+
+### Testing
+* Added 8 automated tests in `usfx_footnote_test.dart`
+
+---
+
 ## 0.3.0 - Desktop App Release
 
 ### 🆕 Major Features
