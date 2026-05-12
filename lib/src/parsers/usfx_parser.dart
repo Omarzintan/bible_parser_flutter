@@ -6,6 +6,7 @@ import '../book.dart';
 import '../chapter.dart';
 import '../verse.dart';
 import '../text_segment.dart';
+import '../footnote.dart';
 import '../errors.dart';
 
 /// Parser for the USFX Bible format.
@@ -97,12 +98,16 @@ class UsfxParser extends BaseParser {
     Book? currentBook;
     Chapter? currentChapter;
     Verse? currentVerse;
-    // True when we are inside a <f> tag. These tags are used for
-    // footnotes. We skip them for now.
-    bool insideFTag = false;
     // True when we are inside a <x> tag. These tags are used for
     // cross-references. We skip them for now.
     bool insideXTag = false;
+
+    // Footnote tracking
+    bool insideFTag = false;
+    String? currentFootnoteId;
+    int footnoteCounter = 0;
+    StringBuffer currentFootnoteText = StringBuffer();
+    List<Footnote> currentFootnotes = [];
 
     // Segment tracking for red-letter support
     List<TextSegment> currentSegments = [];
@@ -178,11 +183,13 @@ class UsfxParser extends BaseParser {
 
             final verseNum = int.tryParse(verseNumStr) ?? 1;
 
-            // Reset segment tracking for new verse
+            // Reset segment and footnote tracking for new verse
             currentSegments = [];
             currentSegmentText = StringBuffer();
             currentAttributes = null;
             hasQuoteTags = false;
+            currentFootnotes = [];
+            footnoteCounter = 0;
 
             // Verse text will be collected in the character events
             // This is just setting up the verse
@@ -207,7 +214,7 @@ class UsfxParser extends BaseParser {
               ));
             }
 
-            // Create final verse with segments if any were collected
+            // Create final verse with segments and footnotes if any were collected
             final finalVerse = Verse(
               num: currentVerse.num,
               chapterNum: currentVerse.chapterNum,
@@ -216,17 +223,41 @@ class UsfxParser extends BaseParser {
               segments: hasQuoteTags && currentSegments.isNotEmpty
                   ? currentSegments
                   : null,
+              footnotes: currentFootnotes.isNotEmpty
+                  ? List.unmodifiable(currentFootnotes)
+                  : null,
             );
 
             currentChapter.addVerse(finalVerse);
             currentVerse = null;
             currentSegments = [];
+            currentFootnotes = [];
+            footnoteCounter = 0;
             hasQuoteTags = false;
           } else if (event.name == 'f' &&
               currentBook != null &&
               currentVerse != null) {
-            // We are inside a footnote tag.
+            // Start of footnote - save current segment, insert marker segment
+            footnoteCounter++;
+            currentFootnoteId = 'f$footnoteCounter';
+            currentFootnoteText = StringBuffer();
             insideFTag = true;
+            hasQuoteTags = true;
+
+            // Save any text before this footnote as a segment
+            if (currentSegmentText.isNotEmpty) {
+              currentSegments.add(TextSegment(
+                text: currentSegmentText.toString().trim(),
+                attributes: currentAttributes,
+              ));
+              currentSegmentText = StringBuffer();
+            }
+
+            // Insert a zero-width footnote marker segment
+            currentSegments.add(TextSegment(
+              text: '',
+              attributes: {'footnote': currentFootnoteId},
+            ));
           } else if (event.name == 'x' &&
               currentBook != null &&
               currentVerse != null) {
@@ -305,8 +336,17 @@ class UsfxParser extends BaseParser {
             currentSegments = [];
             hasQuoteTags = false;
           } else if (event.name == 'f') {
-            // End of footnote tag
+            // End of footnote - save collected footnote content
+            if (currentFootnoteId != null && currentFootnoteText.isNotEmpty) {
+              final index = currentFootnotes.length + 1;
+              currentFootnotes.add(Footnote(
+                id: currentFootnoteId,
+                marker: _footnoteMarker(index),
+                content: currentFootnoteText.toString().trim(),
+              ));
+            }
             insideFTag = false;
+            currentFootnoteId = null;
           } else if (event.name == 'x') {
             // End of cross-reference tag
             insideXTag = false;
@@ -337,7 +377,15 @@ class UsfxParser extends BaseParser {
             }
           }
         } else if (event is XmlTextEvent && currentVerse != null) {
-          if (insideFTag || insideXTag) {
+          if (insideFTag) {
+            final t = event.value.trim();
+            if (t.isNotEmpty) {
+              if (currentFootnoteText.isNotEmpty)
+                currentFootnoteText.write(' ');
+              currentFootnoteText.write(t);
+            }
+            continue;
+          } else if (insideXTag) {
             continue;
           } else {
             final trimmedText = event.value.trim();
@@ -384,8 +432,14 @@ class UsfxParser extends BaseParser {
     String? currentBookId;
     int? currentChapterNum;
     Verse? currentVerse;
-    bool insideFTag = false;
     bool insideXTag = false;
+
+    // Footnote tracking
+    bool insideFTag = false;
+    String? currentFootnoteId;
+    int footnoteCounter = 0;
+    StringBuffer currentFootnoteText = StringBuffer();
+    List<Footnote> currentFootnotes = [];
 
     // Segment tracking for red-letter support
     List<TextSegment> currentSegments = [];
@@ -429,11 +483,13 @@ class UsfxParser extends BaseParser {
             }
             final verseNum = int.tryParse(verseNumStr) ?? 1;
 
-            // Reset segment tracking for new verse
+            // Reset segment and footnote tracking for new verse
             currentSegments = [];
             currentSegmentText = StringBuffer();
             currentAttributes = null;
             hasQuoteTags = false;
+            currentFootnotes = [];
+            footnoteCounter = 0;
 
             currentVerse = Verse(
               num: verseNum,
@@ -452,7 +508,7 @@ class UsfxParser extends BaseParser {
               ));
             }
 
-            // Create final verse with segments
+            // Create final verse with segments and footnotes
             final finalVerse = Verse(
               num: currentVerse.num,
               chapterNum: currentVerse.chapterNum,
@@ -461,14 +517,37 @@ class UsfxParser extends BaseParser {
               segments: hasQuoteTags && currentSegments.isNotEmpty
                   ? currentSegments
                   : null,
+              footnotes: currentFootnotes.isNotEmpty
+                  ? List.unmodifiable(currentFootnotes)
+                  : null,
             );
 
             yield finalVerse;
             currentVerse = null;
             currentSegments = [];
+            currentFootnotes = [];
+            footnoteCounter = 0;
             hasQuoteTags = false;
           } else if (event.name == 'f' && currentVerse != null) {
+            // Start of footnote - save current segment, insert marker segment
+            footnoteCounter++;
+            currentFootnoteId = 'f$footnoteCounter';
+            currentFootnoteText = StringBuffer();
             insideFTag = true;
+            hasQuoteTags = true;
+
+            if (currentSegmentText.isNotEmpty) {
+              currentSegments.add(TextSegment(
+                text: currentSegmentText.toString().trim(),
+                attributes: currentAttributes,
+              ));
+              currentSegmentText = StringBuffer();
+            }
+
+            currentSegments.add(TextSegment(
+              text: '',
+              attributes: {'footnote': currentFootnoteId},
+            ));
           } else if (event.name == 'x' && currentVerse != null) {
             insideXTag = true;
           } else if (event.name == 'wj' && currentVerse != null) {
@@ -511,7 +590,7 @@ class UsfxParser extends BaseParser {
               ));
             }
 
-            // Create final verse with segments
+            // Create final verse with segments and footnotes
             final finalVerse = Verse(
               num: currentVerse.num,
               chapterNum: currentVerse.chapterNum,
@@ -520,14 +599,28 @@ class UsfxParser extends BaseParser {
               segments: hasQuoteTags && currentSegments.isNotEmpty
                   ? currentSegments
                   : null,
+              footnotes: currentFootnotes.isNotEmpty
+                  ? List.unmodifiable(currentFootnotes)
+                  : null,
             );
 
             yield finalVerse;
             currentVerse = null;
             currentSegments = [];
+            currentFootnotes = [];
+            footnoteCounter = 0;
             hasQuoteTags = false;
           } else if (event.name == 'f') {
+            if (currentFootnoteId != null && currentFootnoteText.isNotEmpty) {
+              final index = currentFootnotes.length + 1;
+              currentFootnotes.add(Footnote(
+                id: currentFootnoteId,
+                marker: _footnoteMarker(index),
+                content: currentFootnoteText.toString().trim(),
+              ));
+            }
             insideFTag = false;
+            currentFootnoteId = null;
           } else if (event.name == 'x') {
             insideXTag = false;
           } else if (event.name == 'wj' && currentVerse != null) {
@@ -557,7 +650,15 @@ class UsfxParser extends BaseParser {
             }
           }
         } else if (event is XmlTextEvent && currentVerse != null) {
-          if (insideFTag || insideXTag) {
+          if (insideFTag) {
+            final t = event.value.trim();
+            if (t.isNotEmpty) {
+              if (currentFootnoteText.isNotEmpty)
+                currentFootnoteText.write(' ');
+              currentFootnoteText.write(t);
+            }
+            continue;
+          } else if (insideXTag) {
             continue;
           } else {
             final trimmedText = event.value.trim();
@@ -594,6 +695,13 @@ class UsfxParser extends BaseParser {
     } catch (e, stackTrace) {
       throw BibleParserException('Error parsing verses: $e\n$stackTrace');
     }
+  }
+
+  /// Returns a footnote marker symbol for the given 1-based index.
+  String _footnoteMarker(int index) {
+    const markers = ['¹', '²', '³', '⁴', '⁵', '⁶', '⁷', '⁸', '⁹'];
+    if (index <= markers.length) return markers[index - 1];
+    return '[$index]';
   }
 
   /// Gets the book number based on its ID.

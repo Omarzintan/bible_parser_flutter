@@ -3,6 +3,7 @@ export 'src/book.dart';
 export 'src/chapter.dart';
 export 'src/verse.dart';
 export 'src/text_segment.dart';
+export 'src/footnote.dart';
 export 'src/errors.dart';
 export 'src/bible_repository.dart';
 export 'src/parsers/osis_parser.dart';

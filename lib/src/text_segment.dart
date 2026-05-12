@@ -43,6 +43,12 @@ class TextSegment {
   /// Returns true if this segment is added text (typically italicized in Bibles).
   bool get isAdded => transChange?.toLowerCase() == 'added';
 
+  /// Returns true if this segment marks a footnote position in the verse.
+  bool get isFootnoteMarker => attributes?.containsKey('footnote') ?? false;
+
+  /// Returns the footnote ID this segment references, or null if not a footnote marker.
+  String? get footnoteId => attributes?['footnote'];
+
   /// Creates a text segment from a map, typically from database results.
   factory TextSegment.fromMap(Map<String, dynamic> map) {
     // Parse attributes from JSON string if present

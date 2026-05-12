@@ -63,6 +63,9 @@ class _BibleParserDesktopScreenState extends State<BibleParserDesktopScreen> {
   // Italicized text display toggle
   bool showItalics = true;
 
+  // Footnotes display toggle
+  bool showFootnotes = true;
+
   @override
   void initState() {
     super.initState();
@@ -252,6 +255,12 @@ class _BibleParserDesktopScreenState extends State<BibleParserDesktopScreen> {
       }
 
       final savePath = path.join(dbFilesDir.path, databaseName);
+
+      // Delete existing database to force a fresh parse (ensures latest features are included)
+      final existingDb = File(savePath);
+      if (await existingDb.exists()) {
+        await existingDb.delete();
+      }
 
       // Initialize the repository with the app's path
       await repository!.initialize(savePath);
@@ -459,6 +468,22 @@ class _BibleParserDesktopScreenState extends State<BibleParserDesktopScreen> {
                     ],
                   ),
                 ),
+                Expanded(
+                  child: Row(
+                    children: [
+                      Switch(
+                        value: showFootnotes,
+                        onChanged: (value) {
+                          setState(() {
+                            showFootnotes = value;
+                          });
+                        },
+                      ),
+                      const SizedBox(width: 8),
+                      const Text('Footnotes'),
+                    ],
+                  ),
+                ),
               ],
             ),
             const SizedBox(height: 16),
@@ -616,12 +641,21 @@ class _BibleParserDesktopScreenState extends State<BibleParserDesktopScreen> {
 
       for (final verse in verses) {
         buffer.write('Verse ${verse.num}: ');
-        if ((showRedLetter || showItalics) &&
+        if ((showRedLetter || showItalics || showFootnotes) &&
             verse.segments != null &&
             verse.segments!.isNotEmpty) {
           // Has segments - show with styling indicators
           for (final segment in verse.segments!) {
-            if (showRedLetter &&
+            if (segment.isFootnoteMarker) {
+              // Insert footnote marker inline if footnotes are enabled
+              if (showFootnotes && verse.footnotes != null) {
+                final fn = verse.footnotes!.firstWhere(
+                  (f) => f.id == segment.footnoteId,
+                  orElse: () => verse.footnotes!.first,
+                );
+                buffer.write(fn.marker);
+              }
+            } else if (showRedLetter &&
                 segment.isJesus &&
                 showItalics &&
                 segment.isAdded) {
@@ -639,6 +673,13 @@ class _BibleParserDesktopScreenState extends State<BibleParserDesktopScreen> {
           buffer.write(verse.text);
         }
         buffer.writeln();
+
+        // Append footnote list below the verse
+        if (showFootnotes && verse.hasFootnotes) {
+          for (final fn in verse.footnotes!) {
+            buffer.writeln('  ${fn.marker} ${fn.content}');
+          }
+        }
         buffer.writeln();
       }
 

@@ -11,6 +11,7 @@ import 'bible_parser.dart';
 import 'book.dart';
 import 'verse.dart';
 import 'text_segment.dart';
+import 'footnote.dart';
 
 /// Repository for accessing Bible data with database caching.
 class BibleRepository {
@@ -188,6 +189,17 @@ class BibleRepository {
                   );
                 }
               }
+
+              // Insert footnotes if present
+              if (verse.footnotes != null && verse.footnotes!.isNotEmpty) {
+                for (final footnote in verse.footnotes!) {
+                  await txn.insert(
+                    'verse_footnotes',
+                    footnote.toMap(verseId),
+                    conflictAlgorithm: ConflictAlgorithm.ignore,
+                  );
+                }
+              }
             } catch (e) {
               // Continue with next verse
             }
@@ -211,7 +223,7 @@ class BibleRepository {
     return databaseFactoryPlatform.openDatabase(
       dbPath,
       options: OpenDatabaseOptions(
-        version: 4, // Incremented for UNIQUE constraint on verses
+        version: 5, // Incremented for footnotes support
         onCreate: (db, version) async {
           // Create tables
           await db.execute('''
@@ -246,6 +258,18 @@ class BibleRepository {
         )
       ''');
 
+          // Create footnotes table
+          await db.execute('''
+        CREATE TABLE IF NOT EXISTS verse_footnotes (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          verse_id INTEGER NOT NULL,
+          footnote_id TEXT NOT NULL,
+          marker TEXT NOT NULL,
+          content TEXT NOT NULL,
+          FOREIGN KEY (verse_id) REFERENCES verses (id) ON DELETE CASCADE
+        )
+      ''');
+
           // Create indexes for fast lookup
           await db.execute(
               'CREATE INDEX IF NOT EXISTS idx_verses_lookup ON verses (book_id, chapter_num, verse_num)');
@@ -253,6 +277,8 @@ class BibleRepository {
               'CREATE INDEX IF NOT EXISTS idx_verses_search ON verses (text)');
           await db.execute(
               'CREATE INDEX IF NOT EXISTS idx_segments_verse ON verse_segments (verse_id)');
+          await db.execute(
+              'CREATE INDEX IF NOT EXISTS idx_footnotes_verse ON verse_footnotes (verse_id)');
         },
         onUpgrade: (db, oldVersion, newVersion) async {
           // Handle migration from version 1 to 2
@@ -324,6 +350,22 @@ class BibleRepository {
             await db.execute('DELETE FROM books');
             // The data will be reparsed during initialization
           }
+
+          // Handle migration from version 4 to 5 (footnotes support)
+          if (oldVersion < 5) {
+            await db.execute('''
+              CREATE TABLE IF NOT EXISTS verse_footnotes (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                verse_id INTEGER NOT NULL,
+                footnote_id TEXT NOT NULL,
+                marker TEXT NOT NULL,
+                content TEXT NOT NULL,
+                FOREIGN KEY (verse_id) REFERENCES verses (id) ON DELETE CASCADE
+              )
+            ''');
+            await db.execute(
+                'CREATE INDEX IF NOT EXISTS idx_footnotes_verse ON verse_footnotes (verse_id)');
+          }
         },
       ),
     );
@@ -367,6 +409,20 @@ class BibleRepository {
         'SELECT COUNT(DISTINCT chapter_num) as count FROM verses WHERE book_id = ?',
         [bookId]);
     return result.first['count'] as int;
+  }
+
+  /// Loads footnotes for a verse from the database.
+  Future<List<Footnote>?> _loadFootnotes(int verseId) async {
+    final maps = await _database!.query(
+      'verse_footnotes',
+      where: 'verse_id = ?',
+      whereArgs: [verseId],
+      orderBy: 'id',
+    );
+
+    if (maps.isEmpty) return null;
+
+    return maps.map((map) => Footnote.fromMap(map)).toList();
   }
 
   /// Loads segments for a verse from the database.
@@ -416,12 +472,15 @@ class BibleRepository {
       final verseId = map['id'] as int;
       final segments = await _loadSegments(verseId);
 
+      final footnotes = await _loadFootnotes(verseId);
+
       verses.add(Verse(
         num: map['verse_num'] as int,
         chapterNum: map['chapter_num'] as int,
         text: map['text'] as String,
         bookId: map['book_id'] as String,
         segments: segments,
+        footnotes: footnotes,
       ));
     }
 
@@ -440,12 +499,15 @@ class BibleRepository {
       final verseId = map['id'] as int;
       final segments = await _loadSegments(verseId);
 
+      final footnotes = await _loadFootnotes(verseId);
+
       verses.add(Verse(
         num: map['verse_num'] as int,
         chapterNum: map['chapter_num'] as int,
         text: map['text'] as String,
         bookId: map['book_id'] as String,
         segments: segments,
+        footnotes: footnotes,
       ));
     }
 
@@ -468,12 +530,15 @@ class BibleRepository {
     final verseId = map['id'] as int;
     final segments = await _loadSegments(verseId);
 
+    final footnotes = await _loadFootnotes(verseId);
+
     return Verse(
       num: map['verse_num'] as int,
       chapterNum: map['chapter_num'] as int,
       text: map['text'] as String,
       bookId: map['book_id'] as String,
       segments: segments,
+      footnotes: footnotes,
     );
   }
 

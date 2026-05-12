@@ -67,6 +67,7 @@ flutter run -d macos
 
 - **🆕 Red-Letter Bible Support** - Identify and style Jesus' words in OSIS and USFX formats
 - **🆕 Added Text Support** - Track translator additions (italicized text) in OSIS and USFX formats
+- **🆕 Footnote Support** - Parse and access USFX footnotes with position markers in verse segments
 - Parse Bible texts in multiple formats (USFX, OSIS, ZEFANIA)
 - Automatic format detection
 - Memory-efficient SAX-style XML parsing using proper async streams
@@ -292,6 +293,40 @@ if (verse.segments != null) {
 
 **Example:** In Matthew 27:65 KJV, the word "it" is marked as added text:
 > Pilate said unto them, Ye have a watch: go your way, make _it_ as sure as ye can.
+
+### Footnote Support (USFX)
+
+Access footnotes attached to verses. Footnote positions are encoded as marker segments within `verse.segments`, and the full footnote content is available via `verse.footnotes`:
+
+```dart
+final verse = await repository.getVerse('gen', 1, 1);
+
+// Check if verse has footnotes
+if (verse.hasFootnotes) {
+  // Render segments - some mark footnote positions
+  for (final segment in verse.segments ?? []) {
+    if (segment.isFootnoteMarker) {
+      // Find the matching footnote and insert its marker
+      final fn = verse.footnotes!
+          .firstWhere((f) => f.id == segment.footnoteId);
+      print(fn.marker); // e.g. "¹"
+    } else {
+      print(segment.text); // normal, Jesus, or added text
+    }
+  }
+
+  // Display footnote list at bottom of verse
+  for (final fn in verse.footnotes!) {
+    print('${fn.marker} ${fn.content}');
+    // e.g. "¹ Hebrew: bara (to create)"
+  }
+}
+```
+
+**Supported formats:**
+- USFX: `<f>` tags
+
+**Note:** Footnotes are parsed and persisted to the database automatically when using `BibleRepository`. The `verse.text` field is never polluted with footnote content.
 
 ## Performance Considerations
 
