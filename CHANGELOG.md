@@ -1,3 +1,27 @@
+## 0.5.0 - Book Title Levels
+
+### 🆕 New Features
+* **Book toc fields from USFX `<toc>` tags**
+  * `Book.longTitle` — full descriptive title (toc level 1), e.g. `"The First Book of Moses, Commonly Called Genesis"`
+  * `Book.shortTitle` — common short title (toc level 2), e.g. `"Genesis"`
+  * `Book.abbreviation` — standard abbreviation (toc level 3), e.g. `"Gen"`
+  * All three fields are optional (`null` when not present in the source XML)
+* **Database persistence for toc fields**
+  * New columns `long_title`, `short_title`, `abbreviation` on `books` table (database version 6)
+  * Non-destructive migration via `ALTER TABLE` — existing data is preserved
+
+### 🔄 Breaking Changes
+* None — new fields are nullable and fully backward compatible.
+
+### 📦 Database Schema
+* Version bumped from 5 → 6
+* `books` table gains: `long_title TEXT`, `short_title TEXT`, `abbreviation TEXT`
+
+### Testing
+* Added 2 automated tests in `usfx_toc_test.dart`
+
+---
+
 ## 0.4.0 - Footnote Support
 
 ### 🆕 New Features
