@@ -223,14 +223,17 @@ class BibleRepository {
     return databaseFactoryPlatform.openDatabase(
       dbPath,
       options: OpenDatabaseOptions(
-        version: 5, // Incremented for footnotes support
+        version: 6, // Incremented for book toc fields
         onCreate: (db, version) async {
           // Create tables
           await db.execute('''
         CREATE TABLE IF NOT EXISTS books (
           id TEXT PRIMARY KEY,
           num INTEGER,
-          title TEXT
+          title TEXT,
+          long_title TEXT,
+          short_title TEXT,
+          abbreviation TEXT
         )
       ''');
 
@@ -365,6 +368,13 @@ class BibleRepository {
             ''');
             await db.execute(
                 'CREATE INDEX IF NOT EXISTS idx_footnotes_verse ON verse_footnotes (verse_id)');
+          }
+
+          // Handle migration from version 5 to 6 (book toc fields)
+          if (oldVersion < 6) {
+            await db.execute('ALTER TABLE books ADD COLUMN long_title TEXT');
+            await db.execute('ALTER TABLE books ADD COLUMN short_title TEXT');
+            await db.execute('ALTER TABLE books ADD COLUMN abbreviation TEXT');
           }
         },
       ),

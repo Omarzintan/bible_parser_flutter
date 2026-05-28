@@ -102,6 +102,11 @@ class UsfxParser extends BaseParser {
     // cross-references. We skip them for now.
     bool insideXTag = false;
 
+    // Toc tracking
+    bool insideTocTag = false;
+    int currentTocLevel = 0;
+    StringBuffer currentTocText = StringBuffer();
+
     // Footnote tracking
     bool insideFTag = false;
     String? currentFootnoteId;
@@ -144,6 +149,16 @@ class UsfxParser extends BaseParser {
               num: bookNum,
               title: bookName,
             );
+          } else if (event.name == 'toc' && currentBook != null) {
+            insideTocTag = true;
+            currentTocLevel = 0;
+            currentTocText = StringBuffer();
+            for (var attr in event.attributes) {
+              if (attr.name == 'level') {
+                currentTocLevel = int.tryParse(attr.value) ?? 0;
+                break;
+              }
+            }
           } else if (event.name == 'c' && currentBook != null) {
             // Find chapter number from attributes
             String chapterNumStr = '1';
@@ -347,6 +362,17 @@ class UsfxParser extends BaseParser {
             }
             insideFTag = false;
             currentFootnoteId = null;
+          } else if (event.name == 'toc' && currentBook != null) {
+            final text = currentTocText.toString().trim();
+            if (text.isNotEmpty) {
+              if (currentTocLevel == 1)
+                currentBook.longTitle = text;
+              else if (currentTocLevel == 2)
+                currentBook.shortTitle = text;
+              else if (currentTocLevel == 3) currentBook.abbreviation = text;
+            }
+            insideTocTag = false;
+            currentTocText = StringBuffer();
           } else if (event.name == 'x') {
             // End of cross-reference tag
             insideXTag = false;
@@ -375,6 +401,14 @@ class UsfxParser extends BaseParser {
               attrs.remove('transChange');
               currentAttributes = attrs.isNotEmpty ? attrs : null;
             }
+          }
+        } else if (event is XmlTextEvent &&
+            insideTocTag &&
+            currentBook != null) {
+          final t = event.value.trim();
+          if (t.isNotEmpty) {
+            if (currentTocText.isNotEmpty) currentTocText.write(' ');
+            currentTocText.write(t);
           }
         } else if (event is XmlTextEvent && currentVerse != null) {
           if (insideFTag) {

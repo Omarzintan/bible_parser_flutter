@@ -424,9 +424,9 @@ class _BibleParserDesktopScreenState extends State<BibleParserDesktopScreen> {
             ),
             const SizedBox(height: 8),
             if (repository != null && currentMode == AppMode.createFromXml)
-              Text(
+              const Text(
                 'Database ready for download - click Download to save it anywhere',
-                style: const TextStyle(
+                style: TextStyle(
                     fontStyle: FontStyle.italic,
                     fontSize: 12,
                     color: Colors.green),
@@ -634,7 +634,13 @@ class _BibleParserDesktopScreenState extends State<BibleParserDesktopScreen> {
 
       // Build rich text with red-letter support
       final buffer = StringBuffer();
-      buffer.writeln('${selectedBook!.title} Chapter $selectedChapter');
+      final book = selectedBook!;
+      buffer.writeln(book.longTitle ?? book.title);
+      if (book.shortTitle != null) buffer.writeln('Short: ${book.shortTitle}');
+      if (book.abbreviation != null) {
+        buffer.writeln('Abbreviation: ${book.abbreviation}');
+      }
+      buffer.writeln('Chapter $selectedChapter');
       buffer.writeln(
           'Loaded ${verses.length} verses in ${stopwatch.elapsedMilliseconds}ms');
       buffer.writeln();
