@@ -1,3 +1,5 @@
+import 'package:equatable/equatable.dart';
+
 enum VerseSpanKind {
   normal,
   wordsOfJesus,
@@ -16,7 +18,12 @@ enum VerseSpanKind {
   keyword,         // <k> in USFX — glossary keyword or defined term
 }
 
-class VerseSpan {
+// NOTE on serialization: the JSON produced by toJson()/consumed by fromJson()
+// is persisted inside app SQLite databases (basic_bible). Changing key names
+// or enum order is a breaking format change and requires a parser version
+// bump in the app.
+
+class VerseSpan extends Equatable {
   final String text;
   final VerseSpanKind kind;
   final Map<String, String> metadata;
@@ -26,9 +33,27 @@ class VerseSpan {
     this.kind = VerseSpanKind.normal,
     this.metadata = const {},
   });
+
+  factory VerseSpan.fromJson(Map<String, dynamic> json) {
+    final rawMetadata = json['metadata'] as Map<String, dynamic>? ?? const {};
+    return VerseSpan(
+      text: json['text'] as String,
+      kind: VerseSpanKind.values[json['kind'] as int? ?? 0],
+      metadata: rawMetadata.map(
+        (key, value) => MapEntry(key, value.toString()),
+      ),
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {'text': text, 'kind': kind.index, 'metadata': metadata};
+  }
+
+  @override
+  List<Object?> get props => [text, kind, metadata];
 }
 
-class CrossReference {
+class CrossReference extends Equatable {
   final String label;
   final String? target;
   final String? marker;
@@ -53,9 +78,41 @@ class CrossReference {
     this.spanIndex,
     this.charOffset,
   });
+
+  factory CrossReference.fromJson(Map<String, dynamic> json) {
+    return CrossReference(
+      label: json['label'] as String,
+      target: json['target'] as String?,
+      marker: json['marker'] as String?,
+      originRef: json['originRef'] as String?,
+      spanIndex: json['spanIndex'] as int?,
+      charOffset: json['charOffset'] as int?,
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'label': label,
+      'target': target,
+      'marker': marker,
+      'originRef': originRef,
+      'spanIndex': spanIndex,
+      'charOffset': charOffset,
+    };
+  }
+
+  @override
+  List<Object?> get props => [
+    label,
+    target,
+    marker,
+    originRef,
+    spanIndex,
+    charOffset,
+  ];
 }
 
-class Footnote {
+class Footnote extends Equatable {
   /// Backwards-compatible merged body text (all non-origin text joined).
   final String text;
   final String? marker;
@@ -91,6 +148,46 @@ class Footnote {
     this.spanIndex,
     this.charOffset,
   });
+
+  factory Footnote.fromJson(Map<String, dynamic> json) {
+    return Footnote(
+      text: json['text'] as String,
+      marker: json['marker'] as String?,
+      label: json['label'] as String?,
+      bodyText: json['bodyText'] as String?,
+      quotedText: json['quotedText'] as String?,
+      references: (json['references'] as List<dynamic>? ?? const [])
+          .map((e) => CrossReference.fromJson(e as Map<String, dynamic>))
+          .toList(),
+      spanIndex: json['spanIndex'] as int?,
+      charOffset: json['charOffset'] as int?,
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'text': text,
+      'marker': marker,
+      'label': label,
+      'bodyText': bodyText,
+      'quotedText': quotedText,
+      'references': references.map((e) => e.toJson()).toList(),
+      'spanIndex': spanIndex,
+      'charOffset': charOffset,
+    };
+  }
+
+  @override
+  List<Object?> get props => [
+    text,
+    marker,
+    label,
+    bodyText,
+    quotedText,
+    references,
+    spanIndex,
+    charOffset,
+  ];
 }
 
 enum DocumentBlockKind {
@@ -104,7 +201,7 @@ enum DocumentBlockKind {
   tableRow, // <row> — one row; cells stored as tab-joined string in metadata['cells']
 }
 
-class DocumentBlock {
+class DocumentBlock extends Equatable {
   final DocumentBlockKind kind;
   final String text;
   final int? level;
@@ -116,9 +213,33 @@ class DocumentBlock {
     this.level,
     this.metadata = const {},
   });
+
+  factory DocumentBlock.fromJson(Map<String, dynamic> json) {
+    final rawMetadata = json['metadata'] as Map<String, dynamic>? ?? const {};
+    return DocumentBlock(
+      kind: DocumentBlockKind.values[json['kind'] as int? ?? 0],
+      text: json['text'] as String,
+      level: json['level'] as int?,
+      metadata: rawMetadata.map(
+        (key, value) => MapEntry(key, value.toString()),
+      ),
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'kind': kind.index,
+      'text': text,
+      'level': level,
+      'metadata': metadata,
+    };
+  }
+
+  @override
+  List<Object?> get props => [kind, text, level, metadata];
 }
 
-class TocLabel {
+class TocLabel extends Equatable {
   final String text;
   final int level;
 
@@ -126,4 +247,18 @@ class TocLabel {
     required this.text,
     required this.level,
   });
+
+  factory TocLabel.fromJson(Map<String, dynamic> json) {
+    return TocLabel(
+      text: json['text'] as String,
+      level: json['level'] as int,
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {'text': text, 'level': level};
+  }
+
+  @override
+  List<Object?> get props => [text, level];
 }
